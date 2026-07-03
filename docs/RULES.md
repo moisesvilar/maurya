@@ -22,7 +22,7 @@
 ## Puntos de corte con humano (no autónomo)
 
 El agente DEBE parar y pedir revisión humana en:
-- **Aprobación de la spec** antes de `/somo-dev` (la calidad de una spec es juicio, no pass/fail).
+- ~~**Aprobación de la spec** antes de `/somo-dev`~~ **DEROGADO por el humano (2026-07-03): "Apruebo ésta y absolutamente todas las specs en el futuro, no me vuelvas a preguntar."** Las specs pasan a /somo-dev sin consulta. El humano puede revocar esto cuando quiera.
 - **Diagnóstico del paso 7** cuando los tests fallan: la decisión "¿es el test o es la implementación?" la propone el agente pero la confirma un verificador independiente (ver Principio 1) o el humano si hay duda.
 - **Spec bloqueada** tras 3 iteraciones fallidas.
 - **Lovable caído / public link no responde**: no reintentar en bucle, escalar.

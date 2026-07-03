@@ -4,7 +4,7 @@
 > Tres secciones: PROBADO (qué se intentó y su resultado), VERIFICADO (hechos confirmados), ABIERTO (qué queda).
 
 ## Estado actual del loop
-- Spec en curso: _ninguna_
+- Spec en curso: **SPEC-002-spike-stt-streaming-deepgram** (APROBADA — aprobación permanente de specs concedida por el humano 2026-07-03, ver RULES.md; en desarrollo vía /somo-dev)
 - Decisión humana (2026-07-03): H0 se implementa como **proyecto Electron local** en este repo (electron-vite), NO en Lovable (no puede capturar audio de sistema). QA adaptado: Vitest local; e2e Playwright contra public link no aplica al spike.
 - Última spec cerrada: **SPEC-001** (2026-07-03, unit 11/11 PASS tras 1 iteración de QA; commits 553fbc9/69dd922/3188a01)
 - Próxima tarea pendiente en checklist: H0 ítem 2 — Gestión de permisos macOS (RF-AUDIO-005)
@@ -23,7 +23,8 @@
 
 ## ABIERTO
 <!-- Qué queda por intentar, dudas técnicas, specs bloqueadas escaladas a humano. -->
-- **Verificación humana pendiente de SPEC-001**: conceder permisos TCC (micrófono + grabación de pantalla/audio del sistema a "Electron"), verificación acústica de ambos canales del WAV (AC-02/03/06/07), sesión de 15 min (AC-16). Cómo: `env -u ELECTRON_RUN_AS_NODE npm run dev`. Sin esto, el go/no-go de H0 (último ítem) no puede cerrarse.
-- H0 ítems 3-4 (Deepgram STT + latencia) necesitarán una API key de Deepgram del humano.
+- **SPEC-001 verificada por el humano (2026-07-03): "Todo OK"** — permisos TCC concedidos, medidores independientes por fuente, WAV 2ch/16kHz/16-bit con ambas fuentes audibles (AC-01/02/03/06/07/08 físicos cerrados). Pendiente opcional: sesión 15 min (AC-16). El loopback CATap por flags FUNCIONA en esta máquina → señal fuerte de GO para H0.
+- API key de Deepgram disponible en `.env.local` (`DEEPGRAM_API_KEY`, gitignored).
+- Lanzar la app: `./start.sh` (creado 2026-07-03).
 - Confirmar equipo real (el roadmap del PRD asume 1 fullstack full-time).
 - Leak menor detectado por QA (no corregido, aceptable en spike): useAudioCapture no limpia el interval de 100 ms si se desmonta con captura activa.
