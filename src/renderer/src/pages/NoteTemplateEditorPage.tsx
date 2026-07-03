@@ -56,7 +56,7 @@ export function NoteTemplateEditorPage(): React.ReactElement {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[640px] flex-col gap-8 px-6 pt-8">
+    <div className="mx-auto flex min-h-screen w-full max-w-[640px] flex-col gap-8 px-6 pt-8">
       <div>
         <Button variant="ghost" onClick={handleLeave}>
           <ArrowLeft />
@@ -168,6 +168,6 @@ export function NoteTemplateEditorPage(): React.ReactElement {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </main>
+    </div>
   )
 }

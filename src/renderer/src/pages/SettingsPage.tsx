@@ -1,8 +1,6 @@
 import React from 'react'
-import { ArrowLeft } from 'lucide-react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ApiKeyRow } from '@/components/settings/ApiKeyRow'
 import { NoteTemplatesTab } from '@/components/settings/NoteTemplatesTab'
@@ -17,9 +15,12 @@ type SettingsTab = 'api-keys' | 'note-templates'
  * api-keys si falta o es inválido) para que "Volver" del editor de plantillas
  * regrese a la pestaña correcta. Sin forceMount: la pestaña inactiva se
  * desmonta y no dispara sus cargas.
+ *
+ * SPEC-009: la página vive bajo el Layout — sin back button "Volver" (la
+ * navegación la da el sidebar, regla 2.3) y sin h1 propio (el título "Ajustes"
+ * lo da el top bar); las tabs abren el contenido.
  */
 export function SettingsPage(): React.ReactElement {
-  const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { status, save, remove } = useSecrets()
 
@@ -34,14 +35,7 @@ export function SettingsPage(): React.ReactElement {
   const encryptionAvailable = status === null || status.available
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-[640px] flex-col gap-8 px-6 py-8">
-      <div>
-        <Button variant="ghost" onClick={() => void navigate('/')}>
-          <ArrowLeft />
-          Volver
-        </Button>
-      </div>
-      <h1 className="text-2xl font-bold">Ajustes</h1>
+    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-8 px-6 py-8">
       <Tabs value={tab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="api-keys">Claves de IA</TabsTrigger>
@@ -86,6 +80,6 @@ export function SettingsPage(): React.ReactElement {
           <NoteTemplatesTab />
         </TabsContent>
       </Tabs>
-    </main>
+    </div>
   )
 }
