@@ -40,6 +40,25 @@ if (typeof window !== 'undefined') {
     URL.revokeObjectURL = () => undefined
   }
 
+  // jsdom 26 no implementa navigator.mediaDevices y useAudioDevices se suscribe
+  // a 'devicechange' directamente sobre navigator (no pasa por captureService).
+  // `configurable: true` permite que un test individual lo redefina sin pisarse.
+  if (typeof navigator.mediaDevices === 'undefined') {
+    type MediaDevicesStub = Pick<
+      MediaDevices,
+      'addEventListener' | 'removeEventListener' | 'enumerateDevices'
+    >
+    const mediaDevicesStub: MediaDevicesStub = {
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      enumerateDevices: () => Promise.resolve([])
+    }
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: mediaDevicesStub
+    })
+  }
+
   // Radix usa pointer capture y scrollIntoView, ausentes en jsdom
   if (typeof Element.prototype.hasPointerCapture !== 'function') {
     Element.prototype.hasPointerCapture = () => false

@@ -7,3 +7,4 @@ out/
 coverage/
 .eslintcache
 *.log*
+tests/reports/
