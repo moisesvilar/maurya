@@ -2,6 +2,7 @@ import React from 'react'
 import { HashRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { NoteTemplateEditorPage } from '@/pages/NoteTemplateEditorPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { SpikeAudioCapturePage } from '@/pages/SpikeAudioCapturePage'
 
@@ -26,6 +27,8 @@ function App(): React.ReactElement {
         <Routes>
           <Route path="/" element={<HarnessRoute />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/note-templates/new" element={<NoteTemplateEditorPage />} />
+          <Route path="/settings/note-templates/:id" element={<NoteTemplateEditorPage />} />
         </Routes>
       </HashRouter>
       <Toaster />
