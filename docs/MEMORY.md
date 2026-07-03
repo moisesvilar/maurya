@@ -6,8 +6,8 @@
 ## Estado actual del loop
 - Spec en curso: _ninguna_
 - Decisión humana (2026-07-03): H0 se implementa como **proyecto Electron local** en este repo (electron-vite), NO en Lovable (no puede capturar audio de sistema). QA adaptado: Vitest local; e2e Playwright contra public link no aplica al spike.
-- Última spec cerrada: **SPEC-002** (2026-07-03, unit 24/24 PASS a la primera; commit código fcfb08b). Antes: SPEC-001 (verificada por humano, "Todo OK").
-- Próxima tarea pendiente en checklist: H0 ítem 4 — Medición de latencia extremo a extremo (NFR §4.1, Riesgo #3)
+- Última spec cerrada: **SPEC-003** (2026-07-03, unit 32/32 PASS a la primera; commit código c595c5f). Antes: SPEC-002 (24/24), SPEC-001 (verificada por humano "Todo OK").
+- Próxima tarea pendiente en checklist: H0 ítem 5 — 🟡 Probar diarización Deepgram (RF-AUDIO-004). Nota: la distinción entrevistador/interlocutor por CANAL ya la resuelve SPEC-002 (multichannel); el delta real es diarize=true DENTRO del canal mic para entrevistas presenciales (ambas voces por micrófono).
 
 ## PROBADO
 <!-- [SPEC-NNN iter-M] qué se intentó → resultado (PASS/FAIL + causa). Un renglón por intento. -->
