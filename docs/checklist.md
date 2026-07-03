@@ -33,7 +33,7 @@ Depende de H0.
 - [x] 🔴 Pantalla de **settings** para gestionar API keys de LLM y STT (RF-APP-003) — SPEC-007, unit 80/80 PASS
 - [x] 🔴 Guardado seguro de **API keys en keychain** del sistema (NFR §4.6) — SPEC-007 (Electron safeStorage, cifrado verificado en test; write-only al renderer)
 - [x] 🔴 Editor de **note-templates** (contexto + secciones, como note-template-sample.md) (RF-APP-004) — SPEC-008, unit 102/102 PASS tras 1 iteración de QA
-- [ ] 🔴 UI base en **español** y layout de navegación principal (NFR §4.3)
+- [x] 🔴 UI base en **español** y layout de navegación principal (NFR §4.3) — SPEC-009, unit 114/114 PASS. **H1 completo**
 
 ---
 
@@ -138,7 +138,7 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | Hito | Total ítems | Hechos |
 |------|-------------|--------|
 | H0 · Spike | 6 | 5 |
-| H1 · Shell | 6 | 5 |
+| H1 · Shell | 6 | 6 |
 | H2 · CRUD | 9 | 0 |
 | H3 · IA guión | 5 | 0 |
 | H4 · Transcripción | 6 | 0 |
@@ -146,6 +146,6 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H6 · Resumen | 5 | 0 |
 | H7 · Pulido | 7 | 0 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **10** |
+| **Total** | **56** | **11** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.

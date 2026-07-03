@@ -6,10 +6,10 @@
 ## Estado actual del loop
 - Spec en curso: _ninguna_
 - Decisión humana (2026-07-03): H0 se implementa como **proyecto Electron local** en este repo (electron-vite), NO en Lovable (no puede capturar audio de sistema). QA adaptado: Vitest local; e2e Playwright contra public link no aplica al spike.
-- Última spec cerrada: **SPEC-008** (2026-07-04, unit 102/102 PASS tras 1 iter de QA; commit código b83c099; tabs en Ajustes + editor de note-templates). Antes: SPEC-007 (80/80, safeStorage), SPEC-006 (62/62, JSON store), SPEC-005 (45/45, Maurya.app), SPEC-004, SPEC-003, SPEC-002, SPEC-001.
+- Última spec cerrada: **SPEC-009** (2026-07-04, unit 114/114 PASS a la primera; commit código bd094bf; sidebar+top bar, /capture como home, derogados engranaje y Volver de Ajustes). **H1 COMPLETO (6/6)**. Antes: SPEC-008 (editor note-templates), SPEC-007 (safeStorage), SPEC-006 (JSON store), SPEC-005 (Maurya.app), SPEC-004/003/002/001 (spike H0).
 - Lección QA nueva (2026-07-04): jsdom + Radix Tooltip grace area (rects 0×0) → tras el primer unhover, isPointerInTransit queda anclado y ningún tooltip posterior abre en el mismo render. Regla: máx 1 hover de tooltip por it/render.
 - H0 ítem 6 (go/no-go): BORRADOR con GO provisional en docs/spike-audio-go-no-go.md; la FIRMA final espera la sesión de validación del humano (transcripción en vivo, latencia real, diarización, 15 min). **Decisión del loop 2026-07-03: continuar con H1 "a riesgo"** — el riesgo mayor (captura) ya está verificado por humano y el trabajo de H1 es independiente/reversible.
-- Próxima tarea: H1 ítem 6 (último de H1) — **UI base en español + layout de navegación principal** (NFR §4.3): sidebar de la app (design system: sidebar para 3+ secciones — Discoveries [H2], Plantillas de entrevista [H2], Ajustes), top bar, y recolocación del harness de captura como sección provisional. Cierra el shell del producto.
+- Próxima tarea: **H2 ítem 1 — Crear discovery** (RF-DISC-001, Must): primera feature de dominio con UI sobre api.db (SPEC-006) y la página Discoveries del layout (SPEC-009). El resto de H2: RF-DISC-002..005 (CRUD empresas/contactos) y RF-TPL-001..004 (templates de entrevista, hub ya enlazado).
 - Verificación humana pendiente de SPEC-005: abrir dist/mac-arm64/Maurya.app (clic derecho→Abrir), prompts TCC como "Maurya", key en ~/Library/Application Support/Maurya/.env.local.
 
 ## PROBADO
