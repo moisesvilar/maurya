@@ -5,9 +5,13 @@
  */
 import { vi } from 'vitest'
 import type { MauryaApi, TranscriptResultEvent, TranscriptionStatusEvent } from '@/types/audio'
+import type { DbApi } from '@/types/domain'
+
+/** Forma completa del bridge desde SPEC-006: MauryaApi + api.db. */
+export type BridgeApi = MauryaApi & { db: DbApi }
 
 export interface MockApiHandle {
-  api: MauryaApi
+  api: BridgeApi
   /** Simula que main solicita el cierre de la ventana (before close). */
   emitCloseRequested: () => void
   /** Simula un error de escritura reportado por main durante el streaming. */
@@ -18,13 +22,74 @@ export interface MockApiHandle {
   emitTranscriptionResult: (event: TranscriptResultEvent) => void
 }
 
+/**
+ * Mock tipado de api.db (SPEC-006). Sin comportamiento por defecto salvo los
+ * de solo-lectura seguros (getStatus, listados y getNoteByInterview): la UI
+ * CRUD llega en H2 y cada test configurará lo que necesite con vi.mocked(...).
+ */
+function createMockDbApi(): DbApi {
+  return {
+    getStatus: vi
+      .fn<DbApi['getStatus']>()
+      .mockResolvedValue({ ok: true, data: { ready: true, initError: null } }),
+
+    createDiscovery: vi.fn<DbApi['createDiscovery']>(),
+    listDiscoveries: vi.fn<DbApi['listDiscoveries']>().mockResolvedValue({ ok: true, data: [] }),
+    getDiscovery: vi.fn<DbApi['getDiscovery']>(),
+    updateDiscovery: vi.fn<DbApi['updateDiscovery']>(),
+    deleteDiscovery: vi.fn<DbApi['deleteDiscovery']>(),
+
+    createCompany: vi.fn<DbApi['createCompany']>(),
+    listCompanies: vi.fn<DbApi['listCompanies']>().mockResolvedValue({ ok: true, data: [] }),
+    getCompany: vi.fn<DbApi['getCompany']>(),
+    updateCompany: vi.fn<DbApi['updateCompany']>(),
+    deleteCompany: vi.fn<DbApi['deleteCompany']>(),
+
+    createContact: vi.fn<DbApi['createContact']>(),
+    listContacts: vi.fn<DbApi['listContacts']>().mockResolvedValue({ ok: true, data: [] }),
+    getContact: vi.fn<DbApi['getContact']>(),
+    updateContact: vi.fn<DbApi['updateContact']>(),
+    deleteContact: vi.fn<DbApi['deleteContact']>(),
+
+    createInterviewTemplate: vi.fn<DbApi['createInterviewTemplate']>(),
+    listInterviewTemplates: vi
+      .fn<DbApi['listInterviewTemplates']>()
+      .mockResolvedValue({ ok: true, data: [] }),
+    getInterviewTemplate: vi.fn<DbApi['getInterviewTemplate']>(),
+    updateInterviewTemplate: vi.fn<DbApi['updateInterviewTemplate']>(),
+    deleteInterviewTemplate: vi.fn<DbApi['deleteInterviewTemplate']>(),
+
+    createInterview: vi.fn<DbApi['createInterview']>(),
+    listInterviews: vi.fn<DbApi['listInterviews']>().mockResolvedValue({ ok: true, data: [] }),
+    getInterview: vi.fn<DbApi['getInterview']>(),
+    updateInterview: vi.fn<DbApi['updateInterview']>(),
+    deleteInterview: vi.fn<DbApi['deleteInterview']>(),
+
+    createNoteTemplate: vi.fn<DbApi['createNoteTemplate']>(),
+    listNoteTemplates: vi
+      .fn<DbApi['listNoteTemplates']>()
+      .mockResolvedValue({ ok: true, data: [] }),
+    getNoteTemplate: vi.fn<DbApi['getNoteTemplate']>(),
+    updateNoteTemplate: vi.fn<DbApi['updateNoteTemplate']>(),
+    deleteNoteTemplate: vi.fn<DbApi['deleteNoteTemplate']>(),
+
+    createNote: vi.fn<DbApi['createNote']>(),
+    getNoteByInterview: vi
+      .fn<DbApi['getNoteByInterview']>()
+      .mockResolvedValue({ ok: true, data: null }),
+    updateNote: vi.fn<DbApi['updateNote']>(),
+    deleteNote: vi.fn<DbApi['deleteNote']>()
+  }
+}
+
 export function createMockApi(): MockApiHandle {
   const closeCallbacks: Array<() => void> = []
   const errorCallbacks: Array<(message: string) => void> = []
   const statusCallbacks: Array<(event: TranscriptionStatusEvent) => void> = []
   const resultCallbacks: Array<(event: TranscriptResultEvent) => void> = []
 
-  const api: MauryaApi = {
+  const api: BridgeApi = {
+    db: createMockDbApi(),
     permissions: {
       getStatus: vi.fn<MauryaApi['permissions']['getStatus']>().mockResolvedValue({
         microphone: 'granted',

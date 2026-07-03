@@ -240,5 +240,45 @@
       "AC-09": "tests/unit/packaging/env.test.ts::loadLocalEnv::when .env.local exists both in userData and in the app path::reads the userData candidate first and never overwrites variables already defined in process.env (persistencia end-to-end empaquetada: MANUAL)"
     },
     "created_at": "2026-07-03"
+  },
+  "SPEC-006": {
+    "spec_file": "specs/SPEC-006-persistencia-local.md",
+    "unit": [
+      {
+        "file": "tests/unit/persistence/repository.test.ts",
+        "test_count": 15,
+        "description": "Repositorio de dominio contra el store JSON real en directorio temporal (initStore(baseDir) inyectable; electron mockeado con guard que lanza si algo usara app.getPath). CRUD happy path de las 7 entidades (AC-01..AC-07, incl. orden exacto de bloques/preguntas y updatedAt estrictamente creciente por comparación de strings ISO), validación de name vacío/espacios sin persistir —releyendo el archivo— (AC-09), reference con discoveryId inexistente (AC-10), cascada completa de deleteDiscovery con templates globales intactos (AC-11), SET NULL de templateId al borrar template (AC-12), nota borrada con su entrevista (AC-13), listDiscoveries [] en store recién creado (AC-14), dos escrituras encadenadas ambas en el archivo (AC-16) y nombre con emoji + 500 chars idéntico tras roundtrip de disco con re-init (AC-17)."
+      },
+      {
+        "file": "tests/unit/persistence/store.test.ts",
+        "test_count": 2,
+        "description": "Store JSON: supervivencia a reinicios automatizada de verdad —re-init del store sobre el mismo baseDir y entidades intactas— (AC-08), y recuperación de corrupción: db.json con basura → initStore no lanza, getStatus expone initError.kind storage, el archivo dañado se conserva como db.json.corrupt-<timestamp> con su contenido original y el almacén nuevo vacío queda operativo (AC-15)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "bridge-ipc-real": "El registro de los canales db:* en ipcMain real, el envelope DbResult atravesando contextBridge/preload y db:get-status consultado desde el renderer solo son verificables con la app Electron real (no se monta un harness de ipcMain por decisión del pipeline); humo en app real ya realizado por el dev en la entrega. La lógica interior (repository/store, errores tipados, initError) está íntegramente automatizada, y la coherencia de tipos del contrato DbApi la garantiza el typecheck."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/persistence/repository.test.ts::repository::entity CRUD happy path::creates a discovery returning the entity with generated id and populated createdAt/updatedAt",
+      "AC-02": "tests/unit/persistence/repository.test.ts::repository::entity CRUD happy path::creates a company under a discovery and lists it among the discovery companies",
+      "AC-03": "tests/unit/persistence/repository.test.ts::repository::entity CRUD happy path::creates a contact associated to its company",
+      "AC-04": "tests/unit/persistence/repository.test.ts::repository::entity CRUD happy path::persists an interview template with two blocks and ordered questions and reads back the exact order and content",
+      "AC-05": "tests/unit/persistence/repository.test.ts::repository::entity CRUD happy path::creates an interview in draft status with correct contact and template references",
+      "AC-06": "tests/unit/persistence/repository.test.ts::repository::entity CRUD happy path::persists a note template with context and sections and reads it back identical",
+      "AC-07": "tests/unit/persistence/repository.test.ts::repository::entity CRUD happy path::updates a field changing updatedAt strictly forward and reading back the new value",
+      "AC-08": "tests/unit/persistence/store.test.ts::store::when the app restarts over the same data directory::keeps every entity intact after re-initializing the store from disk",
+      "AC-09": "tests/unit/persistence/repository.test.ts::repository::validation::rejects empty or whitespace-only names with a validation error without persisting anything",
+      "AC-10": "tests/unit/persistence/repository.test.ts::repository::validation::rejects a company creation with a nonexistent discoveryId with a reference error without persisting anything",
+      "AC-11": "tests/unit/persistence/repository.test.ts::repository::referential integrity and deletion::deletes a discovery cascading to its companies, contacts, interviews and notes while global templates survive",
+      "AC-12": "tests/unit/persistence/repository.test.ts::repository::referential integrity and deletion::deletes a referenced interview template leaving the interview alive with templateId set to null",
+      "AC-13": "tests/unit/persistence/repository.test.ts::repository::referential integrity and deletion::deletes an interview removing its note as well",
+      "AC-14": "tests/unit/persistence/repository.test.ts::repository::empty state::lists discoveries as an empty array (not an error) on a freshly initialized store",
+      "AC-15": "tests/unit/persistence/store.test.ts::store::when the data file is corrupt at startup::does not crash: reports a typed storage initError, keeps the damaged file as .corrupt-* and starts an empty working store",
+      "AC-16": "tests/unit/persistence/repository.test.ts::repository::edge cases::persists both of two chained writes with no loss when re-reading the file",
+      "AC-17": "tests/unit/persistence/repository.test.ts::repository::edge cases::recovers names with emoji, special characters and 500-char length identical after a disk round-trip"
+    },
+    "created_at": "2026-07-04"
   }
 }
