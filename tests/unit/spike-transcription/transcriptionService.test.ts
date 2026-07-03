@@ -59,6 +59,12 @@ interface PersistedLine {
   receivedAtMs: number
 }
 
+/** Forma del transcript.json desde SPEC-003: { lines, latency }. */
+interface PersistedTranscript {
+  lines: PersistedLine[]
+  latency: { count: number; p50Ms: number; p95Ms: number; maxMs: number } | null
+}
+
 function getConnection(index: number): FakeConnection {
   const connection = harness.instances[index] as FakeConnection | undefined
   if (connection === undefined) {
@@ -145,19 +151,20 @@ describe('transcriptionService', () => {
 
       const dir = mkdtempSync(join(tmpdir(), 'maurya-transcript-'))
       const wavPath = join(dir, 'spike-20260703.wav')
-      const transcriptPath = persistTranscript(wavPath)
+      // SPEC-003 cambió la firma (PersistResult) y la forma del JSON ({ lines, latency })
+      const { transcriptPath } = persistTranscript(wavPath)
       expect(transcriptPath).toBe(join(dir, 'spike-20260703.transcript.json'))
       if (transcriptPath === null) {
         throw new Error('persistTranscript devolvió null con líneas finales recibidas')
       }
-      const persisted = JSON.parse(readFileSync(transcriptPath, 'utf8')) as PersistedLine[]
-      expect(persisted).toHaveLength(2)
-      expect(persisted[0].channel).toBe('mic')
-      expect(persisted[0].text).toBe('hola desde el micro')
-      expect(persisted[1].channel).toBe('system')
-      expect(persisted[1].text).toBe('hola desde el sistema')
+      const persisted = JSON.parse(readFileSync(transcriptPath, 'utf8')) as PersistedTranscript
+      expect(persisted.lines).toHaveLength(2)
+      expect(persisted.lines[0].channel).toBe('mic')
+      expect(persisted.lines[0].text).toBe('hola desde el micro')
+      expect(persisted.lines[1].channel).toBe('system')
+      expect(persisted.lines[1].text).toBe('hola desde el sistema')
       // Cada línea persiste sus timestamps (base de la medición de latencia del ítem 4)
-      for (const line of persisted) {
+      for (const line of persisted.lines) {
         expect(typeof line.startMs).toBe('number')
         expect(typeof line.endMs).toBe('number')
         expect(typeof line.receivedAtMs).toBe('number')
@@ -209,14 +216,14 @@ describe('transcriptionService', () => {
 
       // Las líneas ya recibidas se conservan y se persisten al detener
       const dir = mkdtempSync(join(tmpdir(), 'maurya-transcript-retry-'))
-      const transcriptPath = persistTranscript(join(dir, 'spike-retry.wav'))
+      const { transcriptPath } = persistTranscript(join(dir, 'spike-retry.wav'))
       if (transcriptPath === null) {
         throw new Error('persistTranscript devolvió null: se perdieron las líneas recibidas')
       }
-      const persisted = JSON.parse(readFileSync(transcriptPath, 'utf8')) as PersistedLine[]
-      expect(persisted).toHaveLength(1)
-      expect(persisted[0].channel).toBe('system')
-      expect(persisted[0].text).toBe('línea antes de la caída')
+      const persisted = JSON.parse(readFileSync(transcriptPath, 'utf8')) as PersistedTranscript
+      expect(persisted.lines).toHaveLength(1)
+      expect(persisted.lines[0].channel).toBe('system')
+      expect(persisted.lines[0].text).toBe('línea antes de la caída')
     })
   })
 })

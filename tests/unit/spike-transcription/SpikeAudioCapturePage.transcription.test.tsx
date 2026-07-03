@@ -56,13 +56,15 @@ vi.mock('@/services/wavRecorderService', () => ({
   }
 }))
 
+// SPEC-003 amplió el contrato de StopResult con las estadísticas de latencia
 const SAVED_RESULT: StopResult = {
   filePath: '/tmp/maurya-recordings/spike-test.wav',
   durationSeconds: 12,
   sizeBytes: 44 + 12 * 16000 * 4,
   sampleRate: 16000,
   channels: 2,
-  transcriptPath: null
+  transcriptPath: null,
+  latency: null
 }
 
 let mockApi: MockApiHandle

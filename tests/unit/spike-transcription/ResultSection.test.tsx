@@ -16,7 +16,9 @@ function stopResult(transcriptPath: string | null): StopResult {
     sizeBytes: 44 + 12 * 16000 * 4,
     sampleRate: 16000,
     channels: 2,
-    transcriptPath
+    transcriptPath,
+    // SPEC-003 amplió StopResult; la fila de latencia se testea en spike-latency
+    latency: null
   }
 }
 

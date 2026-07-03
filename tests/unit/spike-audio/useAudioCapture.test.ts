@@ -47,14 +47,15 @@ vi.mock('@/services/wavRecorderService', () => ({
   }
 }))
 
-// SPEC-002 cambió el contrato: recording.stop() ahora devuelve StopResult
+// SPEC-002/003 cambiaron el contrato: recording.stop() devuelve StopResult
 const SAVED_RESULT: StopResult = {
   filePath: '/tmp/maurya-recordings/spike-test.wav',
   durationSeconds: 12,
   sizeBytes: 44 + 12 * 16000 * 4,
   sampleRate: 16000,
   channels: 2,
-  transcriptPath: null
+  transcriptPath: null,
+  latency: null
 }
 
 const ZERO_LEVELS: AudioLevels = { microphone: 0, system: 0 }

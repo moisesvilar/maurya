@@ -57,7 +57,7 @@
       "AC-15": "tests/unit/spike-audio/ConfigSection.test.tsx::ConfigSection::when a capture is in progress (disabled)::disables the microphone selector and shows an explanatory tooltip on hover",
       "AC-16": "MANUAL: sesión sostenida de 15 minutos con continuidad de audio y memoria estable; requiere ejecución prolongada de la app real en macOS"
     },
-    "notes": "SPEC-002 cambió el contrato (StopResult en recording.stop, api.transcription en el bridge) → helpers (tests/helpers/mockApi.ts) y 2 tests actualizados (SpikeAudioCapturePage.test.tsx y useAudioCapture.test.ts usan StopResult con transcriptPath: null).",
+    "notes": "SPEC-002 cambió el contrato (StopResult en recording.stop, api.transcription en el bridge) → helpers (tests/helpers/mockApi.ts) y 2 tests actualizados (SpikeAudioCapturePage.test.tsx y useAudioCapture.test.ts usan StopResult con transcriptPath: null). SPEC-003 amplió StopResult con latency → fixtures actualizadas con latency: null (regresión de contrato esperada, no bug).",
     "created_at": "2026-07-03",
     "updated_at": "2026-07-03"
   },
@@ -125,6 +125,38 @@
       "AC-11": "tests/unit/spike-transcription/transcriptionService.test.ts::transcriptionService::when the connection drops while transcribing::retries once automatically and, if the retry fails, gives up keeping the lines already received",
       "AC-12": "MANUAL: persistencia end-to-end al cerrar la ventana confirmando 'Detener y guardar' requiere app real; caminos unit cubiertos por SPEC-002 AC-05 y SPEC-001 AC-14",
       "AC-13": "MANUAL: persistencia end-to-end tras desconexión física del micrófono requiere hardware real; caminos unit cubiertos por SPEC-001 AC-13 y SPEC-002 AC-05/AC-11"
+    },
+    "notes": "SPEC-003 cambió la firma de persistTranscript (PersistResult) y la forma del transcript.json (array plano → { lines, latency }) → adaptados los asserts de persistencia de transcriptionService.test.ts (AC-05, AC-11) y las fixtures StopResult de ResultSection.test.tsx y SpikeAudioCapturePage.transcription.test.tsx con latency: null (regresión de contrato esperada, no bug).",
+    "created_at": "2026-07-03",
+    "updated_at": "2026-07-03"
+  },
+  "SPEC-003": {
+    "spec_file": "specs/SPEC-003-spike-medicion-latencia.md",
+    "unit": [
+      {
+        "file": "tests/unit/spike-latency/ResultSection.latency.test.tsx",
+        "test_count": 4,
+        "description": "Fila 'Latencia STT' de ResultSection: métricas con formato es-ES 1 decimal y contador singular/plural (AC-01), Badge verde 'OK' en la frontera p95Ms=5000 (AC-02), Badge rojo 'Lenta' (data-variant destructive) con p95Ms=5001 —umbral sobre el crudo, no el redondeo— (AC-03), y ausencia de la fila con latency null (AC-05). Colores verificados por clase/variante y texto (lección jsdom)."
+      },
+      {
+        "file": "tests/unit/spike-latency/transcriptionService.latency.test.ts",
+        "test_count": 4,
+        "description": "computeLatencyStats pura en Node: n=1 → p50=p95=max con count 1 (AC-07) + refuerzo del método nearest-rank (vacío→null, n par → elemento inferior central, datasets a ambos lados del umbral de 5 s). persistTranscript con DeepgramConnection mockeada y fs real: JSON { lines, latency } coherente con lo devuelto (=lo mostrado) y con computeLatencyStats sobre las líneas persistidas (AC-04), y agregación de los finales de ambos tramos de conexión tras caída+reintento (AC-06)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "veredicto-utilizable-en-directo": "El veredicto '¿es utilizable en directo?' es juicio humano sobre una sesión real con red y Deepgram reales (los números de latencia reales dependen del entorno); esta spec entrega las métricas, la decisión go/no-go de latencia es del humano (último ítem de H0). Todos los ACs verificables (7/7) están automatizados en unit."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/spike-latency/ResultSection.latency.test.tsx::ResultSection::when the session produced final transcription results::shows the \"Latencia STT\" row with median, p95, max in seconds (1 decimal, es-ES comma) and the result count",
+      "AC-02": "tests/unit/spike-latency/ResultSection.latency.test.tsx::ResultSection::when the session produced final transcription results::shows a green \"OK\" badge when p95 is at or under the 5 s threshold",
+      "AC-03": "tests/unit/spike-latency/ResultSection.latency.test.tsx::ResultSection::when the session produced final transcription results::shows a red \"Lenta\" badge when p95 exceeds 5 s (raw value, not the rounded display)",
+      "AC-04": "tests/unit/spike-latency/transcriptionService.latency.test.ts::transcriptionService::when persisting a session with final results::writes a { lines, latency } JSON whose latency object matches both the returned stats and computeLatencyStats over the persisted lines",
+      "AC-05": "tests/unit/spike-latency/ResultSection.latency.test.tsx::ResultSection::when the session had no final results::does not show the \"Latencia STT\" row when latency is null",
+      "AC-06": "tests/unit/spike-latency/transcriptionService.latency.test.ts::transcriptionService::when the session had a connection drop and a successful retry::aggregates the final results of both connection stretches into a single latency dataset",
+      "AC-07": "tests/unit/spike-latency/transcriptionService.latency.test.ts::computeLatencyStats::when the session had a single final result::returns that single delta as median, p95 and max with count 1"
     },
     "created_at": "2026-07-03"
   }
