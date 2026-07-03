@@ -4,7 +4,7 @@
  * tests pueden configurarlo con vi.mocked(...) sin ningún `as any`.
  */
 import { vi } from 'vitest'
-import type { MauryaApi } from '@/types/audio'
+import type { MauryaApi, TranscriptResultEvent, TranscriptionStatusEvent } from '@/types/audio'
 
 export interface MockApiHandle {
   api: MauryaApi
@@ -12,11 +12,17 @@ export interface MockApiHandle {
   emitCloseRequested: () => void
   /** Simula un error de escritura reportado por main durante el streaming. */
   emitRecordingError: (message: string) => void
+  /** Simula un cambio de estado de la transcripción emitido por main (SPEC-002). */
+  emitTranscriptionStatus: (event: TranscriptionStatusEvent) => void
+  /** Simula un resultado (parcial o final) de transcripción emitido por main (SPEC-002). */
+  emitTranscriptionResult: (event: TranscriptResultEvent) => void
 }
 
 export function createMockApi(): MockApiHandle {
   const closeCallbacks: Array<() => void> = []
   const errorCallbacks: Array<(message: string) => void> = []
+  const statusCallbacks: Array<(event: TranscriptionStatusEvent) => void> = []
+  const resultCallbacks: Array<(event: TranscriptResultEvent) => void> = []
 
   const api: MauryaApi = {
     permissions: {
@@ -46,6 +52,26 @@ export function createMockApi(): MockApiHandle {
         }
       })
     },
+    transcription: {
+      onStatus: vi.fn<MauryaApi['transcription']['onStatus']>((callback) => {
+        statusCallbacks.push(callback)
+        return () => {
+          const index = statusCallbacks.indexOf(callback)
+          if (index >= 0) {
+            statusCallbacks.splice(index, 1)
+          }
+        }
+      }),
+      onResult: vi.fn<MauryaApi['transcription']['onResult']>((callback) => {
+        resultCallbacks.push(callback)
+        return () => {
+          const index = resultCallbacks.indexOf(callback)
+          if (index >= 0) {
+            resultCallbacks.splice(index, 1)
+          }
+        }
+      })
+    },
     window: {
       onCloseRequested: vi.fn<MauryaApi['window']['onCloseRequested']>((callback) => {
         closeCallbacks.push(callback)
@@ -67,6 +93,12 @@ export function createMockApi(): MockApiHandle {
     },
     emitRecordingError: (message: string): void => {
       errorCallbacks.slice().forEach((callback) => callback(message))
+    },
+    emitTranscriptionStatus: (event: TranscriptionStatusEvent): void => {
+      statusCallbacks.slice().forEach((callback) => callback(event))
+    },
+    emitTranscriptionResult: (event: TranscriptResultEvent): void => {
+      resultCallbacks.slice().forEach((callback) => callback(event))
     }
   }
 }

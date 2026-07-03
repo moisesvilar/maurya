@@ -57,6 +57,75 @@
       "AC-15": "tests/unit/spike-audio/ConfigSection.test.tsx::ConfigSection::when a capture is in progress (disabled)::disables the microphone selector and shows an explanatory tooltip on hover",
       "AC-16": "MANUAL: sesión sostenida de 15 minutos con continuidad de audio y memoria estable; requiere ejecución prolongada de la app real en macOS"
     },
+    "notes": "SPEC-002 cambió el contrato (StopResult en recording.stop, api.transcription en el bridge) → helpers (tests/helpers/mockApi.ts) y 2 tests actualizados (SpikeAudioCapturePage.test.tsx y useAudioCapture.test.ts usan StopResult con transcriptPath: null).",
+    "created_at": "2026-07-03",
+    "updated_at": "2026-07-03"
+  },
+  "SPEC-002": {
+    "spec_file": "specs/SPEC-002-spike-stt-streaming-deepgram.md",
+    "unit": [
+      {
+        "file": "tests/unit/spike-transcription/useTranscription.test.ts",
+        "test_count": 1,
+        "description": "Hook useTranscription con el bridge window.api.transcription mockeado: parciales por canal, consolidación de finales en líneas y reset al iniciar (AC-01)."
+      },
+      {
+        "file": "tests/unit/spike-transcription/TranscriptLine.test.tsx",
+        "test_count": 1,
+        "description": "Línea final con Badge de fuente (Micrófono outline / Sistema secondary) y timestamp mm:ss (AC-02)."
+      },
+      {
+        "file": "tests/unit/spike-transcription/TranscriptionSection.test.tsx",
+        "test_count": 3,
+        "description": "Parcial en curso distinguible (italic + text-muted-foreground, asertado por clase porque jsdom no aplica estilos) (AC-03), Badge de estado con texto por estado Inactiva/Transcribiendo/Desconectado/Sin key (AC-04) y empty state 'Esperando audio…' solo cuando activa sin resultados (AC-09)."
+      },
+      {
+        "file": "tests/unit/spike-transcription/ResultSection.test.tsx",
+        "test_count": 1,
+        "description": "Fila con la ruta del .transcript.json además del WAV, un solo botón Mostrar en Finder, y ausencia de la fila cuando transcriptPath es null (AC-06)."
+      },
+      {
+        "file": "tests/unit/spike-transcription/SpikeAudioCapturePage.transcription.test.tsx",
+        "test_count": 3,
+        "description": "Página con servicios y bridge mockeados: sin key la captura sigue y aparece Alert informativo con .env.local/DEEPGRAM_API_KEY (AC-07), key inválida muestra Alert destructive 'clave inválida' con la captura en curso (AC-10), y toast 'Grabación y transcripción guardadas' cuando stop devuelve transcriptPath (mitad renderer de AC-05)."
+      },
+      {
+        "file": "tests/unit/spike-transcription/transcriptionService.test.ts",
+        "test_count": 3,
+        "description": "Servicio Node de transcripción con DeepgramConnection mockeada (sin red): activación automática con key (connecting→active) (AC-08), cierre limpio CloseStream+flush y persistencia del .transcript.json junto al WAV con fs real (AC-05), y reintento único tras caída con conservación de las líneas recibidas (AC-11)."
+      },
+      {
+        "file": "tests/unit/spike-transcription/deepgramService.test.ts",
+        "test_count": 1,
+        "description": "Capa de parseo main con el WebSocket global stubbeado: mensajes Results (parcial/final, channel_index) normalizados a eventos tipados; Metadata/JSON corrupto/binarios ignorados; auth por subprotocolo (refuerzo de AC-01/AC-02 en la capa main)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "AC-01": "Componente acústica: transcripción con voz real en vivo (hablar al micrófono y ver parciales/finales reales de Deepgram) requiere red, key válida y humano; la lógica de estados del hook y el parseo main están automatizados en unit.",
+      "AC-02": "Componente acústica: voz real por los altavoces transcrita y etiquetada por canal requiere audio real y Deepgram real; el etiquetado UI por canal está automatizado en unit.",
+      "AC-03": "Autoscroll del área de transcript: jsdom no hace layout (scrollHeight siempre 0), cualquier assert sería frágil → verificación visual manual; la distinción visual del parcial está automatizada en unit.",
+      "AC-05": "Componente de red: el flush real de CloseStream contra Deepgram (últimos finales tras detener) requiere conexión real; la orquestación CloseStream→flush→persistencia y el toast están automatizados en unit.",
+      "AC-11": "Componente de red: la pérdida de conexión real con reintento contra Deepgram requiere red real; la lógica de reintento único y conservación de líneas está automatizada en unit (Node).",
+      "AC-12": "Persistencia observada end-to-end al cerrar la ventana y confirmar 'Detener y guardar': requiere app real (main+renderer). El camino unit stop→persistTranscript está cubierto por AC-05 y el AlertDialog por SPEC-001 AC-14.",
+      "AC-13": "Persistencia observada end-to-end tras desconexión física del micrófono: requiere hardware real. Los caminos unit (parada controlada SPEC-001 AC-13 y persistencia de líneas AC-05/AC-11) están cubiertos."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/spike-transcription/useTranscription.test.ts::useTranscription::when partial and final results arrive from main::shows the in-progress partial per channel and consolidates it as a final line when the phrase ends",
+      "AC-02": "tests/unit/spike-transcription/TranscriptLine.test.tsx::TranscriptLine::when rendering final lines from each channel::labels each final line with its source badge (Micrófono/Sistema) and an mm:ss timestamp",
+      "AC-03": "tests/unit/spike-transcription/TranscriptionSection.test.tsx::TranscriptionSection::when results are arriving::renders the in-progress partial visually distinct (muted italic) from the final lines (autoscroll: MANUAL, jsdom sin layout)",
+      "AC-04": "tests/unit/spike-transcription/TranscriptionSection.test.tsx::TranscriptionSection::when the connection state changes::shows a status badge whose text changes with the state, with \"Transcribiendo\" while connected",
+      "AC-05": "tests/unit/spike-transcription/transcriptionService.test.ts::transcriptionService::when the user stops the capture::closes the Deepgram stream cleanly (CloseStream + flush) and persists the final lines as .transcript.json next to the WAV + tests/unit/spike-transcription/SpikeAudioCapturePage.transcription.test.tsx::SpikeAudioCapturePage (transcription)::when stopping a capture that produced a transcript::shows the \"Grabación y transcripción guardadas\" toast when stop returns a transcript path",
+      "AC-06": "tests/unit/spike-transcription/ResultSection.test.tsx::ResultSection::when the recording finished with a transcript::shows the transcript file path in addition to the WAV path, sharing a single \"Mostrar en Finder\"",
+      "AC-07": "tests/unit/spike-transcription/SpikeAudioCapturePage.transcription.test.tsx::SpikeAudioCapturePage (transcription)::when no Deepgram API key is configured::keeps the capture running and shows an informative (non-destructive) alert with the .env.local / DEEPGRAM_API_KEY instruction",
+      "AC-08": "tests/unit/spike-transcription/transcriptionService.test.ts::transcriptionService::when the capture starts with an API key configured::activates the transcription automatically, opening the Deepgram connection with no extra steps",
+      "AC-09": "tests/unit/spike-transcription/TranscriptionSection.test.tsx::TranscriptionSection::when the transcription is active but no speech has been detected yet::shows the \"Esperando audio…\" placeholder only while active and without results",
+      "AC-10": "tests/unit/spike-transcription/SpikeAudioCapturePage.transcription.test.tsx::SpikeAudioCapturePage (transcription)::when the Deepgram API key is invalid::shows a destructive alert \"clave inválida\" while the audio capture continues without transcription",
+      "AC-11": "tests/unit/spike-transcription/transcriptionService.test.ts::transcriptionService::when the connection drops while transcribing::retries once automatically and, if the retry fails, gives up keeping the lines already received",
+      "AC-12": "MANUAL: persistencia end-to-end al cerrar la ventana confirmando 'Detener y guardar' requiere app real; caminos unit cubiertos por SPEC-002 AC-05 y SPEC-001 AC-14",
+      "AC-13": "MANUAL: persistencia end-to-end tras desconexión física del micrófono requiere hardware real; caminos unit cubiertos por SPEC-001 AC-13 y SPEC-002 AC-05/AC-11"
+    },
     "created_at": "2026-07-03"
   }
 }

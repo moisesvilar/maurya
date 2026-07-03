@@ -14,7 +14,7 @@ import {
   listAudioInputDevices
 } from '@/services/captureService'
 import { getPermissionsStatus, requestMicrophoneAccess } from '@/services/permissionsService'
-import type { AudioLevels, RecordingResult } from '@/types/audio'
+import type { AudioLevels, StopResult } from '@/types/audio'
 import { createFakeAudioStream } from '../../helpers/fakeMediaStream'
 import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
 
@@ -54,12 +54,14 @@ vi.mock('@/services/wavRecorderService', () => ({
   }
 }))
 
-const SAVED_RESULT: RecordingResult = {
+// SPEC-002 cambió el contrato: recording.stop() ahora devuelve StopResult
+const SAVED_RESULT: StopResult = {
   filePath: '/tmp/maurya-recordings/spike-test.wav',
   durationSeconds: 12,
   sizeBytes: 44 + 12 * 16000 * 4,
   sampleRate: 16000,
-  channels: 2
+  channels: 2,
+  transcriptPath: null
 }
 
 const ACTIVE_LEVELS: AudioLevels = { microphone: 42, system: 17 }
@@ -182,9 +184,7 @@ describe('SpikeAudioCapturePage', () => {
 
       const alert = await screen.findByRole('alert')
       expect(alert).toHaveTextContent('Permiso de micrófono no concedido')
-      expect(alert).toHaveTextContent(
-        /Ajustes del Sistema → Privacidad y seguridad → Micrófono/
-      )
+      expect(alert).toHaveTextContent(/Ajustes del Sistema → Privacidad y seguridad → Micrófono/)
       // La captura no arranca
       expect(screen.queryByRole('button', { name: 'Detener' })).not.toBeInTheDocument()
       expect(recorderMock.start).not.toHaveBeenCalled()

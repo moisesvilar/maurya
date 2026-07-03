@@ -25,9 +25,15 @@ if (typeof window !== 'undefined') {
   // Radix (Select/Tooltip posicionados con popper) requiere ResizeObserver
   if (typeof globalThis.ResizeObserver === 'undefined') {
     class ResizeObserverStub implements ResizeObserver {
-      observe(): void {}
-      unobserve(): void {}
-      disconnect(): void {}
+      observe(): void {
+        return undefined
+      }
+      unobserve(): void {
+        return undefined
+      }
+      disconnect(): void {
+        return undefined
+      }
     }
     globalThis.ResizeObserver = ResizeObserverStub
   }

@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAudioCapture } from '@/hooks/useAudioCapture'
 import { acquireMicrophoneStream, acquireSystemAudioStream } from '@/services/captureService'
 import { getPermissionsStatus } from '@/services/permissionsService'
-import type { AudioLevels, RecordingResult } from '@/types/audio'
+import type { AudioLevels, StopResult } from '@/types/audio'
 import { createFakeAudioStream, type FakeMediaStreamTrack } from '../../helpers/fakeMediaStream'
 import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
 
@@ -47,12 +47,14 @@ vi.mock('@/services/wavRecorderService', () => ({
   }
 }))
 
-const SAVED_RESULT: RecordingResult = {
+// SPEC-002 cambió el contrato: recording.stop() ahora devuelve StopResult
+const SAVED_RESULT: StopResult = {
   filePath: '/tmp/maurya-recordings/spike-test.wav',
   durationSeconds: 12,
   sizeBytes: 44 + 12 * 16000 * 4,
   sampleRate: 16000,
-  channels: 2
+  channels: 2,
+  transcriptPath: null
 }
 
 const ZERO_LEVELS: AudioLevels = { microphone: 0, system: 0 }
@@ -93,7 +95,7 @@ describe('useAudioCapture', () => {
       })
       expect(result.current.status).toBe('recording')
 
-      let saved: RecordingResult | null = null
+      let saved: StopResult | null = null
       await act(async () => {
         saved = await result.current.stop()
       })
