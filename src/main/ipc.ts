@@ -1,5 +1,6 @@
 import { ipcMain, shell } from 'electron'
 import type { PermissionTarget, StopResult } from '../renderer/src/types/audio'
+import type { SecretKind, SecretsResult } from '../renderer/src/types/secrets'
 import {
   askForMicrophoneAccess,
   getPermissionsSnapshot,
@@ -14,10 +15,42 @@ import {
   startTranscription
 } from './transcriptionService'
 import { registerDbIpcHandlers } from './db/ipc'
+import {
+  getSecretsStatus,
+  initSecrets,
+  removeSecret,
+  saveSecret,
+  toSecretsError
+} from './secretsService'
+
+/**
+ * Registra un canal secrets:* que SIEMPRE resuelve con el envelope
+ * SecretsResult (mismo patrón que db:*): la promesa nunca se rechaza, los
+ * fallos tipados viajan como { ok: false, error }. La clave en claro solo
+ * entra por `secrets:save`; ninguna respuesta la contiene ni la loguea.
+ */
+function handleSecrets<Args extends unknown[], T>(
+  channel: string,
+  operation: (...args: Args) => T
+): void {
+  ipcMain.handle(channel, (_event, ...args: unknown[]): SecretsResult<T> => {
+    try {
+      return { ok: true, data: operation(...(args as Args)) }
+    } catch (error) {
+      return { ok: false, error: toSecretsError(error) }
+    }
+  })
+}
 
 /** Registra todos los canales IPC del spike (excepto el close guard, que vive en index.ts). */
 export function registerIpcHandlers(): void {
   registerDbIpcHandlers()
+
+  initSecrets()
+
+  handleSecrets('secrets:get-status', getSecretsStatus)
+  handleSecrets('secrets:save', (kind: SecretKind, value: string) => saveSecret(kind, value))
+  handleSecrets('secrets:remove', (kind: SecretKind) => removeSecret(kind))
 
   ipcMain.handle('permissions:get-status', () => getPermissionsSnapshot())
 

@@ -1,5 +1,7 @@
 import React, { useCallback } from 'react'
+import { Settings } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import { CaptureErrorAlert } from '@/components/spike/CaptureErrorAlert'
 import { CaptureSection } from '@/components/spike/CaptureSection'
 import { ConfigSection } from '@/components/spike/ConfigSection'
@@ -14,7 +16,18 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { useTranscription } from '@/hooks/useTranscription'
 import type { StopResult } from '@/types/audio'
 
-export function SpikeAudioCapturePage(): React.ReactElement {
+interface SpikeAudioCapturePageProps {
+  /**
+   * Navegación a Ajustes (SPEC-007). Prop opcional inyectada por HarnessRoute
+   * (App.tsx): esta página NO usa useNavigate para seguir siendo renderizable
+   * sin Router en los tests existentes. Sin callback no se muestra el botón.
+   */
+  onOpenSettings?: () => void
+}
+
+export function SpikeAudioCapturePage({
+  onOpenSettings
+}: SpikeAudioCapturePageProps = {}): React.ReactElement {
   const { permissions, refresh } = usePermissions()
   const { devices, selectedDeviceId, setSelectedDeviceId } = useAudioDevices()
 
@@ -68,7 +81,14 @@ export function SpikeAudioCapturePage(): React.ReactElement {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-[640px] flex-col gap-8 px-6 py-8">
-      <h1 className="text-2xl font-bold">Spike — Captura de audio macOS</h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold">Spike — Captura de audio macOS</h1>
+        {onOpenSettings !== undefined && (
+          <Button variant="ghost" size="icon" aria-label="Ajustes" onClick={onOpenSettings}>
+            <Settings />
+          </Button>
+        )}
+      </div>
       {error !== null && <CaptureErrorAlert error={error} />}
       {transcriptionError !== null && <CaptureErrorAlert error={transcriptionError} />}
       <PermissionsSection permissions={permissions} />

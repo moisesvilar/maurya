@@ -11,6 +11,7 @@ import type {
 } from '../renderer/src/types/audio'
 import { DeepgramConnection, classifyConnectionFailure } from './deepgramService'
 import type { DeepgramResult } from './deepgramService'
+import { getDecryptedSecret } from './secretsService'
 
 /** Cola de chunks mientras la conexión abre / reintenta (~20 s de audio). */
 const MAX_QUEUED_CHUNKS = 40
@@ -49,7 +50,16 @@ interface Session {
 
 let session: Session | null = null
 
+/**
+ * Resolución de la clave Deepgram (SPEC-007), re-evaluada en cada captura:
+ * 1º clave de Ajustes (cifrada con safeStorage) → 2º DEEPGRAM_API_KEY de
+ * .env.local (fallback de desarrollo) → 3º null (flujo 'no-key' de SPEC-002).
+ */
 function getApiKey(): string | null {
+  const fromSettings = getDecryptedSecret('deepgram')
+  if (fromSettings !== null) {
+    return fromSettings
+  }
   const key = process.env['DEEPGRAM_API_KEY']?.trim()
   return key !== undefined && key !== '' ? key : null
 }

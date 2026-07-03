@@ -9,6 +9,7 @@ import type {
   TranscriptionStatusEvent
 } from '../renderer/src/types/audio'
 import type { DbApi } from '../renderer/src/types/domain'
+import type { SecretsApi } from '../renderer/src/types/secrets'
 
 /**
  * Bridge de persistencia (SPEC-006): API PLANA (`createCompany`, no
@@ -64,7 +65,18 @@ const db: DbApi = {
   deleteNote: (id) => ipcRenderer.invoke('db:note:delete', id)
 }
 
-const api: MauryaApi & { db: DbApi } = {
+/**
+ * Bridge de secretos (SPEC-007): la clave en claro SOLO viaja renderer → main
+ * en `save`; main nunca la devuelve (las respuestas llevan KeyStatus con
+ * `configured` + `last4`, jamás el valor).
+ */
+const secrets: SecretsApi = {
+  getStatus: () => ipcRenderer.invoke('secrets:get-status'),
+  save: (kind, value) => ipcRenderer.invoke('secrets:save', kind, value),
+  remove: (kind) => ipcRenderer.invoke('secrets:remove', kind)
+}
+
+const api: MauryaApi & { db: DbApi; secrets: SecretsApi } = {
   permissions: {
     getStatus: (): Promise<PermissionsSnapshot> => ipcRenderer.invoke('permissions:get-status'),
     requestMicrophone: (): Promise<boolean> => ipcRenderer.invoke('permissions:request-microphone'),
@@ -117,7 +129,8 @@ const api: MauryaApi & { db: DbApi } = {
       ipcRenderer.send('window:confirm-close')
     }
   },
-  db
+  db,
+  secrets
 }
 
 if (process.contextIsolated) {

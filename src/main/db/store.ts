@@ -1,15 +1,7 @@
 import { app } from 'electron'
-import {
-  closeSync,
-  existsSync,
-  fsyncSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  renameSync,
-  writeSync
-} from 'fs'
+import { existsSync, mkdirSync, readFileSync, renameSync } from 'fs'
 import { join } from 'path'
+import { writeFileAtomicSync } from '../atomicFile'
 import type {
   Company,
   Contact,
@@ -76,17 +68,9 @@ function isDbData(value: unknown): value is DbData {
   return COLLECTIONS.every((collection) => Array.isArray(record[collection]))
 }
 
-/** Escritura atómica: tmp + fsync + rename (APFS) para no dejar nunca un db.json a medias. */
+/** Escritura atómica (tmp + fsync + rename) para no dejar nunca un db.json a medias. */
 function persist(next: DbData): void {
-  const tmpPath = `${dbFilePath}.tmp`
-  const fd = openSync(tmpPath, 'w')
-  try {
-    writeSync(fd, JSON.stringify(next, null, 2))
-    fsyncSync(fd)
-  } finally {
-    closeSync(fd)
-  }
-  renameSync(tmpPath, dbFilePath)
+  writeFileAtomicSync(dbFilePath, JSON.stringify(next, null, 2))
 }
 
 /**
