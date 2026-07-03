@@ -6,8 +6,8 @@
 ## Estado actual del loop
 - Spec en curso: _ninguna_
 - Decisión humana (2026-07-03): H0 se implementa como **proyecto Electron local** en este repo (electron-vite), NO en Lovable (no puede capturar audio de sistema). QA adaptado: Vitest local; e2e Playwright contra public link no aplica al spike.
-- Última spec cerrada: **SPEC-003** (2026-07-03, unit 32/32 PASS a la primera; commit código c595c5f). Antes: SPEC-002 (24/24), SPEC-001 (verificada por humano "Todo OK").
-- Próxima tarea pendiente en checklist: H0 ítem 5 — 🟡 Probar diarización Deepgram (RF-AUDIO-004). Nota: la distinción entrevistador/interlocutor por CANAL ya la resuelve SPEC-002 (multichannel); el delta real es diarize=true DENTRO del canal mic para entrevistas presenciales (ambas voces por micrófono).
+- Última spec cerrada: **SPEC-004** (2026-07-03, unit 40/40 PASS a la primera; commit código bb018ba). Antes: SPEC-003 (32/32), SPEC-002 (24/24), SPEC-001 (verificada por humano "Todo OK").
+- Próxima tarea pendiente en checklist: **H0 ítem 6 — go/no-go**: BORRADOR escrito en docs/spike-audio-go-no-go.md con GO provisional; BLOQUEADO en la sesión de validación final del humano (transcripción en vivo, latencia real, calidad diarización, 15 min). Tras cerrarlo → H1 (shell app: scaffolding ya existe parcialmente por el spike; la spec de H1 deberá partir de lo construido).
 
 ## PROBADO
 <!-- [SPEC-NNN iter-M] qué se intentó → resultado (PASS/FAIL + causa). Un renglón por intento. -->

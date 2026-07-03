@@ -19,7 +19,7 @@ Mayor riesgo técnico; bloquea H4/H5. Va primero a propósito.
 - [x] 🔴 Gestión de **permisos** de micrófono y captura de audio de sistema en macOS (RF-AUDIO-005) — cubierto por SPEC-001 (decisión humana 2026-07-03); iterar si la verificación manual revela huecos
 - [x] 🔴 Integración de **STT streaming con Deepgram** transcribiendo en vivo con baja latencia (RF-AUDIO-003) — SPEC-002, unit 24/24 PASS; verificación con voz real pendiente de humano
 - [x] 🔴 Medir **latencia extremo a extremo** audio→texto y validar que es utilizable en directo (NFR §4.1, Riesgo #3) — SPEC-003, unit 32/32 PASS; veredicto "utilizable" pendiente de sesión real del humano
-- [ ] 🟡 Probar **diarización** (entrevistador vs. interlocutor) de Deepgram (RF-AUDIO-004)
+- [x] 🟡 Probar **diarización** (entrevistador vs. interlocutor) de Deepgram (RF-AUDIO-004) — SPEC-004, unit 40/40 PASS; calidad con voces reales pendiente de humano
 - [ ] 🔴 **Decisión go/no-go** técnico documentada antes de continuar
 
 ---
@@ -137,7 +137,7 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 
 | Hito | Total ítems | Hechos |
 |------|-------------|--------|
-| H0 · Spike | 6 | 4 |
+| H0 · Spike | 6 | 5 |
 | H1 · Shell | 6 | 0 |
 | H2 · CRUD | 9 | 0 |
 | H3 · IA guión | 5 | 0 |
@@ -146,6 +146,6 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H6 · Resumen | 5 | 0 |
 | H7 · Pulido | 7 | 0 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **4** |
+| **Total** | **56** | **5** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
