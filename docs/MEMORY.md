@@ -7,7 +7,8 @@
 - Spec en curso: _ninguna_
 - Decisión humana (2026-07-03): H0 se implementa como **proyecto Electron local** en este repo (electron-vite), NO en Lovable (no puede capturar audio de sistema). QA adaptado: Vitest local; e2e Playwright contra public link no aplica al spike.
 - Última spec cerrada: **SPEC-004** (2026-07-03, unit 40/40 PASS a la primera; commit código bb018ba). Antes: SPEC-003 (32/32), SPEC-002 (24/24), SPEC-001 (verificada por humano "Todo OK").
-- Próxima tarea pendiente en checklist: **H0 ítem 6 — go/no-go**: BORRADOR escrito en docs/spike-audio-go-no-go.md con GO provisional; BLOQUEADO en la sesión de validación final del humano (transcripción en vivo, latencia real, calidad diarización, 15 min). Tras cerrarlo → H1 (shell app: scaffolding ya existe parcialmente por el spike; la spec de H1 deberá partir de lo construido).
+- H0 ítem 6 (go/no-go): BORRADOR con GO provisional en docs/spike-audio-go-no-go.md; la FIRMA final espera la sesión de validación del humano (transcripción en vivo, latencia real, diarización, 15 min). **Decisión del loop 2026-07-03: continuar con H1 "a riesgo"** — el riesgo mayor (captura) ya está verificado por humano y el trabajo de H1 es independiente/reversible.
+- Próxima tarea: H1 ítem 1 — Scaffolding empaquetable en macOS (RF-APP-001). El scaffolding dev ya existe (spike); delta = identidad de la app + electron-builder + Info.plist con NSMicrophoneUsageDescription/NSAudioCaptureUsageDescription (resuelve limitaciones 1 y 5 del go/no-go).
 
 ## PROBADO
 <!-- [SPEC-NNN iter-M] qué se intentó → resultado (PASS/FAIL + causa). Un renglón por intento. -->
