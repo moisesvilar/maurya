@@ -6,9 +6,10 @@
 ## Estado actual del loop
 - Spec en curso: _ninguna_
 - Decisión humana (2026-07-03): H0 se implementa como **proyecto Electron local** en este repo (electron-vite), NO en Lovable (no puede capturar audio de sistema). QA adaptado: Vitest local; e2e Playwright contra public link no aplica al spike.
-- Última spec cerrada: **SPEC-007** (2026-07-04, unit 80/80 PASS a la primera; commit código f67ac61; safeStorage + secrets.json cifrado, api.secrets write-only, HashRouter con /settings; cierra ítems 3 y 4 de H1). Antes: SPEC-006 (62/62, JSON store, ff3d7a0), SPEC-005 (45/45, Maurya.app), SPEC-004 (40/40), SPEC-003 (32/32), SPEC-002 (24/24), SPEC-001 (verificada por humano).
+- Última spec cerrada: **SPEC-008** (2026-07-04, unit 102/102 PASS tras 1 iter de QA; commit código b83c099; tabs en Ajustes + editor de note-templates). Antes: SPEC-007 (80/80, safeStorage), SPEC-006 (62/62, JSON store), SPEC-005 (45/45, Maurya.app), SPEC-004, SPEC-003, SPEC-002, SPEC-001.
+- Lección QA nueva (2026-07-04): jsdom + Radix Tooltip grace area (rects 0×0) → tras el primer unhover, isPointerInTransit queda anclado y ningún tooltip posterior abre en el mismo render. Regla: máx 1 hover de tooltip por it/render.
 - H0 ítem 6 (go/no-go): BORRADOR con GO provisional en docs/spike-audio-go-no-go.md; la FIRMA final espera la sesión de validación del humano (transcripción en vivo, latencia real, diarización, 15 min). **Decisión del loop 2026-07-03: continuar con H1 "a riesgo"** — el riesgo mayor (captura) ya está verificado por humano y el trabajo de H1 es independiente/reversible.
-- Próxima tarea: H1 ítem 5 — **Editor de note-templates** (RF-APP-004): CRUD UI de plantillas de notas (contexto + secciones, como docs/note-template-sample.md) sobre la entidad NoteTemplate que SPEC-006 ya persiste (api.db.createNoteTemplate etc.). Ubicación (dentro de /settings o página propia) la decidirá la spec según design system.
+- Próxima tarea: H1 ítem 6 (último de H1) — **UI base en español + layout de navegación principal** (NFR §4.3): sidebar de la app (design system: sidebar para 3+ secciones — Discoveries [H2], Plantillas de entrevista [H2], Ajustes), top bar, y recolocación del harness de captura como sección provisional. Cierra el shell del producto.
 - Verificación humana pendiente de SPEC-005: abrir dist/mac-arm64/Maurya.app (clic derecho→Abrir), prompts TCC como "Maurya", key en ~/Library/Application Support/Maurya/.env.local.
 
 ## PROBADO
