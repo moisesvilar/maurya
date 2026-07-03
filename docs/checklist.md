@@ -29,7 +29,7 @@ Mayor riesgo técnico; bloquea H4/H5. Va primero a propósito.
 Depende de H0.
 
 - [x] 🔴 Scaffolding **Electron + React + TypeScript** empaquetable en macOS (RF-APP-001) — SPEC-005, unit 45/45 PASS, Maurya.app+DMG generados; verificación del bundle pendiente de humano
-- [ ] 🔴 **Persistencia local** de datos (esquema de datos: discoveries, empresas, contactos, templates, entrevistas, transcripciones, notas) (RF-APP-002)
+- [x] 🔴 **Persistencia local** de datos (esquema de datos: discoveries, empresas, contactos, templates, entrevistas, transcripciones, notas) (RF-APP-002) — SPEC-006, unit 62/62 PASS (JSON store transaccional + api.db)
 - [ ] 🔴 Pantalla de **settings** para gestionar API keys de LLM y STT (RF-APP-003)
 - [ ] 🔴 Guardado seguro de **API keys en keychain** del sistema (NFR §4.6)
 - [ ] 🔴 Editor de **note-templates** (contexto + secciones, como note-template-sample.md) (RF-APP-004)
@@ -138,7 +138,7 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | Hito | Total ítems | Hechos |
 |------|-------------|--------|
 | H0 · Spike | 6 | 5 |
-| H1 · Shell | 6 | 1 |
+| H1 · Shell | 6 | 2 |
 | H2 · CRUD | 9 | 0 |
 | H3 · IA guión | 5 | 0 |
 | H4 · Transcripción | 6 | 0 |
@@ -146,6 +146,6 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H6 · Resumen | 5 | 0 |
 | H7 · Pulido | 7 | 0 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **6** |
+| **Total** | **56** | **7** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.

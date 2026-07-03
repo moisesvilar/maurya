@@ -6,9 +6,9 @@
 ## Estado actual del loop
 - Spec en curso: _ninguna_
 - Decisión humana (2026-07-03): H0 se implementa como **proyecto Electron local** en este repo (electron-vite), NO en Lovable (no puede capturar audio de sistema). QA adaptado: Vitest local; e2e Playwright contra public link no aplica al spike.
-- Última spec cerrada: **SPEC-005** (2026-07-03, unit 45/45 PASS a la primera; commit código 768d754; Maurya.app + DMG en dist/, Info.plist con TCC es-ES verificado por plutil). Antes: SPEC-004 (40/40), SPEC-003 (32/32), SPEC-002 (24/24), SPEC-001 (verificada por humano).
+- Última spec cerrada: **SPEC-006** (2026-07-04, unit 62/62 PASS a la primera; commit código ff3d7a0; motor JSON transaccional en userData/maurya-data/db.json, api.db plano 34 canales, initStore(baseDir) inyectable). Antes: SPEC-005 (45/45, Maurya.app+DMG), SPEC-004 (40/40), SPEC-003 (32/32), SPEC-002 (24/24), SPEC-001 (verificada por humano).
 - H0 ítem 6 (go/no-go): BORRADOR con GO provisional en docs/spike-audio-go-no-go.md; la FIRMA final espera la sesión de validación del humano (transcripción en vivo, latencia real, diarización, 15 min). **Decisión del loop 2026-07-03: continuar con H1 "a riesgo"** — el riesgo mayor (captura) ya está verificado por humano y el trabajo de H1 es independiente/reversible.
-- Próxima tarea: H1 ítem 2 — **Persistencia local** (RF-APP-002): esquema de datos de producto (discoveries, empresas, contactos, templates, entrevistas, transcripciones, notas). Primera spec de dominio (no spike): decidir motor de almacenamiento local (SQLite vía better-sqlite3 en main vs JSON files) — la spec/plan deberá justificarlo.
+- Próxima tarea: H1 ítems 3+4 en una sola spec (SPEC-007) — **Settings de API keys** (RF-APP-003) + **guardado seguro** (NFR §4.6) vía Electron **safeStorage** (Keychain-backed en macOS, sin dependencia nativa — evita el problema ABI). Introduce React Router con ruta /settings mínima; el layout completo de navegación es el ítem 6.
 - Verificación humana pendiente de SPEC-005: abrir dist/mac-arm64/Maurya.app (clic derecho→Abrir), prompts TCC como "Maurya", key en ~/Library/Application Support/Maurya/.env.local.
 
 ## PROBADO
