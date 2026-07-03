@@ -1,9 +1,10 @@
 {
   "name": "maurya",
+  "productName": "Maurya",
   "version": "0.1.0",
-  "description": "Maurya — spike de captura simultánea de micrófono y audio del sistema en macOS (SPEC-001)",
+  "description": "Maurya — copiloto de entrevistas: captura y transcripción de micrófono y audio del sistema en macOS",
   "main": "./out/main/index.js",
-  "author": "example.com",
+  "author": "Maurya",
   "homepage": "https://electron-vite.org",
   "scripts": {
     "format": "prettier --write .",

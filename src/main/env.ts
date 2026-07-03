@@ -8,7 +8,13 @@ import { app } from 'electron'
  * import.meta.env para secretos: los inlinaría en el bundle.
  */
 export function loadLocalEnv(): void {
-  const candidates = [join(app.getAppPath(), '.env.local'), join(process.cwd(), '.env.local')]
+  // userData primero: en la app empaquetada getAppPath() apunta dentro del asar
+  // (solo lectura), así que la key vive en ~/Library/Application Support/Maurya/.env.local
+  const candidates = [
+    join(app.getPath('userData'), '.env.local'),
+    join(app.getAppPath(), '.env.local'),
+    join(process.cwd(), '.env.local')
+  ]
   for (const filePath of candidates) {
     let content: string
     try {
