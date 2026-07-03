@@ -5,3 +5,5 @@ out/
 *.local
 .env
 coverage/
+.eslintcache
+*.log*
