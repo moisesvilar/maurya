@@ -1,0 +1,62 @@
+{
+  "SPEC-001": {
+    "spec_file": "specs/SPEC-001-spike-captura-audio-macos.md",
+    "unit": [
+      {
+        "file": "tests/unit/spike-audio/SpikeAudioCapturePage.test.tsx",
+        "test_count": 6,
+        "description": "Página completa con servicios y bridge window.api mockeados: inicio de captura dual con medidores (AC-01), Mostrar en Finder (AC-09), Alerts destructive de permisos de micrófono y de audio del sistema (AC-10, AC-11), badges de permisos sin prompt (AC-12) y AlertDialog de cierre durante la captura (AC-14)."
+      },
+      {
+        "file": "tests/unit/spike-audio/useAudioCapture.test.ts",
+        "test_count": 2,
+        "description": "Máquina de estados del hook de captura: detención por el usuario con resultado (duración + archivo) y callback onSaved (AC-04), y desconexión del dispositivo con parada controlada, conservación de lo grabado y error device-disconnected (AC-13)."
+      },
+      {
+        "file": "tests/unit/spike-audio/CaptureSection.test.tsx",
+        "test_count": 1,
+        "description": "Cronómetro con formato mm:ss y zero-padding en varios instantes (AC-05)."
+      },
+      {
+        "file": "tests/unit/spike-audio/ConfigSection.test.tsx",
+        "test_count": 1,
+        "description": "Selector de micrófono deshabilitado durante la captura con Tooltip explicativo (AC-15)."
+      },
+      {
+        "file": "tests/unit/spike-audio/wavFileService.test.ts",
+        "test_count": 1,
+        "description": "Servicio Node de escritura WAV con fs real en directorio temporal: header RIFF (canales=2 en bytes 22-23, sample rate=16000 en 24-27, bits=16 en 34-35) y patch de tamaños en offsets 4 y 40 tras stop (AC-08)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "AC-01": "Componente acústica/física: que los medidores reflejen actividad REAL de micrófono y altavoces exige hardware de audio de macOS; la transición de estado y el renderizado de medidores están automatizados en unit.",
+      "AC-02": "Requiere hablar al micrófono físico sin audio del sistema sonando y observar que solo se mueve el medidor de micrófono; no reproducible en jsdom.",
+      "AC-03": "Requiere reproducir audio real por los altavoces sin hablar y observar que solo se mueve el medidor de sistema; no reproducible en jsdom.",
+      "AC-06": "Distinguibilidad de las dos fuentes en el WAV (canal L=mic, R=sistema) exige una grabación real con señal en ambas fuentes e inspección/escucha del archivo.",
+      "AC-07": "Audibilidad e inteligibilidad de ambas señales es una verificación perceptual: hay que reproducir la grabación y escucharla.",
+      "AC-08": "Componente física: la verificación de que el audio real capturado queda a 16 kHz/16-bit se hace sobre una grabación real (p. ej. afinfo/ffprobe); la estructura del header y el patch de tamaños están automatizados en unit.",
+      "AC-16": "Sesión sostenida de 15 minutos con continuidad de audio y memoria estable: requiere ejecución prolongada de la app real en macOS con monitorización del proceso."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/spike-audio/SpikeAudioCapturePage.test.tsx::SpikeAudioCapturePage::when both permissions are granted::starts capturing both sources and renders the two live level meters when the user clicks \"Iniciar captura\"",
+      "AC-02": "MANUAL: requiere hablar al micrófono físico y observar que solo el medidor de micrófono muestra actividad; no reproducible en jsdom",
+      "AC-03": "MANUAL: requiere reproducir audio real por los altavoces y observar que solo el medidor de sistema muestra actividad; no reproducible en jsdom",
+      "AC-04": "tests/unit/spike-audio/useAudioCapture.test.ts::useAudioCapture::when the user stops an ongoing capture::finalizes the recording, exposes the result with total duration and file path, and notifies onSaved",
+      "AC-05": "tests/unit/spike-audio/CaptureSection.test.tsx::CaptureSection::when the capture is running::shows the elapsed time chronometer formatted as mm:ss with zero padding",
+      "AC-06": "MANUAL: distinguibilidad de las dos fuentes (L=mic, R=sistema) exige grabación real e inspección/escucha del archivo",
+      "AC-07": "MANUAL: audibilidad e inteligibilidad de ambas señales es una verificación perceptual sobre una grabación real",
+      "AC-08": "tests/unit/spike-audio/wavFileService.test.ts::wavFileService::when a recording is started, fed PCM chunks and stopped::writes a linear PCM 16-bit 16 kHz stereo RIFF header and patches the size fields at offsets 4 and 40 on stop",
+      "AC-09": "tests/unit/spike-audio/SpikeAudioCapturePage.test.tsx::SpikeAudioCapturePage::when both permissions are granted::calls window.api.recording.showInFinder with the recording path when \"Mostrar en Finder\" is clicked",
+      "AC-10": "tests/unit/spike-audio/SpikeAudioCapturePage.test.tsx::SpikeAudioCapturePage::when the microphone permission is denied::shows a destructive alert with the microphone settings instruction and does not start the capture",
+      "AC-11": "tests/unit/spike-audio/SpikeAudioCapturePage.test.tsx::SpikeAudioCapturePage::when the system audio permission is denied::shows a destructive alert with the screen-and-system-audio settings instruction and does not start the capture",
+      "AC-12": "tests/unit/spike-audio/SpikeAudioCapturePage.test.tsx::SpikeAudioCapturePage::when the page loads::shows the current state of each permission as a badge without triggering any permission prompt",
+      "AC-13": "tests/unit/spike-audio/useAudioCapture.test.ts::useAudioCapture::when the selected input device disconnects during capture::stops in a controlled way, keeps what was recorded so far and reports a device-disconnected error without calling onSaved",
+      "AC-14": "tests/unit/spike-audio/SpikeAudioCapturePage.test.tsx::SpikeAudioCapturePage::when both permissions are granted::shows the \"Detener captura\" AlertDialog when the window close is requested during capture, with cancel and stop-and-save actions",
+      "AC-15": "tests/unit/spike-audio/ConfigSection.test.tsx::ConfigSection::when a capture is in progress (disabled)::disables the microphone selector and shows an explanatory tooltip on hover",
+      "AC-16": "MANUAL: sesión sostenida de 15 minutos con continuidad de audio y memoria estable; requiere ejecución prolongada de la app real en macOS"
+    },
+    "created_at": "2026-07-03"
+  }
+}
