@@ -86,9 +86,22 @@ export interface TranscriptionStatusEvent {
   error?: CaptureError
 }
 
+/**
+ * Estadísticas de latencia STT de la sesión (SPEC-003), calculadas en main
+ * sobre los deltas `receivedAtMs − endMs` de los resultados finales.
+ */
+export interface LatencyStats {
+  count: number
+  p50Ms: number
+  p95Ms: number
+  maxMs: number
+}
+
 /** Resultado de detener la grabación: WAV + transcript (null si no hubo líneas). */
 export interface StopResult extends RecordingResult {
   transcriptPath: string | null
+  /** Estadísticas de latencia STT; null si no hubo resultados finales. */
+  latency: LatencyStats | null
 }
 
 /** Contrato del bridge expuesto por el preload en window.api. */

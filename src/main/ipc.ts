@@ -59,8 +59,8 @@ export function registerIpcHandlers(): void {
       resetTranscription()
       throw error
     }
-    const transcriptPath = persistTranscript(result.filePath)
-    return { ...result, transcriptPath }
+    const { transcriptPath, latency } = persistTranscript(result.filePath)
+    return { ...result, transcriptPath, latency }
   })
 
   ipcMain.handle('recording:show-in-finder', (_event, filePath: string) => {

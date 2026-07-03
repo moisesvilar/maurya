@@ -2,6 +2,7 @@ import { writeFileSync } from 'fs'
 import type { WebContents } from 'electron'
 import type {
   CaptureError,
+  LatencyStats,
   TranscriptChannel,
   TranscriptLine,
   TranscriptResultEvent,
@@ -291,23 +292,56 @@ export async function finishTranscription(): Promise<void> {
   target.connection = null
 }
 
+/** Resultado de persistir la transcripción: ruta del JSON + estadísticas de latencia. */
+export interface PersistResult {
+  transcriptPath: string | null
+  latency: LatencyStats | null
+}
+
+/**
+ * Calcula las estadísticas de latencia STT (SPEC-003) sobre los deltas
+ * `receivedAtMs − endMs` de los resultados finales de la sesión.
+ *
+ * Percentiles por el método **nearest-rank** sobre la lista ordenada:
+ * `sorted[max(0, ceil(p/100 · n) − 1)]`. Con n par, el p50 es el elemento
+ * inferior central (no se interpola). Con n = 1, p50 = p95 = max.
+ *
+ * @returns null si no hay líneas (sin resultados finales).
+ */
+export function computeLatencyStats(lines: TranscriptLine[]): LatencyStats | null {
+  if (lines.length === 0) {
+    return null
+  }
+  const sorted = lines.map((line) => line.receivedAtMs - line.endMs).sort((a, b) => a - b)
+  const n = sorted.length
+  const nearestRank = (p: number): number => sorted[Math.max(0, Math.ceil((p / 100) * n) - 1)]
+  return {
+    count: n,
+    p50Ms: nearestRank(50),
+    p95Ms: nearestRank(95),
+    maxMs: sorted[n - 1]
+  }
+}
+
 /**
  * Persiste las líneas finales como `spike-<timestamp>.transcript.json` junto
- * al WAV y cierra la sesión. Devuelve null si no hubo transcripción.
+ * al WAV (forma `{ lines, latency }`, SPEC-003) y cierra la sesión.
+ * `transcriptPath` y `latency` son null si no hubo resultados finales.
  */
-export function persistTranscript(wavPath: string): string | null {
+export function persistTranscript(wavPath: string): PersistResult {
   if (session === null) {
-    return null
+    return { transcriptPath: null, latency: null }
   }
   const target = session
   emitStatus(target, 'inactive')
   session = null
   if (target.lines.length === 0) {
-    return null
+    return { transcriptPath: null, latency: null }
   }
+  const latency = computeLatencyStats(target.lines)
   const transcriptPath = wavPath.replace(/\.wav$/, '') + '.transcript.json'
-  writeFileSync(transcriptPath, JSON.stringify(target.lines, null, 2))
-  return transcriptPath
+  writeFileSync(transcriptPath, JSON.stringify({ lines: target.lines, latency }, null, 2))
+  return { transcriptPath, latency }
 }
 
 /** Descarta la sesión sin persistir (cierre de emergencia). */
