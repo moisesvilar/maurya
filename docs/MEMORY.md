@@ -4,16 +4,19 @@
 > Tres secciones: PROBADO (qué se intentó y su resultado), VERIFICADO (hechos confirmados), ABIERTO (qué queda).
 
 ## Estado actual del loop
-- Spec en curso: **SPEC-002-spike-stt-streaming-deepgram** (APROBADA — aprobación permanente de specs concedida por el humano 2026-07-03, ver RULES.md; en desarrollo vía /somo-dev)
+- Spec en curso: _ninguna_
 - Decisión humana (2026-07-03): H0 se implementa como **proyecto Electron local** en este repo (electron-vite), NO en Lovable (no puede capturar audio de sistema). QA adaptado: Vitest local; e2e Playwright contra public link no aplica al spike.
-- Última spec cerrada: **SPEC-001** (2026-07-03, unit 11/11 PASS tras 1 iteración de QA; commits 553fbc9/69dd922/3188a01)
-- Próxima tarea pendiente en checklist: H0 ítem 2 — Gestión de permisos macOS (RF-AUDIO-005)
+- Última spec cerrada: **SPEC-002** (2026-07-03, unit 24/24 PASS a la primera; commit código fcfb08b). Antes: SPEC-001 (verificada por humano, "Todo OK").
+- Próxima tarea pendiente en checklist: H0 ítem 4 — Medición de latencia extremo a extremo (NFR §4.1, Riesgo #3)
 
 ## PROBADO
 <!-- [SPEC-NNN iter-M] qué se intentó → resultado (PASS/FAIL + causa). Un renglón por intento. -->
 - [SPEC-001] Implementación Electron 38.8.6 + loopback por flags (CATap) → código completo, typecheck+lint 0 errores, smoke test OK (commit 553fbc9). Fase 0 acústica NO ejecutable por el agente: TCC micrófono=not-determined, screen=denied.
 - [SPEC-001] `shadcn init` → timeouts de red; `lib/utils.ts` y `components.json` escritos a mano (los 8 componentes ui sí por CLI).
 - [SPEC-001 QA iter-1] vitest run → 6/11 FAIL (todos: jsdom sin `navigator.mediaDevices`, usado por useAudioDevices:39). Verificador independiente CONFIRMÓ: defecto de test-infra (stub ausente en tests/setup.ts), no de implementación. Corrección en curso vía QA Dev. Report: tests/reports/SPEC-001-iter-20260703-220418.md
+
+- [SPEC-002] Implementación WS nativo (sin @deepgram/sdk) → commit fcfb08b, typecheck 0, lint 0 en src/, smoke OK. Fase 0 contra Deepgram real: auth por subprotocolo OK, interim/final por canal OK, 401 solo clasificable vía fetch /v1/auth/token, flush CloseStream ~2 s.
+- [SPEC-002] Rotura esperada de tests SPEC-001 por cambio de contrato (StopResult, api.transcription en MauryaApi): 3 errores de tipos en tests/ + 3 lint no-empty-function preexistentes en tests/setup.ts → para QA Dev.
 
 ## VERIFICADO
 <!-- Hechos confirmados por ejecución, no suposiciones. Ej: "SPEC-001 e2e verde en Lovable el <fecha>". -->
@@ -26,5 +29,6 @@
 - **SPEC-001 verificada por el humano (2026-07-03): "Todo OK"** — permisos TCC concedidos, medidores independientes por fuente, WAV 2ch/16kHz/16-bit con ambas fuentes audibles (AC-01/02/03/06/07/08 físicos cerrados). Pendiente opcional: sesión 15 min (AC-16). El loopback CATap por flags FUNCIONA en esta máquina → señal fuerte de GO para H0.
 - API key de Deepgram disponible en `.env.local` (`DEEPGRAM_API_KEY`, gitignored).
 - Lanzar la app: `./start.sh` (creado 2026-07-03).
+- **Verificación humana pendiente de SPEC-002**: sesión con voz real (interims/finales por fuente en pantalla), transcript.json junto al WAV, key inválida en runtime, pérdida de conexión + reintento, autoscroll. Cómo: `./start.sh`.
 - Confirmar equipo real (el roadmap del PRD asume 1 fullstack full-time).
 - Leak menor detectado por QA (no corregido, aceptable en spike): useAudioCapture no limpia el interval de 100 ms si se desmonta con captura activa.
