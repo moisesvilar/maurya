@@ -61,20 +61,10 @@ beforeEach(() => {
   setStatus(NOT_CONFIGURED)
 })
 
+// SPEC-009 derogó el back button "Volver" de Ajustes (regla 2.3: la navegación
+// la da el sidebar) → el test de SPEC-007 AC-02 se eliminó; la navegación se
+// cubre ahora en tests/unit/layout (regresión de contrato, no bug).
 describe('SettingsPage', () => {
-  describe('navigation', () => {
-    // SPEC-007 · AC-02
-    it('navigates back to the harness route when "Volver" is clicked', async () => {
-      const user = userEvent.setup()
-      renderSettings()
-
-      await user.click(await screen.findByRole('button', { name: 'Volver' }))
-
-      expect(await screen.findByText('HARNESS_PROBE')).toBeInTheDocument()
-      expect(screen.queryByText('Ajustes')).not.toBeInTheDocument()
-    })
-  })
-
   describe('saving a key', () => {
     // SPEC-007 · AC-03 (mitad UI)
     it('shows the "Clave de Deepgram guardada" toast and the "Configurada ····abcd" status after a successful save', async () => {
@@ -204,7 +194,8 @@ describe('SettingsPage', () => {
       vi.mocked(mockApi.api.secrets.getStatus).mockReturnValue(new Promise<never>(() => undefined))
       const { container } = renderSettings()
 
-      await screen.findByRole('heading', { name: 'Ajustes' })
+      // SPEC-009 quitó el h1 "Ajustes" (título en el top bar): ancla = tab
+      await screen.findByRole('tab', { name: 'Claves de IA' })
       expect(container.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(2)
       expect(screen.queryByText('No configurada')).not.toBeInTheDocument()
       expect(screen.queryByText('Configurada')).not.toBeInTheDocument()

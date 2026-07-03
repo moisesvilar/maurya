@@ -288,12 +288,7 @@
       {
         "file": "tests/unit/settings/SettingsPage.test.tsx",
         "test_count": 7,
-        "description": "Página de Ajustes en MemoryRouter con api.secrets mockeado: Volver navega a la ruta probe '/' (AC-02), guardar con éxito → toast 'Clave de Deepgram guardada' + Badge 'Configurada' + '····abcd' + input limpiado (AC-03 UI), clave configurada representada con badge/last4 e input vacío type password (AC-06), AlertDialog 'Eliminar clave' con consecuencia y Cancelar/Eliminar sin tocar el almacén al cancelar (AC-10), confirmar Eliminar → remove('deepgram') + toast 'Clave eliminada' + 'No configurada' (AC-11 UI), campo vacío → inline 'Introduce una clave' sin llamar al bridge (AC-12), available=false → Alert destructive + ambos Guardar disabled + Tooltip vía span envolvente (AC-13 UI), y Skeletons en las filas mientras getStatus está pendiente (AC-15)."
-      },
-      {
-        "file": "tests/unit/settings/SpikeAudioCapturePage.settings.test.tsx",
-        "test_count": 1,
-        "description": "Harness sin Router con onOpenSettings inyectado: el botón de engranaje (aria-label 'Ajustes') invoca la prop de navegación (AC-01)."
+        "description": "Página de Ajustes en MemoryRouter con api.secrets mockeado: guardar con éxito → toast 'Clave de Deepgram guardada' + Badge 'Configurada' + '····abcd' + input limpiado (AC-03 UI), clave configurada representada con badge/last4 e input vacío type password (AC-06), AlertDialog 'Eliminar clave' con consecuencia y Cancelar/Eliminar sin tocar el almacén al cancelar (AC-10), confirmar Eliminar → remove('deepgram') + toast 'Clave eliminada' + 'No configurada' (AC-11 UI), campo vacío → inline 'Introduce una clave' sin llamar al bridge (AC-12), available=false → Alert destructive + ambos Guardar disabled + Tooltip vía span envolvente (AC-13 UI), y Skeletons en las filas mientras getStatus está pendiente (AC-15, ancla por tab tras SPEC-009). El test de 'Volver' (AC-02) se eliminó al derogarse el back button en SPEC-009."
       },
       {
         "file": "tests/unit/settings/secretsService.test.ts",
@@ -314,8 +309,8 @@
       "precedencia-con-captura-real": "AC-07/AC-08/AC-09 con una captura real contra Deepgram (la clave de Ajustes usándose de verdad en el stream): requiere red, key válida y sesión real; la lógica de resolución está automatizada en unit."
     },
     "acceptance_criteria_coverage": {
-      "AC-01": "tests/unit/settings/SpikeAudioCapturePage.settings.test.tsx::SpikeAudioCapturePage (settings navigation)::when the settings handler is injected::calls onOpenSettings when the gear button with aria-label \"Ajustes\" is clicked",
-      "AC-02": "tests/unit/settings/SettingsPage.test.tsx::SettingsPage::navigation::navigates back to the harness route when \"Volver\" is clicked",
+      "AC-01": "DEROGADO por SPEC-009 (el engranaje del harness se eliminó; Ajustes se alcanza por el sidebar): cubierto por tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::navigates on item click and marks the active item with background and font weight (not color alone) y tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Captura bajo el layout::renders the working capture harness without the settings gear button",
+      "AC-02": "DEROGADO por SPEC-009 (el back button 'Volver' de Ajustes se eliminó, regla 2.3: la navegación la da el sidebar): cubierto por tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Ajustes bajo el layout::keeps the settings tabs functional and no longer shows the \"Volver\" back button",
       "AC-03": "tests/unit/settings/SettingsPage.test.tsx::SettingsPage::saving a key::shows the \"Clave de Deepgram guardada\" toast and the \"Configurada ····abcd\" status after a successful save + tests/unit/settings/secretsService.test.ts::secretsService::when a key is saved::reports configured status with the correct last4 and never writes the plaintext to disk",
       "AC-04": "tests/unit/settings/secretsService.test.ts::secretsService::when a key is saved::reports configured status with the correct last4 and never writes the plaintext to disk (Keychain real: MANUAL)",
       "AC-05": "tests/unit/settings/secretsService.test.ts::secretsService::when the app restarts over the same data directory::keeps the configured status with the same last4 after re-initializing from disk (app completa real: MANUAL)",
@@ -330,8 +325,9 @@
       "AC-14": "tests/unit/settings/secretsService.test.ts::secretsService::when a key is saved over an existing one::replaces the previous key directly, updating last4 and the decrypted value",
       "AC-15": "tests/unit/settings/SettingsPage.test.tsx::SettingsPage::while the status is loading::shows skeletons in the key status rows (no page spinner) while getStatus is pending"
     },
-    "notes": "Adaptación de infra: tests/helpers/mockApi.ts amplía BridgeApi con secrets: SecretsApi (getStatus con default disponible-sin-claves; save/remove configurables por test) tras el cambio de contrato del preload (window.api.secrets).",
-    "created_at": "2026-07-04"
+    "notes": "Adaptación de infra: tests/helpers/mockApi.ts amplía BridgeApi con secrets: SecretsApi (getStatus con default disponible-sin-claves; save/remove configurables por test) tras el cambio de contrato del preload (window.api.secrets). SPEC-009 derogó AC-01 (engranaje) y AC-02 (Volver): se eliminó tests/unit/settings/SpikeAudioCapturePage.settings.test.tsx y el test de Volver de SettingsPage.test.tsx; navegación remapeada a tests/unit/layout (regresión de contrato presupuestada, no bug). El ancla del test de skeletons pasó de heading 'Ajustes' a la tab 'Claves de IA' (SPEC-009 quitó el h1).",
+    "created_at": "2026-07-04",
+    "updated_at": "2026-07-04"
   },
   "SPEC-008": {
     "spec_file": "specs/SPEC-008-editor-note-templates.md",
@@ -377,8 +373,46 @@
       "AC-20": "tests/unit/note-templates/NoteTemplatesTab.test.tsx::NoteTemplatesTab (listado)::deleting a template::opens the \"Eliminar plantilla\" AlertDialog naming the template, with Cancelar and Eliminar",
       "AC-21": "tests/unit/note-templates/NoteTemplatesTab.test.tsx::NoteTemplatesTab (listado)::deleting a template::removes the row and shows the \"Plantilla eliminada\" toast after confirming the deletion"
     },
-    "notes": "Sin adaptaciones de infra: los defaults existentes de createMockDbApi (listNoteTemplates → ok []) bastaron; getNoteTemplate/create/update/delete se configuran por test. LECCIÓN (iteración QA 2026-07-04): jsdom + Radix grace area — TooltipContentHoverable calcula el grace area con getBoundingClientRect (rects 0,0,0,0 en jsdom) y tras el PRIMER unhover el flag compartido isPointerInTransit del TooltipProvider queda anclado en true, congelando cualquier tooltip posterior del mismo montaje → máximo 1 hover de tooltip por render; el it de AC-12 se dividió en dos tests con render propio.",
+    "notes": "Sin adaptaciones de infra: los defaults existentes de createMockDbApi (listNoteTemplates → ok []) bastaron; getNoteTemplate/create/update/delete se configuran por test. LECCIÓN (iteración QA 2026-07-04): jsdom + Radix grace area — TooltipContentHoverable calcula el grace area con getBoundingClientRect (rects 0,0,0,0 en jsdom) y tras el PRIMER unhover el flag compartido isPointerInTransit del TooltipProvider queda anclado en true, congelando cualquier tooltip posterior del mismo montaje → máximo 1 hover de tooltip por render; el it de AC-12 se dividió en dos tests con render propio. SPEC-009: el assert de no-recarga del AC-02 pasó del heading 'Ajustes' (h1 eliminado) a las tabs montadas (regresión de contrato presupuestada).",
     "created_at": "2026-07-04",
     "updated_at": "2026-07-04"
+  },
+  "SPEC-009": {
+    "spec_file": "specs/SPEC-009-layout-navegacion.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec (14): AC-01 sidebar con 4 items + landmark, AC-02 click navega + item activo fondo+peso, AC-03 colapsar con persistencia localStorage, AC-04 expandir, AC-05 tooltip en colapsado, AC-06 top bar con título de sección, AC-07 index→Captura, AC-08 Discoveries empty, AC-09 hub Plantillas, AC-10 Ajustes sin Volver con tabs funcionales, AC-11 editor conserva Volver, AC-12 Captura sin engranaje, AC-13 idioma español, AC-14 404 con salida.",
+    "unit": [
+      {
+        "file": "tests/unit/layout/Layout.test.tsx",
+        "test_count": 9,
+        "description": "Shell con la tabla de rutas real de App.tsx bajo <Layout/> en MemoryRouter (servicios del harness mockeados; localStorage limpio por test): sidebar con los 4 links y landmark 'Navegación principal' (AC-01), click navega y el activo lleva bg-accent + font-medium por clases (AC-02), colapsar → labels sr-only + marca 'M' + localStorage 'true' + remontaje arranca colapsado (AC-03), refuerzo de AC-03: primer arranque con innerWidth 800 → colapsado sin escribir localStorage, expandir → labels visibles + localStorage 'false' (AC-04), tooltip con el nombre de sección al hover en colapsado —máx 1 hover por render, lección Radix— (AC-05), top bar con el título por ruta clave: /capture 'Captura', /discoveries 'Discoveries', /settings/note-templates/new 'Ajustes' (AC-06), index redirige a Captura (AC-07) y ruta inexistente → 'Página no encontrada' con 'Ir a Captura' funcional (AC-14)."
+      },
+      {
+        "file": "tests/unit/layout/sections.test.tsx",
+        "test_count": 5,
+        "description": "Secciones bajo el layout (misma réplica de rutas): Discoveries con empty state y texto secundario sin CTA (AC-08), hub de Plantillas con card de entrevistas 'Disponible próximamente' no clicable y card de notas que navega a la pestaña note-templates de Ajustes (AC-09), Ajustes sin back button 'Volver' con tabs funcionales (AC-10), editor de plantillas conservando su 'Volver' bajo el layout y volviendo al listado (AC-11), y Captura funcionando sin botón de engranaje con el link 'Ajustes' del sidebar como vía (AC-12)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "humo-visual-shell": "Humo visual del shell: anchos reales del sidebar (240/64px), overflow y scroll del contenedor main, sticky bottom bar del editor bajo el nuevo scroll container, transición de colapso — jsdom no hace layout ni estilos; revisión visual manual."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::shows the sidebar with the four section items and the \"Navegación principal\" landmark",
+      "AC-02": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::navigates on item click and marks the active item with background and font weight (not color alone)",
+      "AC-03": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::collapses to icons-only persisting the state in localStorage and across remounts + tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::starts collapsed on first launch when the window is narrower than 1024px (refuerzo)",
+      "AC-04": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::expands back showing the labels when the expand button is clicked",
+      "AC-05": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::shows a tooltip with the section name when hovering an item of the collapsed sidebar",
+      "AC-06": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::top bar::shows the active section title in the banner for each key route",
+      "AC-07": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::routes::redirects the index route to the Captura section (provisional home)",
+      "AC-08": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Discoveries::shows the Discoveries empty state with its secondary text and no functional CTA",
+      "AC-09": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Plantillas (hub)::shows the disabled interview-templates card and a notes card that navigates to the settings tab",
+      "AC-10": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Ajustes bajo el layout::keeps the settings tabs functional and no longer shows the \"Volver\" back button",
+      "AC-11": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::editor de plantillas bajo el layout::keeps the \"Volver\" back button in the note-template editor (detail flow) under the layout",
+      "AC-12": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Captura bajo el layout::renders the working capture harness without the settings gear button",
+      "AC-13": "REFERENCIA CRUZADA: cubierto implícitamente por los literales españoles asertados en todos los tests del shell y secciones (sidebar 'Discoveries/Plantillas/Captura/Ajustes', top bar, 'Aún no hay discoveries', 'Página no encontrada', 'Ir a Captura', tooltips y aria-labels en español); sin test propio.",
+      "AC-14": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::routes::shows the Spanish 404 page for unknown routes with a working \"Ir a Captura\" link"
+    },
+    "created_at": "2026-07-04"
   }
 }

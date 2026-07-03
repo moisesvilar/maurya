@@ -89,8 +89,13 @@ describe('SettingsPage (tabs de Ajustes)', () => {
         await screen.findByText('Moldes con los que se redactará el resumen de cada entrevista')
       ).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Nueva plantilla' })).toBeInTheDocument()
-      // Sin recarga: la misma página de Ajustes sigue montada
-      expect(screen.getByRole('heading', { name: 'Ajustes' })).toBeInTheDocument()
+      // Sin recarga: las tabs siguen montadas en la misma página (SPEC-009
+      // quitó el h1 "Ajustes"; el título vive en el top bar del layout)
+      expect(screen.getByRole('tab', { name: 'Claves de IA' })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Plantillas de notas' })).toHaveAttribute(
+        'aria-selected',
+        'true'
+      )
       expect(vi.mocked(mockApi.api.db.listNoteTemplates)).toHaveBeenCalledTimes(1)
     })
   })
