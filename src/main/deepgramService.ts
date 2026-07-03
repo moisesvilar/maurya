@@ -6,7 +6,7 @@
  */
 
 const DEEPGRAM_URL =
-  'wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=16000&channels=2&multichannel=true&interim_results=true&language=es'
+  'wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=16000&channels=2&multichannel=true&interim_results=true&language=es&diarize=true'
 
 /** Guardarraíl de backpressure: por encima se descartan chunks (el WAV no se ve afectado). */
 const MAX_BUFFERED_BYTES = 1024 * 1024
@@ -18,6 +18,11 @@ export interface DeepgramResult {
   isFinal: boolean
   startSeconds: number
   durationSeconds: number
+  /**
+   * Hablante mayoritario del resultado según la diarización (SPEC-004),
+   * 0-based; null en interims o si Deepgram no aporta dato por palabra.
+   */
+  speaker: number | null
 }
 
 export interface DeepgramCallbacks {
@@ -25,6 +30,11 @@ export interface DeepgramCallbacks {
   onResult: (result: DeepgramResult) => void
   onClose: (code: number) => void
   onError: (message: string) => void
+}
+
+/** Palabra del mensaje `Results`; con diarize=true incluye el índice de hablante. */
+interface DeepgramWord {
+  speaker?: number
 }
 
 /** Subconjunto del mensaje `Results` del protocolo de Deepgram. */
@@ -35,8 +45,36 @@ interface DeepgramResultsMessage {
   start?: number
   duration?: number
   channel?: {
-    alternatives?: { transcript?: string }[]
+    alternatives?: { transcript?: string; words?: DeepgramWord[] }[]
   }
+}
+
+/**
+ * Hablante mayoritario de las palabras de un resultado (SPEC-004).
+ * Interims → null siempre (la diarización no es estable en parciales).
+ * Se ignoran las palabras sin `speaker` numérico; si no queda ninguna → null.
+ * El recuento respeta el orden de aparición (Map) y el ganador exige `>`
+ * estricto, así que un empate lo gana el primer hablante en aparecer.
+ */
+function majoritySpeaker(words: DeepgramWord[] | undefined, isFinal: boolean): number | null {
+  if (!isFinal || words === undefined) {
+    return null
+  }
+  const counts = new Map<number, number>()
+  for (const word of words) {
+    if (typeof word.speaker === 'number') {
+      counts.set(word.speaker, (counts.get(word.speaker) ?? 0) + 1)
+    }
+  }
+  let winner: number | null = null
+  let winnerCount = 0
+  for (const [speaker, count] of counts) {
+    if (count > winnerCount) {
+      winner = speaker
+      winnerCount = count
+    }
+  }
+  return winner
 }
 
 export class DeepgramConnection {
@@ -110,12 +148,14 @@ export class DeepgramConnection {
     if (message.type !== 'Results') {
       return
     }
+    const isFinal = message.is_final === true
     this.callbacks.onResult({
       channelIndex: message.channel_index?.[0] ?? 0,
       transcript: message.channel?.alternatives?.[0]?.transcript ?? '',
-      isFinal: message.is_final === true,
+      isFinal,
       startSeconds: message.start ?? 0,
-      durationSeconds: message.duration ?? 0
+      durationSeconds: message.duration ?? 0,
+      speaker: majoritySpeaker(message.channel?.alternatives?.[0]?.words, isFinal)
     })
   }
 }

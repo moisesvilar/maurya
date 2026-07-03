@@ -13,7 +13,11 @@ function formatOffset(totalSeconds: number): string {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
-/** Línea final del transcript: Badge de fuente + texto + timestamp mm:ss atenuado. */
+/**
+ * Línea final del transcript: Badge de fuente + etiqueta de hablante (texto
+ * muted, SPEC-004; ausente si la diarización no aporta dato) + texto +
+ * timestamp mm:ss atenuado.
+ */
 export function TranscriptLine({ line }: TranscriptLineProps): React.ReactElement {
   const isMic = line.channel === 'mic'
   return (
@@ -21,6 +25,9 @@ export function TranscriptLine({ line }: TranscriptLineProps): React.ReactElemen
       <Badge variant={isMic ? 'outline' : 'secondary'} className="shrink-0">
         {isMic ? 'Micrófono' : 'Sistema'}
       </Badge>
+      {line.speaker !== null && (
+        <span className="shrink-0 text-xs text-muted-foreground">Hablante {line.speaker + 1}</span>
+      )}
       <span className="flex-1">{line.text}</span>
       <span className="shrink-0 font-mono text-xs text-muted-foreground">
         {formatOffset(line.offsetSeconds)}

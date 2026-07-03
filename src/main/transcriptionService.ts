@@ -149,7 +149,8 @@ function handleResult(target: Session, result: DeepgramResult): void {
     text: result.transcript,
     startMs: Math.round(baseMs + result.startSeconds * 1000),
     endMs: Math.round(baseMs + (result.startSeconds + result.durationSeconds) * 1000),
-    receivedAtMs
+    receivedAtMs,
+    speaker: result.speaker
   }
   if (result.isFinal && result.transcript !== '') {
     target.lines.push(line)

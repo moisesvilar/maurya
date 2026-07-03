@@ -59,6 +59,7 @@ export function useTranscription(): UseTranscriptionResult {
               startMs: event.startMs,
               endMs: event.endMs,
               receivedAtMs: event.receivedAtMs,
+              speaker: event.speaker,
               offsetSeconds: event.offsetSeconds
             }
           ])

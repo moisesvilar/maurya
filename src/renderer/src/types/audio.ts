@@ -71,6 +71,11 @@ export interface TranscriptLine {
   startMs: number
   endMs: number
   receivedAtMs: number
+  /**
+   * Índice de hablante asignado por la diarización de Deepgram (SPEC-004),
+   * 0-based; null si la diarización no aporta dato (Riesgo #9: degradación).
+   */
+  speaker: number | null
 }
 
 /** Resultado (parcial o final) que main envía al renderer por IPC. */
