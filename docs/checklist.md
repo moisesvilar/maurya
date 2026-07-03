@@ -15,7 +15,7 @@
 
 Mayor riesgo técnico; bloquea H4/H5. Va primero a propósito.
 
-- [ ] 🔴 Prueba de captura simultánea de **micrófono + altavoces/salida del sistema** en macOS (RF-AUDIO-002)
+- [x] 🔴 Prueba de captura simultánea de **micrófono + altavoces/salida del sistema** en macOS (RF-AUDIO-002) — SPEC-001, unit 11/11 PASS; verificación acústica/TCC pendiente de humano
 - [ ] 🔴 Gestión de **permisos** de micrófono y captura de audio de sistema en macOS (RF-AUDIO-005)
 - [ ] 🔴 Integración de **STT streaming con Deepgram** transcribiendo en vivo con baja latencia (RF-AUDIO-003)
 - [ ] 🔴 Medir **latencia extremo a extremo** audio→texto y validar que es utilizable en directo (NFR §4.1, Riesgo #3)
@@ -137,7 +137,7 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 
 | Hito | Total ítems | Hechos |
 |------|-------------|--------|
-| H0 · Spike | 6 | 0 |
+| H0 · Spike | 6 | 1 |
 | H1 · Shell | 6 | 0 |
 | H2 · CRUD | 9 | 0 |
 | H3 · IA guión | 5 | 0 |
@@ -146,6 +146,6 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H6 · Resumen | 5 | 0 |
 | H7 · Pulido | 7 | 0 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **0** |
+| **Total** | **56** | **1** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
