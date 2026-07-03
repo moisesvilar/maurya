@@ -67,6 +67,8 @@ describe('DeepgramConnection', () => {
       // Autenticación por subprotocolo: la key nunca va en la URL
       expect(socket.protocols).toEqual(['token', 'dg-key'])
       expect(socket.url).toContain('multichannel=true')
+      // SPEC-004: la diarización va activada en la URL del stream
+      expect(socket.url).toContain('diarize=true')
 
       // Parcial del canal 1 (sistema)
       socket.onmessage?.({
@@ -84,7 +86,9 @@ describe('DeepgramConnection', () => {
         transcript: 'hola parcial',
         isFinal: false,
         startSeconds: 3.5,
-        durationSeconds: 1.25
+        durationSeconds: 1.25,
+        // SPEC-004: sin words[] en el fixture → speaker null
+        speaker: null
       })
 
       // Final del canal 0 (micrófono)
@@ -103,7 +107,9 @@ describe('DeepgramConnection', () => {
         transcript: 'hola final',
         isFinal: true,
         startSeconds: 3.5,
-        durationSeconds: 2
+        durationSeconds: 2,
+        // SPEC-004: sin words[] en el fixture → speaker null
+        speaker: null
       })
 
       // Mensajes que no son Results, JSON corrupto y binarios se ignoran

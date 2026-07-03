@@ -131,14 +131,16 @@ describe('transcriptionService', () => {
         transcript: 'hola desde el micro',
         isFinal: true,
         startSeconds: 0,
-        durationSeconds: 1.2
+        durationSeconds: 1.2,
+        speaker: null
       })
       connection.callbacks.onResult({
         channelIndex: 1,
         transcript: 'hola desde el sistema',
         isFinal: true,
         startSeconds: 1.5,
-        durationSeconds: 1.0
+        durationSeconds: 1.0,
+        speaker: null
       })
 
       const finishPromise = finishTranscription()
@@ -185,7 +187,8 @@ describe('transcriptionService', () => {
         transcript: 'línea antes de la caída',
         isFinal: true,
         startSeconds: 0,
-        durationSeconds: 1
+        durationSeconds: 1,
+        speaker: null
       })
 
       // Cae la conexión ya abierta → estado 'disconnected' con causa + 1 reintento

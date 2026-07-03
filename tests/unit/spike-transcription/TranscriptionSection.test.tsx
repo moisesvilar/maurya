@@ -17,7 +17,9 @@ const FINAL_LINE: TranscriptLineView = {
   startMs: 1000,
   endMs: 2600,
   receivedAtMs: 2700,
-  offsetSeconds: 1
+  offsetSeconds: 1,
+  // SPEC-004 hizo speaker requerido; la etiqueta se testea en spike-diarization
+  speaker: null
 }
 
 describe('TranscriptionSection', () => {

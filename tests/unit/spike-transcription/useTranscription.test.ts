@@ -19,6 +19,8 @@ function resultEvent(overrides: Partial<TranscriptResultEvent>): TranscriptResul
     receivedAtMs: 2100,
     isFinal: false,
     offsetSeconds: 1,
+    // SPEC-004 añadió speaker (requerido) al evento de resultado
+    speaker: null,
     ...overrides
   }
 }
@@ -69,7 +71,9 @@ describe('useTranscription', () => {
         startMs: 1000,
         endMs: 2600,
         receivedAtMs: 2700,
-        offsetSeconds: 1
+        offsetSeconds: 1,
+        // SPEC-004: la línea consolidada incluye el speaker del evento
+        speaker: null
       })
 
       // reset() (al iniciar una captura nueva) limpia todo el estado

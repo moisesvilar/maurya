@@ -126,7 +126,7 @@
       "AC-12": "MANUAL: persistencia end-to-end al cerrar la ventana confirmando 'Detener y guardar' requiere app real; caminos unit cubiertos por SPEC-002 AC-05 y SPEC-001 AC-14",
       "AC-13": "MANUAL: persistencia end-to-end tras desconexión física del micrófono requiere hardware real; caminos unit cubiertos por SPEC-001 AC-13 y SPEC-002 AC-05/AC-11"
     },
-    "notes": "SPEC-003 cambió la firma de persistTranscript (PersistResult) y la forma del transcript.json (array plano → { lines, latency }) → adaptados los asserts de persistencia de transcriptionService.test.ts (AC-05, AC-11) y las fixtures StopResult de ResultSection.test.tsx y SpikeAudioCapturePage.transcription.test.tsx con latency: null (regresión de contrato esperada, no bug).",
+    "notes": "SPEC-003 cambió la firma de persistTranscript (PersistResult) y la forma del transcript.json (array plano → { lines, latency }) → adaptados los asserts de persistencia de transcriptionService.test.ts (AC-05, AC-11) y las fixtures StopResult de ResultSection.test.tsx y SpikeAudioCapturePage.transcription.test.tsx con latency: null (regresión de contrato esperada, no bug). SPEC-004 hizo requerido TranscriptLine.speaker y añadió speaker a DeepgramResult → fixtures/matchers actualizados con speaker: null en deepgramService.test.ts (además: assert de diarize=true en la URL), useTranscription.test.ts, TranscriptLine.test.tsx, TranscriptionSection.test.tsx y transcriptionService.test.ts (regresión de contrato esperada, no bug).",
     "created_at": "2026-07-03",
     "updated_at": "2026-07-03"
   },
@@ -157,6 +157,47 @@
       "AC-05": "tests/unit/spike-latency/ResultSection.latency.test.tsx::ResultSection::when the session had no final results::does not show the \"Latencia STT\" row when latency is null",
       "AC-06": "tests/unit/spike-latency/transcriptionService.latency.test.ts::transcriptionService::when the session had a connection drop and a successful retry::aggregates the final results of both connection stretches into a single latency dataset",
       "AC-07": "tests/unit/spike-latency/transcriptionService.latency.test.ts::computeLatencyStats::when the session had a single final result::returns that single delta as median, p95 and max with count 1"
+    },
+    "notes": "SPEC-004 hizo requerido TranscriptLine.speaker y añadió speaker a DeepgramResult → fixtures actualizadas con speaker: null en transcriptionService.latency.test.ts (builder lineWithDelta y llamadas onResult) (regresión de contrato esperada, no bug).",
+    "created_at": "2026-07-03",
+    "updated_at": "2026-07-03"
+  },
+  "SPEC-004": {
+    "spec_file": "specs/SPEC-004-spike-diarizacion-deepgram.md",
+    "unit": [
+      {
+        "file": "tests/unit/spike-diarization/deepgramService.diarization.test.ts",
+        "test_count": 3,
+        "description": "Extracción del hablante mayoritario en main (majoritySpeaker vía onResult, WebSocket stubbeado): un solo hablante → su índice, mayoría clara → el mayoritario, empate → primero en aparecer (AC-01 capa main); finales sin words o con words sin speaker → null (AC-04 capa main); interims con words diarizadas → null siempre (AC-06)."
+      },
+      {
+        "file": "tests/unit/spike-diarization/TranscriptLine.diarization.test.tsx",
+        "test_count": 2,
+        "description": "Etiqueta UI de hablante: speaker 0 → texto muted 'Hablante 1' (speaker + 1) junto al Badge de fuente, sin ser un segundo Badge (AC-01 UI); speaker null → sin etiqueta, solo el Badge de fuente (AC-04 UI, Riesgo #9)."
+      },
+      {
+        "file": "tests/unit/spike-diarization/TranscriptionSection.diarization.test.tsx",
+        "test_count": 1,
+        "description": "Líneas consecutivas de hablantes distintos por el mismo canal: cada fila con su propia etiqueta 'Hablante 1'/'Hablante 2' y su Badge de fuente, sin agrupar (AC-03)."
+      },
+      {
+        "file": "tests/unit/spike-diarization/transcriptionService.diarization.test.ts",
+        "test_count": 2,
+        "description": "Persistencia del speaker en el transcript.json (DeepgramConnection mockeada, fs real): índice numérico persistido por línea (AC-02) y null explícito —la clave existe con valor null— cuando no hay dato (AC-04 persistencia)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "calidad-separacion-voces": "La calidad de la separación de voces con dos personas reales hablando por el micrófono es juicio humano sobre una sesión presencial simulada (alimenta el go/no-go de H0, Riesgo #9); requiere voces reales y Deepgram real. Nota de dominio: los índices de speaker se reinician por canal (con multichannel=true Deepgram diariza cada canal por separado), así que 'Hablante 1' del mic y 'Hablante 1' del sistema no son la misma persona."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/spike-diarization/deepgramService.diarization.test.ts::DeepgramConnection (diarización)::when a final result carries diarized words::assigns the majority speaker of the words, resolving ties in favor of the first speaker to appear + tests/unit/spike-diarization/TranscriptLine.diarization.test.tsx::TranscriptLine (diarización)::when the line has an identified speaker::renders the muted \"Hablante N\" label (speaker + 1) next to the source badge",
+      "AC-02": "tests/unit/spike-diarization/transcriptionService.diarization.test.ts::transcriptionService (diarización)::when a final line has an identified speaker::persists the numeric speaker index in the transcript line",
+      "AC-03": "tests/unit/spike-diarization/TranscriptionSection.diarization.test.tsx::TranscriptionSection (diarización)::when consecutive lines belong to different speakers on the same channel::renders each consecutive line with its own speaker label, without grouping them",
+      "AC-04": "tests/unit/spike-diarization/deepgramService.diarization.test.ts::DeepgramConnection (diarización)::when the diarization provides no usable data::emits speaker null for finals without words or whose words carry no speaker index + tests/unit/spike-diarization/TranscriptLine.diarization.test.tsx::TranscriptLine (diarización)::when the line has no speaker information::renders no speaker label when speaker is null, keeping only the source badge + tests/unit/spike-diarization/transcriptionService.diarization.test.ts::transcriptionService (diarización)::when a final line has no speaker information::persists speaker as an explicit null in the transcript line",
+      "AC-05": "COVERED BY SPEC-002/003: las suites existentes (transcript, latencia, persistencia, toast) corren íntegramente con speaker: null tras la adaptación de contrato, demostrando que sin datos de diarización el flujo es idéntico — ver SPEC-002 AC-01/AC-05/AC-11 y SPEC-003 AC-04/AC-06/AC-07",
+      "AC-06": "tests/unit/spike-diarization/deepgramService.diarization.test.ts::DeepgramConnection (diarización)::when the result is an interim::emits speaker null for interim results even if they carry diarized words"
     },
     "created_at": "2026-07-03"
   }

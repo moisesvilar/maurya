@@ -14,6 +14,8 @@ function lineView(overrides: Partial<TranscriptLineView>): TranscriptLineView {
     endMs: 6000,
     receivedAtMs: 6100,
     offsetSeconds: 5,
+    // SPEC-004 hizo speaker requerido; la etiqueta se testea en spike-diarization
+    speaker: null,
     ...overrides
   }
 }

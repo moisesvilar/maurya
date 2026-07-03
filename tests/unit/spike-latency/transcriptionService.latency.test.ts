@@ -90,7 +90,9 @@ function lineWithDelta(deltaMs: number, index = 0): TranscriptLine {
     text: `línea ${index}`,
     startMs: endMs - 800,
     endMs,
-    receivedAtMs: endMs + deltaMs
+    receivedAtMs: endMs + deltaMs,
+    // SPEC-004 hizo speaker requerido en TranscriptLine
+    speaker: null
   }
 }
 
@@ -160,21 +162,24 @@ describe('transcriptionService', () => {
         transcript: 'primer final',
         isFinal: true,
         startSeconds: 0,
-        durationSeconds: 1.2
+        durationSeconds: 1.2,
+        speaker: null
       })
       connection.callbacks.onResult({
         channelIndex: 1,
         transcript: 'segundo final',
         isFinal: true,
         startSeconds: 1.5,
-        durationSeconds: 0.8
+        durationSeconds: 0.8,
+        speaker: null
       })
       connection.callbacks.onResult({
         channelIndex: 0,
         transcript: 'tercer final',
         isFinal: true,
         startSeconds: 3,
-        durationSeconds: 1.1
+        durationSeconds: 1.1,
+        speaker: null
       })
 
       const dir = mkdtempSync(join(tmpdir(), 'maurya-latency-'))
@@ -214,7 +219,8 @@ describe('transcriptionService', () => {
         transcript: 'final del primer tramo',
         isFinal: true,
         startSeconds: 0,
-        durationSeconds: 1
+        durationSeconds: 1,
+        speaker: null
       })
 
       // Caída de la conexión abierta → reintento automático (segunda conexión)
@@ -229,7 +235,8 @@ describe('transcriptionService', () => {
         transcript: 'final del segundo tramo',
         isFinal: true,
         startSeconds: 5,
-        durationSeconds: 1
+        durationSeconds: 1,
+        speaker: null
       })
 
       const dir = mkdtempSync(join(tmpdir(), 'maurya-latency-retry-'))
