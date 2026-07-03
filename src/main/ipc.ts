@@ -13,9 +13,12 @@ import {
   resetTranscription,
   startTranscription
 } from './transcriptionService'
+import { registerDbIpcHandlers } from './db/ipc'
 
 /** Registra todos los canales IPC del spike (excepto el close guard, que vive en index.ts). */
 export function registerIpcHandlers(): void {
+  registerDbIpcHandlers()
+
   ipcMain.handle('permissions:get-status', () => getPermissionsSnapshot())
 
   ipcMain.handle('permissions:request-microphone', () => askForMicrophoneAccess())
