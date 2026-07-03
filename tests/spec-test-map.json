@@ -200,5 +200,45 @@
       "AC-06": "tests/unit/spike-diarization/deepgramService.diarization.test.ts::DeepgramConnection (diarización)::when the result is an interim::emits speaker null for interim results even if they carry diarized words"
     },
     "created_at": "2026-07-03"
+  },
+  "SPEC-005": {
+    "spec_file": "specs/SPEC-005-empaquetado-macos.md",
+    "unit": [
+      {
+        "file": "tests/unit/packaging/packagingConfig.test.ts",
+        "test_count": 4,
+        "description": "Config de empaquetado leída como texto (sin dependencia YAML: segmentación simple + substrings): identidad Maurya en package.json/productName, <title> del renderer, title de la BrowserWindow e icns no vacío (AC-01 parcial); appId com.maurya.app estable + versión semver de package.json + setAppUserModelId (AC-02 parcial); script build:mac y targets dmg+zip arm64 con identity null/notarize false (AC-03 config); extendInfo como MAP (no lista) con NSMicrophoneUsageDescription y NSAudioCaptureUsageDescription en es-ES mencionando micrófono/audio del sistema/entrevista (AC-05 config)."
+      },
+      {
+        "file": "tests/unit/packaging/env.test.ts",
+        "test_count": 1,
+        "description": "loadLocalEnv con electron mockeado y fs real: el candidato userData va PRIMERO (la app empaquetada lee la key desde el userData de Maurya) y una variable ya definida en process.env no se pisa (AC-09 parcial)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "AC-01": "Nombre 'Maurya' visible en menú de macOS, dock y título de la ventana real: requiere ejecutar la app (dev o empaquetada) y mirar; la identidad en config/código está automatizada.",
+      "AC-02": "CFBundleIdentifier y CFBundleShortVersionString del bundle real: requiere generar el .app e inspeccionar su Info.plist; la config origen está automatizada.",
+      "AC-03": "Ejecución real de npm run build:mac generando Maurya.app + dmg/zip arm64 sin errores: build real de minutos, la ejecuta el pipeline/humano, no vitest; la config está automatizada.",
+      "AC-04": "Doble clic sobre Maurya.app y comprobación de que el harness funciona igual que en dev: requiere el bundle real y macOS.",
+      "AC-05": "Presencia de las claves TCC en el Info.plist del bundle generado: requiere build real (defusa el riesgo conocido de extendInfo como lista); la forma MAP y los textos es-ES están automatizados sobre electron-builder.yml.",
+      "AC-06": "Atribución del prompt de micrófono a 'Maurya' (no 'Electron'): prompt TCC real de macOS en primera ejecución empaquetada.",
+      "AC-07": "Entradas 'Maurya' en los paneles de Privacidad (Micrófono y Grabación de pantalla y audio del sistema) de Ajustes del Sistema: inspección manual del SO.",
+      "AC-08": "./start.sh sigue funcionando (dev no regresiona por la config de empaquetado): arranque real del entorno de desarrollo.",
+      "AC-09": "Persistencia end-to-end de WAV + transcript.json en el userData de la app empaquetada: requiere captura real dentro de Maurya.app; el orden de candidatos de la key está automatizado."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/packaging/packagingConfig.test.ts::packaging config (SPEC-005)::application identity::names the app \"Maurya\" in package.json, window title, document title and ships a non-empty icns icon (componente visible real: MANUAL)",
+      "AC-02": "tests/unit/packaging/packagingConfig.test.ts::packaging config (SPEC-005)::application identity::declares a stable com.<org>.<app> appId and takes the bundle version from package.json (bundle real: MANUAL)",
+      "AC-03": "tests/unit/packaging/packagingConfig.test.ts::packaging config (SPEC-005)::macOS build targets::configures build:mac to produce dmg and zip artifacts for arm64 with ad-hoc signing (build real: MANUAL)",
+      "AC-04": "MANUAL: doble clic sobre Maurya.app con el harness funcionando requiere el bundle real y macOS",
+      "AC-05": "tests/unit/packaging/packagingConfig.test.ts::packaging config (SPEC-005)::TCC usage descriptions::declares NSMicrophoneUsageDescription and NSAudioCaptureUsageDescription as a MAP with Spanish texts (Info.plist del bundle real: MANUAL)",
+      "AC-06": "MANUAL: el prompt TCC de micrófono atribuido a 'Maurya' solo se observa en la primera ejecución del bundle real",
+      "AC-07": "MANUAL: las entradas 'Maurya' en los paneles de Privacidad de Ajustes del Sistema se inspeccionan a mano en macOS",
+      "AC-08": "MANUAL: ./start.sh arrancando el entorno dev real (no regresión de la config de empaquetado)",
+      "AC-09": "tests/unit/packaging/env.test.ts::loadLocalEnv::when .env.local exists both in userData and in the app path::reads the userData candidate first and never overwrites variables already defined in process.env (persistencia end-to-end empaquetada: MANUAL)"
+    },
+    "created_at": "2026-07-03"
   }
 }
