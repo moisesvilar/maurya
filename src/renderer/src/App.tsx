@@ -4,6 +4,7 @@ import { Layout } from '@/components/layout/Layout'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { DiscoveriesPage } from '@/pages/DiscoveriesPage'
+import { DiscoveryDetailPage } from '@/pages/DiscoveryDetailPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { NoteTemplateEditorPage } from '@/pages/NoteTemplateEditorPage'
 import { SettingsPage } from '@/pages/SettingsPage'
@@ -27,6 +28,7 @@ function App(): React.ReactElement {
             <Route index element={<Navigate to="/capture" replace />} />
             <Route path="capture" element={<SpikeAudioCapturePage />} />
             <Route path="discoveries" element={<DiscoveriesPage />} />
+            <Route path="discoveries/:id" element={<DiscoveryDetailPage />} />
             <Route path="templates" element={<TemplatesHubPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="settings/note-templates/new" element={<NoteTemplateEditorPage />} />
