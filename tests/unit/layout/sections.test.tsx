@@ -79,16 +79,15 @@ beforeEach(() => {
 
 describe('secciones bajo el layout (SPEC-009)', () => {
   describe('Discoveries', () => {
-    // SPEC-009 · AC-08
-    it('shows the Discoveries empty state with its secondary text and no functional CTA', () => {
+    // SPEC-009 · AC-08 (derogado parcialmente por SPEC-010: el empty state
+    // ahora carga del bridge, tiene CTA funcional y perdió el texto provisional)
+    it('shows the Discoveries empty state with its functional CTA under the layout', async () => {
       renderApp('/discoveries')
 
-      expect(screen.getByText('Aún no hay discoveries')).toBeInTheDocument()
+      expect(await screen.findByText('Aún no hay discoveries')).toBeInTheDocument()
       expect(
-        screen.getByText('La gestión de discoveries llegará en la siguiente fase')
+        within(screen.getByRole('main')).getByRole('button', { name: 'Crear primer discovery' })
       ).toBeInTheDocument()
-      // Sin CTA funcional todavía (H2): ningún botón en el área de contenido
-      expect(within(screen.getByRole('main')).queryAllByRole('button')).toHaveLength(0)
     })
   })
 

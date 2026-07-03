@@ -405,13 +405,57 @@
       "AC-05": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::shows a tooltip with the section name when hovering an item of the collapsed sidebar",
       "AC-06": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::top bar::shows the active section title in the banner for each key route",
       "AC-07": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::routes::redirects the index route to the Captura section (provisional home)",
-      "AC-08": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Discoveries::shows the Discoveries empty state with its secondary text and no functional CTA",
+      "AC-08": "DEROGADO PARCIALMENTE por SPEC-010 (el empty state provisional perdió el texto secundario y ganó CTA funcional): tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Discoveries::shows the Discoveries empty state with its functional CTA under the layout + cobertura completa del empty state en SPEC-010 AC-03",
       "AC-09": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Plantillas (hub)::shows the disabled interview-templates card and a notes card that navigates to the settings tab",
       "AC-10": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Ajustes bajo el layout::keeps the settings tabs functional and no longer shows the \"Volver\" back button",
       "AC-11": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::editor de plantillas bajo el layout::keeps the \"Volver\" back button in the note-template editor (detail flow) under the layout",
       "AC-12": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Captura bajo el layout::renders the working capture harness without the settings gear button",
       "AC-13": "REFERENCIA CRUZADA: cubierto implícitamente por los literales españoles asertados en todos los tests del shell y secciones (sidebar 'Discoveries/Plantillas/Captura/Ajustes', top bar, 'Aún no hay discoveries', 'Página no encontrada', 'Ir a Captura', tooltips y aria-labels en español); sin test propio.",
       "AC-14": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::routes::shows the Spanish 404 page for unknown routes with a working \"Ir a Captura\" link"
+    },
+    "notes": "SPEC-010 derogó parcialmente AC-08 (empty state de Discoveries): el test de sections.test.tsx se reescribió con findBy* (la página ahora carga del bridge), sin el texto secundario provisional y asertando el CTA 'Crear primer discovery' (regresión de contrato presupuestada, no bug).",
+    "created_at": "2026-07-04",
+    "updated_at": "2026-07-04"
+  },
+  "SPEC-010": {
+    "spec_file": "specs/SPEC-010-gestion-discoveries.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec (18): AC-01 filas nombre+fecha+Acciones, AC-02 orden updatedAt desc, AC-03 empty con CTA, AC-04 skeletons, AC-05 error+Reintentar, AC-06 dialog Nuevo discovery con foco, AC-07 crear (click y Enter), AC-08 vacío→Campo requerido, AC-09 Cancelar/Escape, AC-10 renombrar precargado y seleccionado, AC-11 guardar renombrado, AC-12 renombrar vacío, AC-13 AlertDialog cascada con «nombre», AC-14 confirmar eliminación, AC-15 detalle con h1+empty empresas, AC-16 id inválido, AC-17 Volver, AC-18 error de mutación.",
+    "unit": [
+      {
+        "file": "tests/unit/discoveries/DiscoveriesPage.test.tsx",
+        "test_count": 16,
+        "description": "Sección Discoveries con api.db mockeado y rutas reales (listado+detalle) en MemoryRouter: fila con nombre-link (href al detalle), 'Creado el <fecha es-ES>' calculada con el mismo toLocaleDateString y botón 'Acciones' (AC-01); orden updatedAt desc con fixture desordenado (AC-02); empty con CTA (AC-03); skeletons con Promise<never> (AC-04); error+Reintentar rellama (AC-05); dialog 'Nuevo discovery' con placeholder y foco en Nombre (AC-06); creación con click en Crear —bridge {name}, toast 'Discovery creado', dialog cerrado, fila arriba— y con Enter en dos its (AC-07); vacío/espacios → 'Campo requerido' sin bridge (AC-08); Cancelar y Escape cierran sin crear (AC-09); renombrar precargado y con el texto seleccionado (activeElement + selectionStart/End) (AC-10); Guardar → updateDiscovery + toast + listado actualizado (AC-11); renombrar vacío → error sin bridge (AC-12); AlertDialog 'Eliminar discovery' con la cascada literal interpolando «nombre» (AC-13); confirmar → deleteDiscovery + toast + fila fuera (AC-14); y create {ok:false} → toast de error con el message, dialog abierto y listado intacto (AC-18). Dialogs de fila abiertos vía menú ⋯ con findBy* (setTimeout(0) del dev)."
+      },
+      {
+        "file": "tests/unit/discoveries/DiscoveryDetailPage.test.tsx",
+        "test_count": 3,
+        "description": "Detalle mínimo (resuelto con listDiscoveries+find): click en el nombre del listado → /discoveries/:id con h1 del discovery, heading 'Empresas' y empty 'Aún no hay empresas' + secundario (AC-15); id inválido → 'Discovery no encontrado' con link 'Volver a Discoveries' funcional (AC-16); y back button 'Volver' que regresa al listado (AC-17)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "humo-visual": "Aspecto visual del listado (hover subrayado del nombre, separadores, iconos del menú ⋯, alineación del DropdownMenu) y del detalle: revisión visual manual — jsdom no hace layout ni estilos."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::listing::renders each row with the clickable name, its creation date and the actions menu button",
+      "AC-02": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::listing::orders the discoveries by updatedAt descending (most recent first)",
+      "AC-03": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::listing::shows the empty state with the \"Crear primer discovery\" CTA when there are none",
+      "AC-04": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::listing::shows skeletons while the list is loading",
+      "AC-05": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::listing::shows the error state with the message and a \"Reintentar\" button that reloads",
+      "AC-06": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::creation::opens the \"Nuevo discovery\" dialog with the focus on the Nombre field",
+      "AC-07": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::creation::creates on \"Crear\" click, closes the dialog, shows the toast and lists the new discovery on top + tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::creation::creates on Enter as well, closing the dialog",
+      "AC-08": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::creation::shows the inline \"Campo requerido\" error for empty or whitespace-only names without calling the bridge",
+      "AC-09": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::creation::closes the dialog without creating anything on Cancelar and on Escape",
+      "AC-10": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::renaming::opens the \"Renombrar discovery\" dialog with the current name preloaded and selected",
+      "AC-11": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::renaming::renames on \"Guardar\", shows the toast and updates the list",
+      "AC-12": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::renaming::shows the inline \"Campo requerido\" error when renaming to empty without calling the bridge",
+      "AC-13": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::deletion::opens the \"Eliminar discovery\" AlertDialog warning about the full cascade with the name",
+      "AC-14": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::deletion::removes the row and shows the \"Discovery eliminado\" toast after confirming",
+      "AC-15": "tests/unit/discoveries/DiscoveryDetailPage.test.tsx::DiscoveryDetailPage::navigating from the list::opens /discoveries/:id from the row name showing the title and the companies empty state",
+      "AC-16": "tests/unit/discoveries/DiscoveryDetailPage.test.tsx::DiscoveryDetailPage::invalid id::shows the error state with the \"Volver a Discoveries\" link for a nonexistent id",
+      "AC-17": "tests/unit/discoveries/DiscoveryDetailPage.test.tsx::DiscoveryDetailPage::back button::returns to the list when the \"Volver\" back button is clicked",
+      "AC-18": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::mutation errors::shows an error toast, keeps the dialog open and leaves the list untouched when the bridge fails"
     },
     "created_at": "2026-07-04"
   }
