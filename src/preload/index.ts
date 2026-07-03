@@ -4,7 +4,9 @@ import type {
   MauryaApi,
   PermissionsSnapshot,
   PermissionTarget,
-  RecordingResult
+  StopResult,
+  TranscriptResultEvent,
+  TranscriptionStatusEvent
 } from '../renderer/src/types/audio'
 
 const api: MauryaApi = {
@@ -19,7 +21,7 @@ const api: MauryaApi = {
     writeChunk: (chunk: ArrayBuffer): void => {
       ipcRenderer.send('recording:write-chunk', chunk)
     },
-    stop: (): Promise<RecordingResult> => ipcRenderer.invoke('recording:stop'),
+    stop: (): Promise<StopResult> => ipcRenderer.invoke('recording:stop'),
     showInFinder: (filePath: string): Promise<void> =>
       ipcRenderer.invoke('recording:show-in-finder', filePath),
     onError: (callback: (message: string) => void): (() => void) => {
@@ -27,6 +29,24 @@ const api: MauryaApi = {
       ipcRenderer.on('recording:error', listener)
       return (): void => {
         ipcRenderer.removeListener('recording:error', listener)
+      }
+    }
+  },
+  transcription: {
+    onStatus: (callback: (event: TranscriptionStatusEvent) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, payload: TranscriptionStatusEvent): void =>
+        callback(payload)
+      ipcRenderer.on('transcription:status', listener)
+      return (): void => {
+        ipcRenderer.removeListener('transcription:status', listener)
+      }
+    },
+    onResult: (callback: (event: TranscriptResultEvent) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, payload: TranscriptResultEvent): void =>
+        callback(payload)
+      ipcRenderer.on('transcription:result', listener)
+      return (): void => {
+        ipcRenderer.removeListener('transcription:result', listener)
       }
     }
   },

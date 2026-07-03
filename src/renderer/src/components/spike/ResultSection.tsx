@@ -1,10 +1,10 @@
 import React from 'react'
 import { FolderOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { RecordingResult } from '@/types/audio'
+import type { StopResult } from '@/types/audio'
 
 interface ResultSectionProps {
-  result: RecordingResult
+  result: StopResult
   onShowInFinder: () => void
 }
 
@@ -20,10 +20,14 @@ export function ResultSection({ result, onShowInFinder }: ResultSectionProps): R
     <section className="space-y-3">
       <h3 className="text-lg font-semibold">Resultado</h3>
       <p className="break-all font-mono text-sm">{result.filePath}</p>
+      {result.transcriptPath !== null && (
+        <p className="break-all font-mono text-sm">{result.transcriptPath}</p>
+      )}
       <div className="flex items-center gap-4 text-sm text-muted-foreground">
         <span>Duración: {formatDuration(result.durationSeconds)}</span>
         <span>PCM 16-bit · 16 kHz · 2 pistas</span>
       </div>
+      {/* Ambos archivos comparten carpeta: un solo botón para la carpeta */}
       <Button variant="outline" onClick={onShowInFinder}>
         <FolderOpen /> Mostrar en Finder
       </Button>

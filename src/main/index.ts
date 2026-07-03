@@ -5,9 +5,13 @@ import icon from '../../resources/icon.png?asset'
 import { LOOPBACK_FEATURE_FLAGS, registerLoopbackHandler } from './loopbackHandler'
 import { registerIpcHandlers } from './ipc'
 import { isRecordingActive } from './wavFileService'
+import { loadLocalEnv } from './env'
 
 // Flags Chromium de loopback de audio macOS: SIEMPRE antes de app.whenReady()
 app.commandLine.appendSwitch('enable-features', LOOPBACK_FEATURE_FLAGS)
+
+// DEEPGRAM_API_KEY desde .env.local: solo vive en el main process
+loadLocalEnv()
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({

@@ -1,5 +1,6 @@
 /**
- * Tipos compartidos del spike de captura de audio (SPEC-001).
+ * Tipos compartidos del spike de captura de audio (SPEC-001) y de la
+ * transcripción STT streaming con Deepgram (SPEC-002).
  * Este módulo NO debe depender del DOM: lo importan (type-only) main y preload.
  */
 
@@ -39,6 +40,8 @@ export type CaptureErrorKind =
   | 'device-disconnected'
   | 'file-write'
   | 'capture-failure'
+  | 'deepgram-auth'
+  | 'deepgram-connection'
 
 export interface CaptureError {
   kind: CaptureErrorKind
@@ -51,6 +54,43 @@ export interface AudioLevels {
   system: number
 }
 
+/** Estado de la sesión de transcripción con Deepgram (SPEC-002). */
+export type TranscriptionStatus = 'inactive' | 'connecting' | 'active' | 'disconnected' | 'no-key'
+
+/** Fuente de una línea de transcripción: canal L = micrófono, canal R = sistema. */
+export type TranscriptChannel = 'mic' | 'system'
+
+/**
+ * Línea final de transcripción tal y como se persiste en el .transcript.json.
+ * Todos los tiempos son epoch ms; `receivedAtMs − endMs` es la base de la
+ * medición de latencia del ítem 4 de H0.
+ */
+export interface TranscriptLine {
+  channel: TranscriptChannel
+  text: string
+  startMs: number
+  endMs: number
+  receivedAtMs: number
+}
+
+/** Resultado (parcial o final) que main envía al renderer por IPC. */
+export interface TranscriptResultEvent extends TranscriptLine {
+  isFinal: boolean
+  /** Segundos desde el inicio de la captura, para el timestamp mm:ss de la UI. */
+  offsetSeconds: number
+}
+
+/** Cambio de estado de la transcripción; `error` acompaña a los fallos de Deepgram. */
+export interface TranscriptionStatusEvent {
+  status: TranscriptionStatus
+  error?: CaptureError
+}
+
+/** Resultado de detener la grabación: WAV + transcript (null si no hubo líneas). */
+export interface StopResult extends RecordingResult {
+  transcriptPath: string | null
+}
+
 /** Contrato del bridge expuesto por el preload en window.api. */
 export interface MauryaApi {
   permissions: {
@@ -61,9 +101,13 @@ export interface MauryaApi {
   recording: {
     start: () => Promise<string>
     writeChunk: (chunk: ArrayBuffer) => void
-    stop: () => Promise<RecordingResult>
+    stop: () => Promise<StopResult>
     showInFinder: (filePath: string) => Promise<void>
     onError: (callback: (message: string) => void) => () => void
+  }
+  transcription: {
+    onStatus: (callback: (event: TranscriptionStatusEvent) => void) => () => void
+    onResult: (callback: (event: TranscriptResultEvent) => void) => () => void
   }
   window: {
     onCloseRequested: (callback: () => void) => () => void

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { AudioLevels, CaptureError, CaptureStatus, RecordingResult } from '@/types/audio'
+import type { AudioLevels, CaptureError, CaptureStatus, StopResult } from '@/types/audio'
 import {
   acquireMicrophoneStream,
   acquireSystemAudioStream,
@@ -33,9 +33,9 @@ export interface UseAudioCaptureResult {
   elapsedSeconds: number
   levels: AudioLevels
   error: CaptureError | null
-  result: RecordingResult | null
+  result: StopResult | null
   start: (deviceId: string) => Promise<void>
-  stop: () => Promise<RecordingResult | null>
+  stop: () => Promise<StopResult | null>
   clearError: () => void
 }
 
@@ -44,12 +44,12 @@ export interface UseAudioCaptureResult {
  * cuando una grabación termina de guardarse por acción del usuario (no cuando
  * la detiene un error, que se comunica vía `error` conservando el resultado).
  */
-export function useAudioCapture(onSaved: (result: RecordingResult) => void): UseAudioCaptureResult {
+export function useAudioCapture(onSaved: (result: StopResult) => void): UseAudioCaptureResult {
   const [status, setStatus] = useState<CaptureStatus>('idle')
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [levels, setLevels] = useState<AudioLevels>({ microphone: 0, system: 0 })
   const [error, setError] = useState<CaptureError | null>(null)
-  const [result, setResult] = useState<RecordingResult | null>(null)
+  const [result, setResult] = useState<StopResult | null>(null)
 
   const recorderRef = useRef<WavRecorderService | null>(null)
   const micStreamRef = useRef<MediaStream | null>(null)
@@ -74,7 +74,7 @@ export function useAudioCapture(onSaved: (result: RecordingResult) => void): Use
   }, [])
 
   const finalize = useCallback(
-    async (cause: CaptureError | null): Promise<RecordingResult | null> => {
+    async (cause: CaptureError | null): Promise<StopResult | null> => {
       const recorder = recorderRef.current
       if (recorder === null || stoppingRef.current) {
         return null
@@ -86,7 +86,7 @@ export function useAudioCapture(onSaved: (result: RecordingResult) => void): Use
       } catch {
         // el cierre del grafo nunca debe impedir guardar el archivo
       }
-      let saved: RecordingResult | null = null
+      let saved: StopResult | null = null
       try {
         saved = await window.api.recording.stop()
         setResult(saved)
@@ -204,7 +204,7 @@ export function useAudioCapture(onSaved: (result: RecordingResult) => void): Use
     [status, finalize, releaseResources]
   )
 
-  const stop = useCallback((): Promise<RecordingResult | null> => finalize(null), [finalize])
+  const stop = useCallback((): Promise<StopResult | null> => finalize(null), [finalize])
 
   const clearError = useCallback((): void => {
     setError(null)

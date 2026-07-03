@@ -14,7 +14,9 @@ const ERROR_TITLES: Record<CaptureError['kind'], string> = {
   'system-audio-permission': 'Permiso de audio del sistema no concedido',
   'device-disconnected': 'Dispositivo desconectado',
   'file-write': 'Error de escritura',
-  'capture-failure': 'Error al iniciar la captura'
+  'capture-failure': 'Error al iniciar la captura',
+  'deepgram-auth': 'Error de conexión con Deepgram',
+  'deepgram-connection': 'Conexión con Deepgram interrumpida'
 }
 
 const SETTINGS_TARGETS: Partial<Record<CaptureError['kind'], PermissionTarget>> = {

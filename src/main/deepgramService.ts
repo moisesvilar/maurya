@@ -1,0 +1,137 @@
+/**
+ * Wrapper del WebSocket de streaming de Deepgram (SPEC-002).
+ * Usa el WebSocket global nativo de Node (validado en fase 0: auth por
+ * subprotocolo ['token', key] funciona; no se necesita @deepgram/sdk).
+ * Vive EXCLUSIVAMENTE en el main process: la key nunca cruza al renderer.
+ */
+
+const DEEPGRAM_URL =
+  'wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=16000&channels=2&multichannel=true&interim_results=true&language=es'
+
+/** Guardarraíl de backpressure: por encima se descartan chunks (el WAV no se ve afectado). */
+const MAX_BUFFERED_BYTES = 1024 * 1024
+
+/** Resultado de transcripción normalizado (un canal, una alternativa). */
+export interface DeepgramResult {
+  channelIndex: number
+  transcript: string
+  isFinal: boolean
+  startSeconds: number
+  durationSeconds: number
+}
+
+export interface DeepgramCallbacks {
+  onOpen: () => void
+  onResult: (result: DeepgramResult) => void
+  onClose: (code: number) => void
+  onError: (message: string) => void
+}
+
+/** Subconjunto del mensaje `Results` del protocolo de Deepgram. */
+interface DeepgramResultsMessage {
+  type?: string
+  channel_index?: number[]
+  is_final?: boolean
+  start?: number
+  duration?: number
+  channel?: {
+    alternatives?: { transcript?: string }[]
+  }
+}
+
+export class DeepgramConnection {
+  private readonly ws: WebSocket
+  private readonly callbacks: DeepgramCallbacks
+  /** true si la conexión llegó a abrirse (distingue fallo de auth/red de una caída posterior). */
+  opened = false
+
+  constructor(apiKey: string, callbacks: DeepgramCallbacks) {
+    this.callbacks = callbacks
+    this.ws = new WebSocket(DEEPGRAM_URL, ['token', apiKey])
+    this.ws.binaryType = 'arraybuffer'
+    this.ws.onopen = (): void => {
+      this.opened = true
+      this.callbacks.onOpen()
+    }
+    this.ws.onmessage = (event): void => {
+      this.handleMessage(event.data)
+    }
+    this.ws.onerror = (): void => {
+      // El WebSocket nativo no expone detalle (fase 0: 401 => error vacío + close 1006)
+      this.callbacks.onError('Error de WebSocket con Deepgram')
+    }
+    this.ws.onclose = (event): void => {
+      this.callbacks.onClose(event.code)
+    }
+  }
+
+  get isOpen(): boolean {
+    return this.ws.readyState === WebSocket.OPEN
+  }
+
+  /** Envía un chunk PCM. Devuelve false si la conexión no está abierta o hay backpressure. */
+  sendAudio(chunk: Buffer): boolean {
+    if (!this.isOpen || this.ws.bufferedAmount > MAX_BUFFERED_BYTES) {
+      return false
+    }
+    this.ws.send(chunk)
+    return true
+  }
+
+  sendKeepAlive(): void {
+    if (this.isOpen) {
+      this.ws.send(JSON.stringify({ type: 'KeepAlive' }))
+    }
+  }
+
+  /** Pide a Deepgram el flush de los resultados pendientes; el servidor cierra después. */
+  closeStream(): void {
+    if (this.isOpen) {
+      this.ws.send(JSON.stringify({ type: 'CloseStream' }))
+    }
+  }
+
+  terminate(): void {
+    if (this.ws.readyState !== WebSocket.CLOSED && this.ws.readyState !== WebSocket.CLOSING) {
+      this.ws.close()
+    }
+  }
+
+  private handleMessage(data: unknown): void {
+    if (typeof data !== 'string') {
+      return
+    }
+    let message: DeepgramResultsMessage
+    try {
+      message = JSON.parse(data) as DeepgramResultsMessage
+    } catch {
+      return
+    }
+    if (message.type !== 'Results') {
+      return
+    }
+    this.callbacks.onResult({
+      channelIndex: message.channel_index?.[0] ?? 0,
+      transcript: message.channel?.alternatives?.[0]?.transcript ?? '',
+      isFinal: message.is_final === true,
+      startSeconds: message.start ?? 0,
+      durationSeconds: message.duration ?? 0
+    })
+  }
+}
+
+/**
+ * Clasifica un fallo de conexión que nunca llegó a abrirse: el WS nativo no
+ * distingue un 401 de un fallo de red (fase 0), así que se consulta el
+ * endpoint de auth. Devuelve 'auth' solo ante un 401 inequívoco.
+ */
+export async function classifyConnectionFailure(apiKey: string): Promise<'auth' | 'other'> {
+  try {
+    const response = await fetch('https://api.deepgram.com/v1/auth/token', {
+      headers: { Authorization: `Token ${apiKey}` }
+    })
+    return response.status === 401 ? 'auth' : 'other'
+  } catch {
+    return 'other'
+  }
+}
