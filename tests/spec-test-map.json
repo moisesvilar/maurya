@@ -280,5 +280,57 @@
       "AC-17": "tests/unit/persistence/repository.test.ts::repository::edge cases::recovers names with emoji, special characters and 500-char length identical after a disk round-trip"
     },
     "created_at": "2026-07-04"
+  },
+  "SPEC-007": {
+    "spec_file": "specs/SPEC-007-settings-api-keys.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec: AC-01 engranaje→Ajustes, AC-02 Volver, AC-03 guardar (toast+badge+last4), AC-04 sin plaintext en disco, AC-05 persiste tras reinicio, AC-06 campo write-only vacío, AC-07 clave de Ajustes prevalece sobre env, AC-08 fallback env, AC-09 sin nada→no-key, AC-10 AlertDialog Eliminar clave, AC-11 confirmar eliminación, AC-12 validación inline, AC-13 cifrado no disponible, AC-14 sobrescritura directa, AC-15 skeletons.",
+    "unit": [
+      {
+        "file": "tests/unit/settings/SettingsPage.test.tsx",
+        "test_count": 7,
+        "description": "Página de Ajustes en MemoryRouter con api.secrets mockeado: Volver navega a la ruta probe '/' (AC-02), guardar con éxito → toast 'Clave de Deepgram guardada' + Badge 'Configurada' + '····abcd' + input limpiado (AC-03 UI), clave configurada representada con badge/last4 e input vacío type password (AC-06), AlertDialog 'Eliminar clave' con consecuencia y Cancelar/Eliminar sin tocar el almacén al cancelar (AC-10), confirmar Eliminar → remove('deepgram') + toast 'Clave eliminada' + 'No configurada' (AC-11 UI), campo vacío → inline 'Introduce una clave' sin llamar al bridge (AC-12), available=false → Alert destructive + ambos Guardar disabled + Tooltip vía span envolvente (AC-13 UI), y Skeletons en las filas mientras getStatus está pendiente (AC-15)."
+      },
+      {
+        "file": "tests/unit/settings/SpikeAudioCapturePage.settings.test.tsx",
+        "test_count": 1,
+        "description": "Harness sin Router con onOpenSettings inyectado: el botón de engranaje (aria-label 'Ajustes') invoca la prop de navegación (AC-01)."
+      },
+      {
+        "file": "tests/unit/settings/secretsService.test.ts",
+        "test_count": 6,
+        "description": "secretsService en Node con safeStorage mockeado reversible (ENCv1+base64) e isEncryptionAvailable conmutable, fs real en temporal: save → configured con last4 correcto y el ARCHIVO sin el plaintext + roundtrip de descifrado (AC-03 main + AC-04), re-init sobre el mismo baseDir conserva estado y last4 (AC-05), cifrado no disponible → encryption-unavailable con archivo intacto (AC-13 main), remove elimina la entrada del almacén cifrado (AC-11 main), sobrescritura directa actualiza last4 y el valor descifrado sin dejar rastro de la anterior (AC-14), y corrupción de secrets.json → .corrupt-* + almacén nuevo operativo (robustez extra patrón SPEC-006, sin AC propio)."
+      },
+      {
+        "file": "tests/unit/settings/getApiKey.test.ts",
+        "test_count": 3,
+        "description": "Resolución de la clave Deepgram vía su vía pública (startTranscription con DeepgramConnection mockeada y secretsService real): clave de Ajustes prevalece sobre DEEPGRAM_API_KEY (AC-07), fallback a env sin clave en Ajustes (AC-08), y sin clave en ningún sitio → estado no-key sin intento de conexión, flujo SPEC-002 (AC-09)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "persistencia-reinicio-app-real": "AC-05 end-to-end con la app completa (cerrar y reabrir Maurya y ver 'Configurada' con los mismos últimos 4): requiere la app real; el equivalente automatizado (re-init del almacén sobre el mismo baseDir) está en unit.",
+      "keychain-real-macos": "El cifrado real con safeStorage respaldado por el Keychain de macOS (AC-04 con el SO real) solo se verifica en el equipo: los tests usan un safeStorage mockeado reversible por diseño.",
+      "precedencia-con-captura-real": "AC-07/AC-08/AC-09 con una captura real contra Deepgram (la clave de Ajustes usándose de verdad en el stream): requiere red, key válida y sesión real; la lógica de resolución está automatizada en unit."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/settings/SpikeAudioCapturePage.settings.test.tsx::SpikeAudioCapturePage (settings navigation)::when the settings handler is injected::calls onOpenSettings when the gear button with aria-label \"Ajustes\" is clicked",
+      "AC-02": "tests/unit/settings/SettingsPage.test.tsx::SettingsPage::navigation::navigates back to the harness route when \"Volver\" is clicked",
+      "AC-03": "tests/unit/settings/SettingsPage.test.tsx::SettingsPage::saving a key::shows the \"Clave de Deepgram guardada\" toast and the \"Configurada ····abcd\" status after a successful save + tests/unit/settings/secretsService.test.ts::secretsService::when a key is saved::reports configured status with the correct last4 and never writes the plaintext to disk",
+      "AC-04": "tests/unit/settings/secretsService.test.ts::secretsService::when a key is saved::reports configured status with the correct last4 and never writes the plaintext to disk (Keychain real: MANUAL)",
+      "AC-05": "tests/unit/settings/secretsService.test.ts::secretsService::when the app restarts over the same data directory::keeps the configured status with the same last4 after re-initializing from disk (app completa real: MANUAL)",
+      "AC-06": "tests/unit/settings/SettingsPage.test.tsx::SettingsPage::saving a key::represents a configured key with badge and last4 while keeping the input empty (the key is never re-shown)",
+      "AC-07": "tests/unit/settings/getApiKey.test.ts::transcriptionService (resolución de la clave Deepgram)::when a key is saved in Settings AND .env.local has one::opens the Deepgram connection with the Settings key (it takes precedence over the env fallback)",
+      "AC-08": "tests/unit/settings/getApiKey.test.ts::transcriptionService (resolución de la clave Deepgram)::when there is no Settings key but .env.local has one::falls back to the DEEPGRAM_API_KEY from the environment (current dev flow)",
+      "AC-09": "tests/unit/settings/getApiKey.test.ts::transcriptionService (resolución de la clave Deepgram)::when there is no key anywhere::keeps the SPEC-002 behavior: no-key status and no connection attempt",
+      "AC-10": "tests/unit/settings/SettingsPage.test.tsx::SettingsPage::removing a key::opens the \"Eliminar clave\" AlertDialog explaining the consequence, with Cancelar and Eliminar actions",
+      "AC-11": "tests/unit/settings/SettingsPage.test.tsx::SettingsPage::removing a key::confirming Eliminar calls remove, shows the \"Clave eliminada\" toast and flips the badge to \"No configurada\" + tests/unit/settings/secretsService.test.ts::secretsService::when a configured key is removed::removes the entry from the encrypted store on disk",
+      "AC-12": "tests/unit/settings/SettingsPage.test.tsx::SettingsPage::saving a key::shows the inline \"Introduce una clave\" error without calling the bridge when the field is empty",
+      "AC-13": "tests/unit/settings/SettingsPage.test.tsx::SettingsPage::when encryption is not available::shows a destructive alert and disables both Guardar buttons with an explanatory tooltip + tests/unit/settings/secretsService.test.ts::secretsService::when encryption is not available::fails saving with encryption-unavailable and leaves the store file untouched",
+      "AC-14": "tests/unit/settings/secretsService.test.ts::secretsService::when a key is saved over an existing one::replaces the previous key directly, updating last4 and the decrypted value",
+      "AC-15": "tests/unit/settings/SettingsPage.test.tsx::SettingsPage::while the status is loading::shows skeletons in the key status rows (no page spinner) while getStatus is pending"
+    },
+    "notes": "Adaptación de infra: tests/helpers/mockApi.ts amplía BridgeApi con secrets: SecretsApi (getStatus con default disponible-sin-claves; save/remove configurables por test) tras el cambio de contrato del preload (window.api.secrets).",
+    "created_at": "2026-07-04"
   }
 }

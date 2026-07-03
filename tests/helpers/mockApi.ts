@@ -6,9 +6,29 @@
 import { vi } from 'vitest'
 import type { MauryaApi, TranscriptResultEvent, TranscriptionStatusEvent } from '@/types/audio'
 import type { DbApi } from '@/types/domain'
+import type { SecretsApi } from '@/types/secrets'
 
-/** Forma completa del bridge desde SPEC-006: MauryaApi + api.db. */
-export type BridgeApi = MauryaApi & { db: DbApi }
+/** Forma completa del bridge: MauryaApi + api.db (SPEC-006) + api.secrets (SPEC-007). */
+export type BridgeApi = MauryaApi & { db: DbApi; secrets: SecretsApi }
+
+/**
+ * Mock tipado de api.secrets (SPEC-007). getStatus resuelve por defecto con
+ * cifrado disponible y sin claves; save/remove se configuran por test.
+ */
+function createMockSecretsApi(): SecretsApi {
+  return {
+    getStatus: vi.fn<SecretsApi['getStatus']>().mockResolvedValue({
+      ok: true,
+      data: {
+        available: true,
+        deepgram: { configured: false, last4: null },
+        anthropic: { configured: false, last4: null }
+      }
+    }),
+    save: vi.fn<SecretsApi['save']>(),
+    remove: vi.fn<SecretsApi['remove']>()
+  }
+}
 
 export interface MockApiHandle {
   api: BridgeApi
@@ -90,6 +110,7 @@ export function createMockApi(): MockApiHandle {
 
   const api: BridgeApi = {
     db: createMockDbApi(),
+    secrets: createMockSecretsApi(),
     permissions: {
       getStatus: vi.fn<MauryaApi['permissions']['getStatus']>().mockResolvedValue({
         microphone: 'granted',
