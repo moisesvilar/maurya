@@ -143,8 +143,12 @@ describe('NoteTemplateEditorPage', () => {
       expect(document.activeElement).toBe(titles[1])
     })
 
-    // SPEC-008 · AC-12
-    it('moves a middle section up swapping with the previous one; first-up and last-down are disabled with tooltips', async () => {
+    // SPEC-008 · AC-12 (reordenación + extremo superior)
+    // Lección jsdom+Radix: el grace area de TooltipContentHoverable usa
+    // getBoundingClientRect (rects 0,0,0,0 en jsdom) y tras el primer unhover
+    // el flag isPointerInTransit del TooltipProvider queda anclado → máximo
+    // UN hover de tooltip por render. Por eso este AC se divide en dos its.
+    it('moves a middle section up swapping with the previous one, and the first "Subir sección" is disabled with tooltip', async () => {
       const user = userEvent.setup()
       renderEditor('/settings/note-templates/tpl-1')
       await screen.findAllByLabelText('Título')
@@ -157,12 +161,9 @@ describe('NoteTemplateEditorPage', () => {
         'Sección C'
       ])
 
-      // Extremos deshabilitados con Tooltip (trigger real: span envolvente)
+      // El subir de la primera fila queda deshabilitado con Tooltip
       const firstUp = screen.getAllByRole('button', { name: 'Subir sección' })[0]
-      const lastDown = screen.getAllByRole('button', { name: 'Bajar sección' })[2]
       expect(firstUp).toBeDisabled()
-      expect(lastDown).toBeDisabled()
-
       const firstUpWrapper = firstUp.parentElement
       if (firstUpWrapper === null) {
         throw new Error('El botón subir deshabilitado debe estar envuelto por el TooltipTrigger')
@@ -171,8 +172,16 @@ describe('NoteTemplateEditorPage', () => {
       expect(
         (await screen.findAllByText('Ya es la primera sección')).length
       ).toBeGreaterThanOrEqual(1)
-      await user.unhover(firstUpWrapper)
+    })
 
+    // SPEC-008 · AC-12 (extremo inferior; render propio: máx 1 tooltip por montaje)
+    it('disables the "Bajar sección" button of the last section with its tooltip', async () => {
+      const user = userEvent.setup()
+      renderEditor('/settings/note-templates/tpl-1')
+      await screen.findAllByLabelText('Título')
+
+      const lastDown = screen.getAllByRole('button', { name: 'Bajar sección' })[2]
+      expect(lastDown).toBeDisabled()
       const lastDownWrapper = lastDown.parentElement
       if (lastDownWrapper === null) {
         throw new Error('El botón bajar deshabilitado debe estar envuelto por el TooltipTrigger')

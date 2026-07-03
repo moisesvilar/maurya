@@ -344,8 +344,8 @@
       },
       {
         "file": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx",
-        "test_count": 12,
-        "description": "Editor en MemoryRouter con probe del listado en /settings: crear con dos secciones ordenadas → createNoteTemplate con {name,context,sections} en orden + toast 'Plantilla creada' + navegación (AC-08), precarga de nombre/contexto/secciones en su orden con getNoteTemplate (AC-09), edición del título → updateNoteTemplate + toast 'Cambios guardados' (AC-10), añadir sección al final con foco en su título —document.activeElement— (AC-11), subir intercambia el orden de los inputs y los extremos quedan disabled con Tooltip vía span envolvente (AC-12), eliminar sección sin diálogo (AC-13), única sección → botón disabled con tooltip literal 'La plantilla necesita al menos una sección' (AC-14), nombre vacío → 'Campo requerido' sin llamar al bridge (AC-15), título de sección vacío → ídem bajo ese título con el nombre válido (AC-16), contexto vacío guarda igualmente (AC-17), Volver con cambios → AlertDialog 'Descartar cambios' y Descartar navega (AC-18), y Volver sin cambios navega directo sin diálogo (AC-19)."
+        "test_count": 13,
+        "description": "Editor en MemoryRouter con probe del listado en /settings: crear con dos secciones ordenadas → createNoteTemplate con {name,context,sections} en orden + toast 'Plantilla creada' + navegación (AC-08), precarga de nombre/contexto/secciones en su orden con getNoteTemplate (AC-09), edición del título → updateNoteTemplate + toast 'Cambios guardados' (AC-10), añadir sección al final con foco en su título —document.activeElement— (AC-11), AC-12 en DOS its con render propio cada uno (lección jsdom+Radix grace area): subir intercambia el orden + tooltip del primer 'Subir sección' deshabilitado, y tooltip del último 'Bajar sección' deshabilitado, eliminar sección sin diálogo (AC-13), única sección → botón disabled con tooltip literal 'La plantilla necesita al menos una sección' (AC-14), nombre vacío → 'Campo requerido' sin llamar al bridge (AC-15), título de sección vacío → ídem bajo ese título con el nombre válido (AC-16), contexto vacío guarda igualmente (AC-17), Volver con cambios → AlertDialog 'Descartar cambios' y Descartar navega (AC-18), y Volver sin cambios navega directo sin diálogo (AC-19)."
       }
     ],
     "e2e": [],
@@ -366,7 +366,7 @@
       "AC-09": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::editing a template::opens preloaded with the name, context and sections in their stored order",
       "AC-10": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::editing a template::persists the edited section title via updateNoteTemplate, shows \"Cambios guardados\" and returns to the list",
       "AC-11": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::managing sections::adds a blank section at the end and moves the focus to its title field",
-      "AC-12": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::managing sections::moves a middle section up swapping with the previous one; first-up and last-down are disabled with tooltips",
+      "AC-12": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::managing sections::moves a middle section up swapping with the previous one, and the first \"Subir sección\" is disabled with tooltip + tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::managing sections::disables the \"Bajar sección\" button of the last section with its tooltip",
       "AC-13": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::managing sections::removes a section without any confirmation dialog when there are two or more",
       "AC-14": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::managing sections::disables the remove button of the only section with the literal tooltip",
       "AC-15": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::validation::shows the inline \"Campo requerido\" error under the empty name and does not persist",
@@ -377,7 +377,8 @@
       "AC-20": "tests/unit/note-templates/NoteTemplatesTab.test.tsx::NoteTemplatesTab (listado)::deleting a template::opens the \"Eliminar plantilla\" AlertDialog naming the template, with Cancelar and Eliminar",
       "AC-21": "tests/unit/note-templates/NoteTemplatesTab.test.tsx::NoteTemplatesTab (listado)::deleting a template::removes the row and shows the \"Plantilla eliminada\" toast after confirming the deletion"
     },
-    "notes": "Sin adaptaciones de infra: los defaults existentes de createMockDbApi (listNoteTemplates → ok []) bastaron; getNoteTemplate/create/update/delete se configuran por test.",
-    "created_at": "2026-07-04"
+    "notes": "Sin adaptaciones de infra: los defaults existentes de createMockDbApi (listNoteTemplates → ok []) bastaron; getNoteTemplate/create/update/delete se configuran por test. LECCIÓN (iteración QA 2026-07-04): jsdom + Radix grace area — TooltipContentHoverable calcula el grace area con getBoundingClientRect (rects 0,0,0,0 en jsdom) y tras el PRIMER unhover el flag compartido isPointerInTransit del TooltipProvider queda anclado en true, congelando cualquier tooltip posterior del mismo montaje → máximo 1 hover de tooltip por render; el it de AC-12 se dividió en dos tests con render propio.",
+    "created_at": "2026-07-04",
+    "updated_at": "2026-07-04"
   }
 }
