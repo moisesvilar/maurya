@@ -332,5 +332,52 @@
     },
     "notes": "Adaptación de infra: tests/helpers/mockApi.ts amplía BridgeApi con secrets: SecretsApi (getStatus con default disponible-sin-claves; save/remove configurables por test) tras el cambio de contrato del preload (window.api.secrets).",
     "created_at": "2026-07-04"
+  },
+  "SPEC-008": {
+    "spec_file": "specs/SPEC-008-editor-note-templates.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec (21): AC-01 tabs con Claves de IA activa, AC-02 cambio de pestaña sin recarga, AC-03 fila nombre+N secciones+acciones, AC-04 empty state, AC-05 skeletons, AC-06 error state+Reintentar, AC-07 Nueva plantilla→editor con sección en blanco, AC-08 crear (toast Plantilla creada + vuelta al listado), AC-09 editar precarga en orden, AC-10 guardar edición (toast Cambios guardados), AC-11 añadir sección con foco, AC-12 subir intercambia + extremos disabled con Tooltip, AC-13 eliminar sección sin diálogo, AC-14 única sección disabled+tooltip literal, AC-15 nombre vacío, AC-16 título de sección vacío, AC-17 contexto opcional, AC-18 Volver con cambios→Descartar cambios, AC-19 Volver sin cambios directo, AC-20 AlertDialog Eliminar plantilla con «nombre», AC-21 confirmar eliminación.",
+    "unit": [
+      {
+        "file": "tests/unit/note-templates/NoteTemplatesTab.test.tsx",
+        "test_count": 9,
+        "description": "SettingsPage con tabs + listado de plantillas, montado con las rutas reales en MemoryRouter y api.db/api.secrets mockeados: tabs con 'Claves de IA' activa por defecto y pestaña inactiva desmontada —listNoteTemplates no llamado— (AC-01), cambio de pestaña muestra el listado sin recargar y dispara la carga (AC-02), filas con nombre + '6 secciones'/'1 sección' + acciones Editar/Eliminar (AC-03), empty state con texto y CTA 'Crear primera plantilla' (AC-04), skeletons con list pendiente Promise<never> (AC-05), error state con mensaje y Reintentar que rellama al bridge (AC-06), 'Nueva plantilla' navega al editor vacío con una sección en blanco (AC-07), AlertDialog 'Eliminar plantilla' con «nombre» y Cancelar/Eliminar (AC-20) y confirmación → deleteNoteTemplate + toast 'Plantilla eliminada' + fila fuera (AC-21)."
+      },
+      {
+        "file": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx",
+        "test_count": 12,
+        "description": "Editor en MemoryRouter con probe del listado en /settings: crear con dos secciones ordenadas → createNoteTemplate con {name,context,sections} en orden + toast 'Plantilla creada' + navegación (AC-08), precarga de nombre/contexto/secciones en su orden con getNoteTemplate (AC-09), edición del título → updateNoteTemplate + toast 'Cambios guardados' (AC-10), añadir sección al final con foco en su título —document.activeElement— (AC-11), subir intercambia el orden de los inputs y los extremos quedan disabled con Tooltip vía span envolvente (AC-12), eliminar sección sin diálogo (AC-13), única sección → botón disabled con tooltip literal 'La plantilla necesita al menos una sección' (AC-14), nombre vacío → 'Campo requerido' sin llamar al bridge (AC-15), título de sección vacío → ídem bajo ese título con el nombre válido (AC-16), contexto vacío guarda igualmente (AC-17), Volver con cambios → AlertDialog 'Descartar cambios' y Descartar navega (AC-18), y Volver sin cambios navega directo sin diálogo (AC-19)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "persistencia-real-reinicios": "La persistencia real de las plantillas entre reinicios de la app ya está automatizada a nivel de store por SPEC-006 (AC-08 de SPEC-006: re-init sobre el mismo baseDir con getInterviewTemplate/noteTemplates intactos); la verificación con la app completa reiniciada es humo manual.",
+      "humo-visual": "Aspecto visual del Layout 4 (tabs), sticky bottom bar, iconos (FileText/AlertTriangle/Pencil/Trash2/ChevronUp/ChevronDown) y foco visible: revisión visual manual — jsdom no hace layout ni estilos."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/note-templates/NoteTemplatesTab.test.tsx::SettingsPage (tabs de Ajustes)::navigation::shows the \"Claves de IA\" and \"Plantillas de notas\" tabs with the API keys tab active by default",
+      "AC-02": "tests/unit/note-templates/NoteTemplatesTab.test.tsx::SettingsPage (tabs de Ajustes)::navigation::shows the templates list without reloading the page when the tab is selected",
+      "AC-03": "tests/unit/note-templates/NoteTemplatesTab.test.tsx::NoteTemplatesTab (listado)::listing templates::renders each row with name, section count and the Editar/Eliminar inline actions",
+      "AC-04": "tests/unit/note-templates/NoteTemplatesTab.test.tsx::NoteTemplatesTab (listado)::listing templates::shows the empty state with its text and the \"Crear primera plantilla\" CTA when there are no templates",
+      "AC-05": "tests/unit/note-templates/NoteTemplatesTab.test.tsx::NoteTemplatesTab (listado)::listing templates::shows skeletons in the list area while the templates are loading",
+      "AC-06": "tests/unit/note-templates/NoteTemplatesTab.test.tsx::NoteTemplatesTab (listado)::listing templates::shows the error state with the message and a \"Reintentar\" button that reloads the list",
+      "AC-07": "tests/unit/note-templates/NoteTemplatesTab.test.tsx::NoteTemplatesTab (listado)::creating from the list::navigates to the empty editor with one blank initial section when \"Nueva plantilla\" is clicked",
+      "AC-08": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::creating a template::persists the new template with ordered sections, shows the \"Plantilla creada\" toast and returns to the list",
+      "AC-09": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::editing a template::opens preloaded with the name, context and sections in their stored order",
+      "AC-10": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::editing a template::persists the edited section title via updateNoteTemplate, shows \"Cambios guardados\" and returns to the list",
+      "AC-11": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::managing sections::adds a blank section at the end and moves the focus to its title field",
+      "AC-12": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::managing sections::moves a middle section up swapping with the previous one; first-up and last-down are disabled with tooltips",
+      "AC-13": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::managing sections::removes a section without any confirmation dialog when there are two or more",
+      "AC-14": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::managing sections::disables the remove button of the only section with the literal tooltip",
+      "AC-15": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::validation::shows the inline \"Campo requerido\" error under the empty name and does not persist",
+      "AC-16": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::validation::shows the inline \"Campo requerido\" error under an empty section title and does not persist",
+      "AC-17": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::validation::saves normally with an empty context (the context is optional)",
+      "AC-18": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::leaving the editor::shows the \"Descartar cambios\" AlertDialog when leaving with unsaved changes, and confirming discards and returns",
+      "AC-19": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::leaving the editor::returns directly to the list without any dialog when there are no changes",
+      "AC-20": "tests/unit/note-templates/NoteTemplatesTab.test.tsx::NoteTemplatesTab (listado)::deleting a template::opens the \"Eliminar plantilla\" AlertDialog naming the template, with Cancelar and Eliminar",
+      "AC-21": "tests/unit/note-templates/NoteTemplatesTab.test.tsx::NoteTemplatesTab (listado)::deleting a template::removes the row and shows the \"Plantilla eliminada\" toast after confirming the deletion"
+    },
+    "notes": "Sin adaptaciones de infra: los defaults existentes de createMockDbApi (listNoteTemplates → ok []) bastaron; getNoteTemplate/create/update/delete se configuran por test.",
+    "created_at": "2026-07-04"
   }
 }
