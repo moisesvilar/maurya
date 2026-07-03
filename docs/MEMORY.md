@@ -6,10 +6,11 @@
 ## Estado actual del loop
 - Spec en curso: _ninguna_
 - Decisión humana (2026-07-03): H0 se implementa como **proyecto Electron local** en este repo (electron-vite), NO en Lovable (no puede capturar audio de sistema). QA adaptado: Vitest local; e2e Playwright contra public link no aplica al spike.
-- Última spec cerrada: **SPEC-009** (2026-07-04, unit 114/114 PASS a la primera; commit código bd094bf; sidebar+top bar, /capture como home, derogados engranaje y Volver de Ajustes). **H1 COMPLETO (6/6)**. Antes: SPEC-008 (editor note-templates), SPEC-007 (safeStorage), SPEC-006 (JSON store), SPEC-005 (Maurya.app), SPEC-004/003/002/001 (spike H0).
+- Última spec cerrada: **SPEC-010** (2026-07-04, unit 133/133 PASS a la primera; commit código 09cc056; CRUD discoveries + detalle mínimo /discoveries/:id; cierra ítems 1-2 de H2). Antes: SPEC-009 (layout, H1 COMPLETO), SPEC-008, SPEC-007, SPEC-006, SPEC-005, SPEC-004/003/002/001 (spike H0).
+- Lección QA (2026-07-04): con Dialog modal Radix abierto, el fondo queda aria-hidden → queries por rol del contenido de fondo necesitan {hidden:true}.
 - Lección QA nueva (2026-07-04): jsdom + Radix Tooltip grace area (rects 0×0) → tras el primer unhover, isPointerInTransit queda anclado y ningún tooltip posterior abre en el mismo render. Regla: máx 1 hover de tooltip por it/render.
 - H0 ítem 6 (go/no-go): BORRADOR con GO provisional en docs/spike-audio-go-no-go.md; la FIRMA final espera la sesión de validación del humano (transcripción en vivo, latencia real, diarización, 15 min). **Decisión del loop 2026-07-03: continuar con H1 "a riesgo"** — el riesgo mayor (captura) ya está verificado por humano y el trabajo de H1 es independiente/reversible.
-- Próxima tarea: **H2 ítem 1 — Crear discovery** (RF-DISC-001, Must): primera feature de dominio con UI sobre api.db (SPEC-006) y la página Discoveries del layout (SPEC-009). El resto de H2: RF-DISC-002..005 (CRUD empresas/contactos) y RF-TPL-001..004 (templates de entrevista, hub ya enlazado).
+- Próxima tarea: **H2 ítems 3-5 — empresas y contactos** (RF-DISC-003 Must alta de empresa, RF-DISC-004 Must alta de contacto, RF-DISC-005 Should editar/eliminar): candidatos a una sola spec (SPEC-011) sobre el detalle del discovery (/discoveries/:id ya existe con empty state de empresas). Después: RF-TPL-001..004 (templates de entrevista).
 - Verificación humana pendiente de SPEC-005: abrir dist/mac-arm64/Maurya.app (clic derecho→Abrir), prompts TCC como "Maurya", key en ~/Library/Application Support/Maurya/.env.local.
 
 ## PROBADO
