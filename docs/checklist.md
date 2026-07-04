@@ -112,7 +112,7 @@ Depende de H5. Cierra el flujo end-to-end.
 
 Depende de H6. MVP listo para usuarios de validación.
 
-- [ ] 🟡 **Búsqueda/navegación** entre discoveries, empresas y entrevistas (RF-APP-005)
+- [x] 🟡 **Búsqueda/navegación** entre discoveries, empresas y entrevistas (RF-APP-005) — SPEC-018, unit 290/290 PASS (command palette ⌘K, incluye contactos)
 - [ ] 🔴 Optimización de **latencia** de la asistencia (objetivo < 3-5 s) (NFR §4.1)
 - [ ] 🔴 Medición y control de **coste de IA por entrevista** (NFR §4.5)
 - [ ] 🔴 **Aviso de consentimiento de grabación** al usuario (NFR §4.6, Riesgo #8)
@@ -144,8 +144,8 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H4 · Transcripción | 6 | 5 |
 | H5 · Asistencia | 8 | 8 |
 | H6 · Resumen | 5 | 5 |
-| H7 · Pulido | 7 | 0 |
+| H7 · Pulido | 7 | 1 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **43** |
+| **Total** | **56** | **44** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
