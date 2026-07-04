@@ -8,22 +8,26 @@ import type { AssistantApi, AssistantUpdateEvent } from '@/types/assistant'
 import type { MauryaApi, TranscriptResultEvent, TranscriptionStatusEvent } from '@/types/audio'
 import type { DbApi } from '@/types/domain'
 import type { LlmApi } from '@/types/llm'
+import type { NotesApi } from '@/types/notes'
 import type { SecretsApi } from '@/types/secrets'
 
 /**
  * Forma completa del bridge: MauryaApi + api.db (SPEC-006) + api.secrets
- * (SPEC-007) + api.llm (SPEC-014) + api.assistant (SPEC-016).
+ * (SPEC-007) + api.llm (SPEC-014) + api.assistant (SPEC-016) + api.notes
+ * (SPEC-017).
  */
 export type BridgeApi = MauryaApi & {
   db: DbApi
   secrets: SecretsApi
   llm: LlmApi
   assistant: AssistantApi
+  notes: NotesApi
 }
 
 /**
- * Mock tipado de api.llm (SPEC-014). getStatus resuelve por defecto SIN clave
- * de Anthropic (estado conservador); generateScript se configura por test.
+ * Mock tipado de api.llm (SPEC-014/017). getStatus resuelve por defecto SIN
+ * clave de Anthropic (estado conservador); generateScript/generateNote se
+ * configuran por test.
  */
 function createMockLlmApi(): LlmApi {
   return {
@@ -31,7 +35,22 @@ function createMockLlmApi(): LlmApi {
       ok: true,
       data: { hasAnthropicKey: false }
     }),
-    generateScript: vi.fn<LlmApi['generateScript']>()
+    generateScript: vi.fn<LlmApi['generateScript']>(),
+    generateNote: vi.fn<LlmApi['generateNote']>()
+  }
+}
+
+/**
+ * Mock tipado de api.notes (SPEC-017): exportación con save dialog del SO.
+ * Default: exportación confirmada y escrita (los tests de cancelación/fallo
+ * lo sobreescriben por test).
+ */
+export function createMockNotesApi(): NotesApi {
+  return {
+    export: vi.fn<NotesApi['export']>().mockResolvedValue({
+      ok: true,
+      data: { saved: true, filePath: '/tmp/x.md' }
+    })
   }
 }
 
@@ -139,6 +158,7 @@ export function createMockApi(): MockApiHandle {
     db: createMockDbApi(),
     secrets: createMockSecretsApi(),
     llm: createMockLlmApi(),
+    notes: createMockNotesApi(),
     assistant: {
       onUpdate: vi.fn<AssistantApi['onUpdate']>((callback) => {
         assistantCallbacks.push(callback)
@@ -172,6 +192,10 @@ export function createMockApi(): MockApiHandle {
       getTranscriptStats: vi
         .fn<MauryaApi['recording']['getTranscriptStats']>()
         .mockResolvedValue(null),
+      // SPEC-017: líneas de la transcripción para el Sheet y la exportación
+      getTranscriptLines: vi
+        .fn<MauryaApi['recording']['getTranscriptLines']>()
+        .mockResolvedValue({ ok: true, lines: [] }),
       onError: vi.fn<MauryaApi['recording']['onError']>((callback) => {
         errorCallbacks.push(callback)
         return () => {
