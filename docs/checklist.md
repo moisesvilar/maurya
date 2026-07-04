@@ -101,8 +101,8 @@ Depende de H4.
 Depende de H5. Cierra el flujo end-to-end.
 
 - [ ] 🔴 **Generar resumen** de la llamada según el note-template configurado (RF-NOTE-001)
-- [ ] 🔴 **Persistir la transcripción** completa (RF-NOTE-002)
-- [ ] 🔴 Dejar transcripciones/notas **disponibles como contexto** para futuras entrevistas (cierra bucle con RF-GUION-003) (RF-NOTE-003)
+- [x] 🔴 **Persistir la transcripción** completa (RF-NOTE-002) — cubierto por SPEC-002 (transcript.json) + SPEC-015 (asociación a la entrevista)
+- [x] 🔴 Dejar transcripciones/notas **disponibles como contexto** para futuras entrevistas (cierra bucle con RF-GUION-003) (RF-NOTE-003) — cubierto por SPEC-014 (contexto histórico lee transcripts y notas)
 - [ ] 🟡 **Consultar y editar** resumen y transcripción (RF-NOTE-004)
 - [ ] 🟢 **Exportar** resumen/transcripción a Markdown u otro formato (RF-NOTE-005)
 
