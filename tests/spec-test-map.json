@@ -585,11 +585,50 @@
       "AC-09": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::editing an interview::shows the inline \"Campo requerido\" error when editing to an empty title without calling the bridge",
       "AC-10": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::deleting an interview::confirms in the \"Eliminar entrevista\" AlertDialog with the notes warning and deletes with its toast",
       "AC-11": "tests/unit/interviews/InterviewDetailPage.test.tsx::InterviewDetailPage::header and references::shows title, \"Borrador\" badge and refs with the null fallbacks, and \"Volver\" returns to the company",
-      "AC-12": "tests/unit/interviews/InterviewDetailPage.test.tsx::InterviewDetailPage::header and references::shows the Guión section with its empty state and the AI secondary text",
+      "AC-12": "DEROGADO PARCIALMENTE por SPEC-014 AC-08 (el secundario 'La generación con IA llegará en la siguiente fase' desapareció; 'Aún no hay guión' sobrevive): tests/unit/interviews/InterviewDetailPage.test.tsx::InterviewDetailPage::header and references::shows the Guión section with its empty state (adaptado) + cobertura completa del empty state en SPEC-014 AC-08",
       "AC-13": "tests/unit/interviews/InterviewDetailPage.test.tsx::InterviewDetailPage::nonexistent interview::shows the error state with the \"Volver a Discoveries\" link when getInterview fails",
       "AC-14": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::mutation errors::shows an error toast, keeps the dialog open and leaves the list untouched when the bridge fails"
     },
-    "notes": "Sin adaptaciones de infra ni regresión sobre tests previos (la sección Entrevistas es nueva y los tests de SPEC-011 acotan por fila, no por conteos globales). getInterview se mockea por test.",
+    "notes": "Sin adaptaciones de infra ni regresión sobre tests previos (la sección Entrevistas es nueva y los tests de SPEC-011 acotan por fila, no por conteos globales). getInterview se mockea por test. SPEC-014 derogó parcialmente AC-12 (secundario del empty state del guión) → test adaptado; el otro test roto (AC-11) solo necesitaba el mock nuevo de api.llm en el helper (TypeError de getStatus), sin cambios en sus asserts (regresión de contrato presupuestada, no bug).",
+    "created_at": "2026-07-04",
+    "updated_at": "2026-07-04"
+  },
+  "SPEC-014": {
+    "spec_file": "specs/SPEC-014-guion-ia.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec (12): AC-01 generar (loading→guión+objetivos+Preparada+toast), AC-02 sin template disabled+tooltip, AC-03 sin clave Alert+link+disabled, AC-04 contexto histórico en el prompt, AC-05 regenerar con AlertDialog, AC-06 error de API → toast y entrevista intacta, AC-07 lectura pre-wrap+Objetivos, AC-08 empty 'Aún no hay guión'+botón, AC-09 edición (Textarea+objetivos editables), AC-10 guardar, AC-11 cancelar con guard, AC-12 objetivos vacíos descartados.",
+    "unit": [
+      {
+        "file": "tests/unit/script/llmService.test.ts",
+        "test_count": 5,
+        "description": "llmService en Node con vi.mock('@anthropic-ai/sdk') (clases de error espejo para instanceof + messages.create mockeado) y store/repository REALES en temporal: happy path → persiste scriptMarkdown + objetivos filtrados (vacíos descartados) + status prepared, devuelve la Interview y usa claude-opus-4-8/max_tokens 16000/output_config json_schema sin temperature (AC-01 servicio); sin template → no-template sin llamar al SDK (AC-02 servicio); sin clave resoluble → no-key sin llamar al SDK (AC-03 servicio); contexto histórico → el prompt de usuario contiene '## Entrevistas anteriores', el transcript aplanado '[mic s0] …' y la nota de la misma empresa, NO contiene la de otra empresa, y un transcript corrupto se omite sin lanzar (AC-04); y errores del SDK → AuthenticationError→auth, RateLimitError→rate-limit, APIConnectionError→connection, JSON inválido→format, con la entrevista intacta releída del store en TODOS los casos (AC-06 servicio)."
+      },
+      {
+        "file": "tests/unit/script/ScriptSection.test.tsx",
+        "test_count": 10,
+        "description": "Sección Guión vía InterviewDetailPage (api.llm + api.db mockeados; DOS botones 'Generar guión' cabecera+empty → getAllBy): generar happy con promesa controlada → 'Generando guión…' disabled → guión + objetivos + Badge 'Preparada' + toast 'Guión generado' (AC-01 UI); sin template → disabled + tooltip 'Asigna un template para generar el guión' (AC-02 UI); sin clave → Alert con Link a /settings + disabled (AC-03 UI); Regenerar → AlertDialog 'Se sobrescribirán el guión y los objetivos actuales.' y confirmar rellama generateScript (AC-05); generateScript {ok:false} → toast con la causa y sin cambios (Badge sigue 'Borrador') (AC-06 UI); lectura con whitespace-pre-wrap + h4 Objetivos + lista (AC-07); empty 'Aún no hay guión' con 2 botones habilitados y sin el secundario derogado (AC-08); edición → Textarea con el markdown + inputs por objetivo + añadir/quitar (AC-09); guardar → updateInterview {scriptMarkdown, objectives filtrados} SIN status + toast 'Cambios guardados' + vuelta a lectura (AC-10 + AC-12 juntos verificando el filtrado); y cancelar con cambios → 'Descartar cambios' con Seguir editando/Descartar, y sin cambios vuelta directa (AC-11)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "generacion-real-api": "Generación real contra la API de Anthropic con una clave válida configurada en Ajustes: pendiente del humano (no hay clave en la máquina de desarrollo, patrón SPEC-002; el pipeline de auth quedó verificado en la fase 0 del dev). Todo lo demás está automatizado con el SDK mockeado a nivel de servicio.",
+      "humo-visual": "Aspecto visual del guión pre-wrap, spinner del botón y sticky bar local de la edición: revisión visual manual — jsdom no hace layout ni estilos."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/script/llmService.test.ts::llmService::when the generation succeeds::persists scriptMarkdown, filtered objectives and status prepared, returning the updated interview + tests/unit/script/ScriptSection.test.tsx::ScriptSection::generation::shows the loading button while generating and then the script, objectives, \"Preparada\" badge and toast",
+      "AC-02": "tests/unit/script/llmService.test.ts::llmService::prerequisites::fails with no-template without calling the SDK when the interview has no template + tests/unit/script/ScriptSection.test.tsx::ScriptSection::generation::disables the generate button with the template tooltip when the interview has no template",
+      "AC-03": "tests/unit/script/llmService.test.ts::llmService::prerequisites::fails with no-key without calling the SDK when no Anthropic key is resolvable + tests/unit/script/ScriptSection.test.tsx::ScriptSection::generation::shows the key alert linking to Ajustes and disables the button when there is no Anthropic key",
+      "AC-04": "tests/unit/script/llmService.test.ts::llmService::historical context::injects previous same-company transcripts and notes into the user prompt, omitting other companies and corrupt transcripts",
+      "AC-05": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::generation::asks for confirmation in the \"Regenerar guión\" AlertDialog and regenerates on confirm",
+      "AC-06": "tests/unit/script/llmService.test.ts::llmService::SDK and format errors::maps SDK errors to typed kinds and leaves the interview untouched in every case + tests/unit/script/ScriptSection.test.tsx::ScriptSection::generation::shows an error toast and leaves the interview unchanged when the generation fails",
+      "AC-07": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::reading::renders the script preserving line breaks (pre-wrap) and the Objetivos list below",
+      "AC-08": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::reading::shows the \"Aún no hay guión\" empty state with the generate button when prerequisites are met",
+      "AC-09": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::switches to a textarea plus editable objectives with add/remove controls",
+      "AC-10": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::saves via updateInterview without status, silently dropping empty objectives, and returns to read mode",
+      "AC-11": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::asks to discard unsaved changes on cancel, and returns directly when clean",
+      "AC-12": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::saves via updateInterview without status, silently dropping empty objectives, and returns to read mode (mismo it que AC-10: el payload aserta el filtrado de vacíos) + filtrado también fijado en el servicio (AC-01 servicio: objetivos vacíos descartados)"
+    },
+    "notes": "Adaptación de infra: tests/helpers/mockApi.ts amplía BridgeApi con llm: LlmApi (getStatus default {hasAnthropicKey:false}; generateScript configurable por test) tras el cambio de contrato del preload (window.api.llm).",
     "created_at": "2026-07-04"
   }
 }

@@ -91,16 +91,18 @@ describe('InterviewDetailPage', () => {
       expect(await screen.findByText('Aún no hay entrevistas')).toBeInTheDocument()
     })
 
-    // SPEC-013 · AC-12
-    it('shows the Guión section with its empty state and the AI secondary text', async () => {
+    // SPEC-013 · AC-12 (derogado parcialmente por SPEC-014 AC-08: el empty
+    // state del guión perdió el secundario provisional; 'Aún no hay guión'
+    // sobrevive y la generación se testea en tests/unit/script)
+    it('shows the Guión section with its empty state', async () => {
       renderAt('/discoveries/d-1/companies/c-1/interviews/i-1')
 
       await screen.findByRole('heading', { name: 'Discovery con Acme', level: 1 })
       expect(screen.getByRole('heading', { name: 'Guión' })).toBeInTheDocument()
-      expect(screen.getByText('Aún no hay guión')).toBeInTheDocument()
+      expect(await screen.findByText('Aún no hay guión')).toBeInTheDocument()
       expect(
-        screen.getByText('La generación con IA llegará en la siguiente fase')
-      ).toBeInTheDocument()
+        screen.queryByText('La generación con IA llegará en la siguiente fase')
+      ).not.toBeInTheDocument()
     })
   })
 

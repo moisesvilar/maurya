@@ -6,10 +6,28 @@
 import { vi } from 'vitest'
 import type { MauryaApi, TranscriptResultEvent, TranscriptionStatusEvent } from '@/types/audio'
 import type { DbApi } from '@/types/domain'
+import type { LlmApi } from '@/types/llm'
 import type { SecretsApi } from '@/types/secrets'
 
-/** Forma completa del bridge: MauryaApi + api.db (SPEC-006) + api.secrets (SPEC-007). */
-export type BridgeApi = MauryaApi & { db: DbApi; secrets: SecretsApi }
+/**
+ * Forma completa del bridge: MauryaApi + api.db (SPEC-006) + api.secrets
+ * (SPEC-007) + api.llm (SPEC-014).
+ */
+export type BridgeApi = MauryaApi & { db: DbApi; secrets: SecretsApi; llm: LlmApi }
+
+/**
+ * Mock tipado de api.llm (SPEC-014). getStatus resuelve por defecto SIN clave
+ * de Anthropic (estado conservador); generateScript se configura por test.
+ */
+function createMockLlmApi(): LlmApi {
+  return {
+    getStatus: vi.fn<LlmApi['getStatus']>().mockResolvedValue({
+      ok: true,
+      data: { hasAnthropicKey: false }
+    }),
+    generateScript: vi.fn<LlmApi['generateScript']>()
+  }
+}
 
 /**
  * Mock tipado de api.secrets (SPEC-007). getStatus resuelve por defecto con
@@ -111,6 +129,7 @@ export function createMockApi(): MockApiHandle {
   const api: BridgeApi = {
     db: createMockDbApi(),
     secrets: createMockSecretsApi(),
+    llm: createMockLlmApi(),
     permissions: {
       getStatus: vi.fn<MauryaApi['permissions']['getStatus']>().mockResolvedValue({
         microphone: 'granted',
