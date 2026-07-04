@@ -6,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { CompanyDetailPage } from '@/pages/CompanyDetailPage'
 import { DiscoveriesPage } from '@/pages/DiscoveriesPage'
 import { DiscoveryDetailPage } from '@/pages/DiscoveryDetailPage'
+import { InterviewDetailPage } from '@/pages/InterviewDetailPage'
 import { InterviewTemplateEditorPage } from '@/pages/InterviewTemplateEditorPage'
 import { InterviewTemplatesPage } from '@/pages/InterviewTemplatesPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -35,6 +36,10 @@ function App(): React.ReactElement {
             <Route
               path="discoveries/:discoveryId/companies/:companyId"
               element={<CompanyDetailPage />}
+            />
+            <Route
+              path="discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
+              element={<InterviewDetailPage />}
             />
             <Route path="templates" element={<TemplatesHubPage />} />
             <Route path="templates/interview" element={<InterviewTemplatesPage />} />
