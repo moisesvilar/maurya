@@ -6,11 +6,11 @@
 ## Estado actual del loop
 - Spec en curso: _ninguna_
 - Decisión humana (2026-07-03): H0 se implementa como **proyecto Electron local** en este repo (electron-vite), NO en Lovable (no puede capturar audio de sistema). QA adaptado: Vitest local; e2e Playwright contra public link no aplica al spike.
-- Última spec cerrada: **SPEC-010** (2026-07-04, unit 133/133 PASS a la primera; commit código 09cc056; CRUD discoveries + detalle mínimo /discoveries/:id; cierra ítems 1-2 de H2). Antes: SPEC-009 (layout, H1 COMPLETO), SPEC-008, SPEC-007, SPEC-006, SPEC-005, SPEC-004/003/002/001 (spike H0).
+- Última spec cerrada: **SPEC-011** (2026-07-04, unit 152/152 PASS a la primera; commit código 8508f24; CRUD empresas+contactos, CompanyDetailPage, enlaces externos; cierra ítems 3-5 de H2). Antes: SPEC-010 (discoveries), SPEC-009 (layout, H1 COMPLETO), SPEC-008..001.
 - Lección QA (2026-07-04): con Dialog modal Radix abierto, el fondo queda aria-hidden → queries por rol del contenido de fondo necesitan {hidden:true}.
 - Lección QA nueva (2026-07-04): jsdom + Radix Tooltip grace area (rects 0×0) → tras el primer unhover, isPointerInTransit queda anclado y ningún tooltip posterior abre en el mismo render. Regla: máx 1 hover de tooltip por it/render.
 - H0 ítem 6 (go/no-go): BORRADOR con GO provisional en docs/spike-audio-go-no-go.md; la FIRMA final espera la sesión de validación del humano (transcripción en vivo, latencia real, diarización, 15 min). **Decisión del loop 2026-07-03: continuar con H1 "a riesgo"** — el riesgo mayor (captura) ya está verificado por humano y el trabajo de H1 es independiente/reversible.
-- Próxima tarea: **H2 ítems 3-5 — empresas y contactos** (RF-DISC-003 Must alta de empresa, RF-DISC-004 Must alta de contacto, RF-DISC-005 Should editar/eliminar): candidatos a una sola spec (SPEC-011) sobre el detalle del discovery (/discoveries/:id ya existe con empty state de empresas). Después: RF-TPL-001..004 (templates de entrevista).
+- Próxima tarea: **H2 ítems 6-9 — templates de entrevista** (RF-TPL-001 Must crear con bloques/preguntas, RF-TPL-002 Should metadatos de guía, RF-TPL-003 Should editar/duplicar/eliminar, RF-TPL-004 Could fase metodológica): candidatos a una sola spec (SPEC-012) reutilizando el patrón del editor de note-templates (SPEC-008) sobre la entidad InterviewTemplate (SPEC-006) y el hub de Plantillas (SPEC-009, card "Disponible próximamente" a derogar). Cierra H2.
 - Verificación humana pendiente de SPEC-005: abrir dist/mac-arm64/Maurya.app (clic derecho→Abrir), prompts TCC como "Maurya", key en ~/Library/Application Support/Maurya/.env.local.
 
 ## PROBADO

@@ -44,9 +44,9 @@ Depende de H1.
 ### Discoveries, empresas y contactos (DISC)
 - [x] 🔴 **Crear discovery** por nombre (como carpeta contenedora) (RF-DISC-001) — SPEC-010, unit 133/133 PASS
 - [x] 🟡 Renombrar / listar / eliminar discoveries (RF-DISC-002) — SPEC-010 (misma spec; detalle mínimo /discoveries/:id incluido)
-- [ ] 🔴 **Alta de empresa** (nombre, website, LinkedIn) dentro de un discovery (RF-DISC-003)
-- [ ] 🔴 **Alta de contacto** (nombre, posición, perfil LinkedIn) dentro de una empresa (RF-DISC-004)
-- [ ] 🟡 Editar / eliminar empresas y contactos (RF-DISC-005)
+- [x] 🔴 **Alta de empresa** (nombre, website, LinkedIn) dentro de un discovery (RF-DISC-003) — SPEC-011, unit 152/152 PASS
+- [x] 🔴 **Alta de contacto** (nombre, posición, perfil LinkedIn) dentro de una empresa (RF-DISC-004) — SPEC-011
+- [x] 🟡 Editar / eliminar empresas y contactos (RF-DISC-005) — SPEC-011 (detalle de empresa incluido)
 
 ### Templates de entrevista (TPL)
 - [ ] 🔴 **Crear template** con listado de preguntas organizable en bloques (RF-TPL-001)
@@ -139,13 +139,13 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 |------|-------------|--------|
 | H0 · Spike | 6 | 5 |
 | H1 · Shell | 6 | 6 |
-| H2 · CRUD | 9 | 2 |
+| H2 · CRUD | 9 | 5 |
 | H3 · IA guión | 5 | 0 |
 | H4 · Transcripción | 6 | 0 |
 | H5 · Asistencia | 8 | 0 |
 | H6 · Resumen | 5 | 0 |
 | H7 · Pulido | 7 | 0 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **13** |
+| **Total** | **56** | **16** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
