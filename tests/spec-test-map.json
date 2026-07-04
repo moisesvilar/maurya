@@ -452,11 +452,59 @@
       "AC-12": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::renaming::shows the inline \"Campo requerido\" error when renaming to empty without calling the bridge",
       "AC-13": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::deletion::opens the \"Eliminar discovery\" AlertDialog warning about the full cascade with the name",
       "AC-14": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::deletion::removes the row and shows the \"Discovery eliminado\" toast after confirming",
-      "AC-15": "tests/unit/discoveries/DiscoveryDetailPage.test.tsx::DiscoveryDetailPage::navigating from the list::opens /discoveries/:id from the row name showing the title and the companies empty state",
+      "AC-15": "DEROGADO PARCIALMENTE por SPEC-011 AC-02 (el empty state de empresas perdió el secundario provisional y ganó el CTA 'Añadir primera empresa'): tests/unit/discoveries/DiscoveryDetailPage.test.tsx::DiscoveryDetailPage::navigating from the list::opens /discoveries/:id from the row name showing the title and the companies empty state (adaptado)",
       "AC-16": "tests/unit/discoveries/DiscoveryDetailPage.test.tsx::DiscoveryDetailPage::invalid id::shows the error state with the \"Volver a Discoveries\" link for a nonexistent id",
       "AC-17": "tests/unit/discoveries/DiscoveryDetailPage.test.tsx::DiscoveryDetailPage::back button::returns to the list when the \"Volver\" back button is clicked",
       "AC-18": "tests/unit/discoveries/DiscoveriesPage.test.tsx::DiscoveriesPage::mutation errors::shows an error toast, keeps the dialog open and leaves the list untouched when the bridge fails"
     },
+    "notes": "SPEC-011 derogó parcialmente AC-15 (empty state de empresas del detalle): el test se adaptó con findBy* (la sección ahora carga del bridge), sin el secundario provisional y asertando el CTA 'Añadir primera empresa' (regresión de contrato presupuestada, no bug).",
+    "created_at": "2026-07-04",
+    "updated_at": "2026-07-04"
+  },
+  "SPEC-011": {
+    "spec_file": "specs/SPEC-011-empresas-contactos.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec (20): AC-01 fila de empresa con link+iconos condicionales+Acciones, AC-02 empty empresas con CTA, AC-03 dialog Nueva empresa con foco y 3 campos, AC-04 crear empresa normalizando opcionales, AC-05 nombre vacío, AC-06 editar empresa precargada, AC-07 eliminar empresa con cascada, AC-08 nombre navega al detalle, AC-09 detalle con Volver+h1+enlaces hostname, AC-10 fila de contacto, AC-11 empty contactos, AC-12 dialog Nuevo contacto, AC-13 crear contacto, AC-14 nombre vacío contacto, AC-15 editar contacto, AC-16 eliminar contacto, AC-17 empresa inexistente, AC-18 enlaces externos al navegador del sistema, AC-19 skeletons, AC-20 error de mutación.",
+    "unit": [
+      {
+        "file": "tests/unit/companies/DiscoveryDetailPage.companies.test.tsx",
+        "test_count": 9,
+        "description": "Sección Empresas del detalle de discovery (api.db mockeado, rutas reales): fila con nombre-Link href al detalle e iconos condicionales —con website y sin LinkedIn solo 'Abrir website'— + Acciones (AC-01); dialog 'Nueva empresa' con foco en Nombre sin selección y placeholders de URL (AC-03); crear → createCompany {discoveryId,name,website recortado,linkedinUrl:null} asertando la normalización + toast 'Empresa creada' + fila (AC-04); vacío → 'Campo requerido' sin bridge (AC-05); editar precargada (null→'') → updateCompany con los 3 campos + toast 'Cambios guardados' + fila actualizada (AC-06); AlertDialog 'Eliminar empresa' con la cascada literal «Acme Corp» y confirmación → deleteCompany + toast 'Empresa eliminada' (AC-07); click en el nombre → detalle de empresa (AC-08); skeletons con listCompanies pendiente (AC-19); y createCompany {ok:false} → toast de error con dialog abierto y listado intacto (AC-20). AC-02 (empty + CTA) se cubre con el test adaptado de SPEC-010 AC-15 (sin duplicar)."
+      },
+      {
+        "file": "tests/unit/companies/CompanyDetailPage.test.tsx",
+        "test_count": 10,
+        "description": "Detalle de empresa y contactos (getCompany mockeado por test — sin default en el helper): Volver al detalle del discovery + h1 + enlaces con hostname visible acme.example/linkedin.com (AC-09); fila de contacto con nombre, posición muted, icono LinkedIn con href y Acciones (AC-10); empty 'Aún no hay contactos' + CTA (AC-11); dialog 'Nuevo contacto' con foco y placeholders (AC-12); crear → createContact {companyId,name,position,linkedinUrl:null} + toast 'Contacto creado' (AC-13); vacío → 'Campo requerido' sin bridge (AC-14); editar precargado → updateContact + toast 'Cambios guardados' (AC-15); AlertDialog simple 'Eliminar contacto' «Jane Doe» → deleteContact + toast 'Contacto eliminado' (AC-16); getCompany not-found → error + link 'Volver a Discoveries' (AC-17); y markup de enlaces externos a[target=_blank][rel=noreferrer] con href exacto (AC-18 unit)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "apertura-navegador-sistema": "AC-18 end-to-end: que el click abra la URL en el navegador por defecto (setWindowOpenHandler → shell.openExternal en main) solo se verifica con la app Electron real; jsdom no ejecuta el handler de main. El markup del enlace (target/rel/href) está automatizado en unit.",
+      "humo-visual": "Aspecto visual de filas, iconos Globe/LinkedIn (glifo recreado con createLucideIcon), hover y alineación: revisión visual manual — jsdom no hace layout ni estilos."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/companies/DiscoveryDetailPage.companies.test.tsx::DiscoveryDetailPage (empresas)::company rows::renders each company row with the name link, conditional external icons and the actions menu",
+      "AC-02": "tests/unit/discoveries/DiscoveryDetailPage.test.tsx::DiscoveryDetailPage::navigating from the list::opens /discoveries/:id from the row name showing the title and the companies empty state (test de SPEC-010 AC-15 adaptado: 'Aún no hay empresas' + CTA 'Añadir primera empresa')",
+      "AC-03": "tests/unit/companies/DiscoveryDetailPage.companies.test.tsx::DiscoveryDetailPage (empresas)::creating a company::opens the \"Nueva empresa\" dialog with focus on Nombre and the optional URL fields",
+      "AC-04": "tests/unit/companies/DiscoveryDetailPage.companies.test.tsx::DiscoveryDetailPage (empresas)::creating a company::creates via createCompany normalizing empty optionals to null, shows the toast and lists the row",
+      "AC-05": "tests/unit/companies/DiscoveryDetailPage.companies.test.tsx::DiscoveryDetailPage (empresas)::creating a company::shows the inline \"Campo requerido\" error for an empty name without calling the bridge",
+      "AC-06": "tests/unit/companies/DiscoveryDetailPage.companies.test.tsx::DiscoveryDetailPage (empresas)::editing a company::opens the edit dialog preloaded (null → empty), saves via updateCompany and shows \"Cambios guardados\"",
+      "AC-07": "tests/unit/companies/DiscoveryDetailPage.companies.test.tsx::DiscoveryDetailPage (empresas)::deleting a company::confirms in the cascade AlertDialog, deletes via deleteCompany and shows \"Empresa eliminada\"",
+      "AC-08": "tests/unit/companies/DiscoveryDetailPage.companies.test.tsx::DiscoveryDetailPage (empresas)::navigating to the company detail::navigates to the company detail when the row name is clicked",
+      "AC-09": "tests/unit/companies/CompanyDetailPage.test.tsx::CompanyDetailPage::header::shows the back button, the company title and its external links with visible hostnames",
+      "AC-10": "tests/unit/companies/CompanyDetailPage.test.tsx::CompanyDetailPage::contact rows::renders each contact row with name, muted position, LinkedIn icon link and actions menu",
+      "AC-11": "tests/unit/companies/CompanyDetailPage.test.tsx::CompanyDetailPage::contact rows::shows the contacts empty state with the \"Añadir primer contacto\" CTA",
+      "AC-12": "tests/unit/companies/CompanyDetailPage.test.tsx::CompanyDetailPage::creating a contact::opens the \"Nuevo contacto\" dialog with focus on Nombre and the optional fields",
+      "AC-13": "tests/unit/companies/CompanyDetailPage.test.tsx::CompanyDetailPage::creating a contact::creates via createContact with normalized optionals, shows \"Contacto creado\" and lists the row",
+      "AC-14": "tests/unit/companies/CompanyDetailPage.test.tsx::CompanyDetailPage::creating a contact::shows the inline \"Campo requerido\" error for an empty name without calling the bridge",
+      "AC-15": "tests/unit/companies/CompanyDetailPage.test.tsx::CompanyDetailPage::editing a contact::opens the edit dialog preloaded, saves via updateContact and shows \"Cambios guardados\"",
+      "AC-16": "tests/unit/companies/CompanyDetailPage.test.tsx::CompanyDetailPage::deleting a contact::confirms in the simple AlertDialog, deletes via deleteContact and shows \"Contacto eliminado\"",
+      "AC-17": "tests/unit/companies/CompanyDetailPage.test.tsx::CompanyDetailPage::nonexistent company::shows the error state with the \"Volver a Discoveries\" link when getCompany fails",
+      "AC-18": "tests/unit/companies/CompanyDetailPage.test.tsx::CompanyDetailPage::external links markup::renders external links with target=_blank, rel=noreferrer and the exact href (apertura real en el navegador: MANUAL)",
+      "AC-19": "tests/unit/companies/DiscoveryDetailPage.companies.test.tsx::DiscoveryDetailPage (empresas)::loading and mutation errors::shows skeletons in the companies section while the list is loading",
+      "AC-20": "tests/unit/companies/DiscoveryDetailPage.companies.test.tsx::DiscoveryDetailPage (empresas)::loading and mutation errors::shows an error toast and leaves the UI untouched when a mutation fails"
+    },
+    "notes": "Sin adaptaciones de infra: getCompany se mockea por test (sin default en createMockDbApi, decisión deliberada: no hay valor por defecto sensato para una empresa concreta); listCompanies/listContacts ya tenían default ok [].",
     "created_at": "2026-07-04"
   }
 }

@@ -44,7 +44,8 @@ beforeEach(() => {
 
 describe('DiscoveryDetailPage', () => {
   describe('navigating from the list', () => {
-    // SPEC-010 · AC-15
+    // SPEC-010 · AC-15 (derogado parcialmente por SPEC-011 AC-02: el empty
+    // state de empresas perdió el secundario provisional y ganó CTA funcional)
     it('opens /discoveries/:id from the row name showing the title and the companies empty state', async () => {
       const user = userEvent.setup()
       renderAt('/discoveries')
@@ -55,10 +56,8 @@ describe('DiscoveryDetailPage', () => {
         await screen.findByRole('heading', { name: 'Discovery Maurya', level: 1 })
       ).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: 'Empresas' })).toBeInTheDocument()
-      expect(screen.getByText('Aún no hay empresas')).toBeInTheDocument()
-      expect(
-        screen.getByText('El alta de empresas llegará en la siguiente fase')
-      ).toBeInTheDocument()
+      expect(await screen.findByText('Aún no hay empresas')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Añadir primera empresa' })).toBeInTheDocument()
     })
   })
 
