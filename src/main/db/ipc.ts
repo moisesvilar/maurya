@@ -3,6 +3,7 @@ import type { DbResult } from '../../renderer/src/types/domain'
 import { toDbError } from './errors'
 import { getStatus, initStore } from './store'
 import * as repository from './repository'
+import { searchGlobal } from './search'
 
 /**
  * Registra un canal db:* que SIEMPRE resuelve con el envelope DbResult: la
@@ -63,6 +64,9 @@ export function registerDbIpcHandlers(): void {
   handleDb('db:note-template:get', repository.getNoteTemplate)
   handleDb('db:note-template:update', repository.updateNoteTemplate)
   handleDb('db:note-template:delete', repository.deleteNoteTemplate)
+
+  // Búsqueda global (SPEC-018): resultados agrupados con contexto resuelto.
+  handleDb('db:search', searchGlobal)
 
   handleDb('db:note:create', repository.createNote)
   handleDb('db:note:get-by-interview', repository.getNoteByInterview)

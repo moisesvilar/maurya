@@ -5,6 +5,8 @@
  * Este módulo NO debe depender del DOM: lo importan (type-only) main y preload.
  */
 
+import type { SearchResults } from './search'
+
 // ---------------------------------------------------------------------------
 // Entidades
 // ---------------------------------------------------------------------------
@@ -281,4 +283,7 @@ export interface DbApi {
   getNoteByInterview: (interviewId: string) => Promise<DbResult<Note | null>>
   updateNote: (id: string, patch: UpdateNotePatch) => Promise<DbResult<Note>>
   deleteNote: (id: string) => Promise<DbResult<null>>
+
+  /** Búsqueda global por nombre/título (SPEC-018): resultados agrupados por tipo. */
+  search: (query: string) => Promise<DbResult<SearchResults>>
 }

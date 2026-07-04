@@ -67,7 +67,10 @@ const db: DbApi = {
   createNote: (input) => ipcRenderer.invoke('db:note:create', input),
   getNoteByInterview: (interviewId) => ipcRenderer.invoke('db:note:get-by-interview', interviewId),
   updateNote: (id, patch) => ipcRenderer.invoke('db:note:update', id, patch),
-  deleteNote: (id) => ipcRenderer.invoke('db:note:delete', id)
+  deleteNote: (id) => ipcRenderer.invoke('db:note:delete', id),
+
+  // Búsqueda global (SPEC-018): resultados agrupados por tipo desde main.
+  search: (query) => ipcRenderer.invoke('db:search', query)
 }
 
 /**
