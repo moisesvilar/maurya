@@ -49,10 +49,10 @@ Depende de H1.
 - [x] 🟡 Editar / eliminar empresas y contactos (RF-DISC-005) — SPEC-011 (detalle de empresa incluido)
 
 ### Templates de entrevista (TPL)
-- [ ] 🔴 **Crear template** con listado de preguntas organizable en bloques (RF-TPL-001)
-- [ ] 🟡 Metadatos por bloque/pregunta (tiempo, propósito, señales de alarma) (RF-TPL-002)
-- [ ] 🟡 Editar / duplicar / eliminar templates (RF-TPL-003)
-- [ ] 🟢 Marcar **fase metodológica** del template (exploratoria/problema/solución) (RF-TPL-004)
+- [x] 🔴 **Crear template** con listado de preguntas organizable en bloques (RF-TPL-001) — SPEC-012, unit 174/174 PASS
+- [x] 🟡 Metadatos por bloque/pregunta (tiempo, propósito, señales de alarma) (RF-TPL-002) — SPEC-012 (guías por bloque y pregunta)
+- [x] 🟡 Editar / duplicar / eliminar templates (RF-TPL-003) — SPEC-012
+- [x] 🟢 Marcar **fase metodológica** del template (exploratoria/problema/solución) (RF-TPL-004) — SPEC-012. **H2 completo**
 
 ---
 
@@ -139,13 +139,13 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 |------|-------------|--------|
 | H0 · Spike | 6 | 5 |
 | H1 · Shell | 6 | 6 |
-| H2 · CRUD | 9 | 5 |
+| H2 · CRUD | 9 | 9 |
 | H3 · IA guión | 5 | 0 |
 | H4 · Transcripción | 6 | 0 |
 | H5 · Asistencia | 8 | 0 |
 | H6 · Resumen | 5 | 0 |
 | H7 · Pulido | 7 | 0 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **16** |
+| **Total** | **56** | **20** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
