@@ -11,6 +11,7 @@ import { Layout } from '@/components/layout/Layout'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { DiscoveriesPage } from '@/pages/DiscoveriesPage'
+import { InterviewTemplatesPage } from '@/pages/InterviewTemplatesPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { NoteTemplateEditorPage } from '@/pages/NoteTemplateEditorPage'
 import { SettingsPage } from '@/pages/SettingsPage'
@@ -54,6 +55,7 @@ function renderApp(initialEntry: string): RenderResult {
             <Route path="capture" element={<SpikeAudioCapturePage />} />
             <Route path="discoveries" element={<DiscoveriesPage />} />
             <Route path="templates" element={<TemplatesHubPage />} />
+            <Route path="templates/interview" element={<InterviewTemplatesPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="settings/note-templates/new" element={<NoteTemplateEditorPage />} />
             <Route path="settings/note-templates/:id" element={<NoteTemplateEditorPage />} />
@@ -92,16 +94,25 @@ describe('secciones bajo el layout (SPEC-009)', () => {
   })
 
   describe('Plantillas (hub)', () => {
-    // SPEC-009 · AC-09
-    it('shows the disabled interview-templates card and a notes card that navigates to the settings tab', async () => {
+    // SPEC-009 · AC-09 (derogado por SPEC-012 AC-01: la card de entrevistas
+    // pasó a ser clicable con descripción nueva, sin "Disponible próximamente")
+    it('shows both template cards, each navigating to its destination', async () => {
       const user = userEvent.setup()
-      renderApp('/templates')
+      const { unmount } = renderApp('/templates')
 
-      // Card de entrevistas: "Disponible próximamente", no clicable (sin enlace)
-      expect(screen.getByText('Disponible próximamente')).toBeInTheDocument()
-      expect(screen.getByText('Plantillas de entrevista').closest('a')).toBeNull()
+      // Card de entrevistas: clicable, con la descripción nueva de SPEC-012
+      expect(screen.queryByText('Disponible próximamente')).not.toBeInTheDocument()
+      expect(screen.getByText('Cuestionarios base para tus entrevistas')).toBeInTheDocument()
+      const interviewLink = screen.getByText('Plantillas de entrevista').closest('a')
+      if (interviewLink === null) {
+        throw new Error('La card de Plantillas de entrevista debe ser un enlace')
+      }
+      await user.click(interviewLink)
+      expect(await screen.findByText('Aún no hay plantillas de entrevista')).toBeInTheDocument()
 
       // Card de notas: clicable → pestaña de plantillas de notas de Ajustes
+      unmount()
+      renderApp('/templates')
       const notesLink = screen.getByText('Plantillas de notas').closest('a')
       if (notesLink === null) {
         throw new Error('La card de Plantillas de notas debe ser un enlace')

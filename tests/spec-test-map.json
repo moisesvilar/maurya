@@ -406,7 +406,7 @@
       "AC-06": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::top bar::shows the active section title in the banner for each key route",
       "AC-07": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::routes::redirects the index route to the Captura section (provisional home)",
       "AC-08": "DEROGADO PARCIALMENTE por SPEC-010 (el empty state provisional perdió el texto secundario y ganó CTA funcional): tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Discoveries::shows the Discoveries empty state with its functional CTA under the layout + cobertura completa del empty state en SPEC-010 AC-03",
-      "AC-09": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Plantillas (hub)::shows the disabled interview-templates card and a notes card that navigates to the settings tab",
+      "AC-09": "DEROGADO por SPEC-012 AC-01 (la card de entrevistas pasó a ser clicable → /templates/interview con la descripción 'Cuestionarios base para tus entrevistas'): tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Plantillas (hub)::shows both template cards, each navigating to its destination",
       "AC-10": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Ajustes bajo el layout::keeps the settings tabs functional and no longer shows the \"Volver\" back button",
       "AC-11": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::editor de plantillas bajo el layout::keeps the \"Volver\" back button in the note-template editor (detail flow) under the layout",
       "AC-12": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Captura bajo el layout::renders the working capture harness without the settings gear button",
@@ -504,7 +504,53 @@
       "AC-19": "tests/unit/companies/DiscoveryDetailPage.companies.test.tsx::DiscoveryDetailPage (empresas)::loading and mutation errors::shows skeletons in the companies section while the list is loading",
       "AC-20": "tests/unit/companies/DiscoveryDetailPage.companies.test.tsx::DiscoveryDetailPage (empresas)::loading and mutation errors::shows an error toast and leaves the UI untouched when a mutation fails"
     },
-    "notes": "Sin adaptaciones de infra: getCompany se mockea por test (sin default en createMockDbApi, decisión deliberada: no hay valor por defecto sensato para una empresa concreta); listCompanies/listContacts ya tenían default ok [].",
+    "notes": "Sin adaptaciones de infra: getCompany se mockea por test (sin default en createMockDbApi, decisión deliberada: no hay valor por defecto sensato para una empresa concreta); listCompanies/listContacts ya tenían default ok []. FIX FLAKY (iteración QA 2026-07-04, confirmado 3/4 fallos contra árbol limpio) en el test de AC-06: LECCIÓN — al abrir un Dialog desde un DropdownMenu (setTimeout(0)), el returnFocus del menú puede robar el foco tras el focus() de onOpenAutoFocus y el FocusScope del Dialog re-enfoca el primer tabbable con select:true → la SELECCIÓN del input precargado es no determinista en jsdom. No asertar selección en dialogs abiertos desde menús (solo en aperturas directas botón→dialog); el foco se aserta con waitFor(toHaveFocus).",
+    "created_at": "2026-07-04",
+    "updated_at": "2026-07-04"
+  },
+  "SPEC-012": {
+    "spec_file": "specs/SPEC-012-templates-entrevista.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec (20): AC-01 card del hub funcional, AC-02 fila con Badge de fase condicional + resumen + menú, AC-03 empty con CTA, AC-04 skeletons y error+Reintentar, AC-05 editor nuevo con 1 bloque y 1 pregunta, AC-06 estructura Nombre+Fase+bloques, AC-07 card de bloque, AC-08 fila de pregunta, AC-09 añadir bloque con foco en su título, AC-10 añadir pregunta con foco en su texto, AC-11 mover bloques/preguntas acotado por nivel con extremos disabled+Tooltip, AC-12 único bloque/única pregunta disabled+tooltips literales, AC-13 guardar con orden exacto y guidance omitida si vacía, AC-14 validaciones anidadas, AC-15 Sin fase → null y sin Badge, AC-16 guard descartar/directo, AC-17 editar precarga en orden exacto, AC-18 duplicar, AC-19 eliminar, AC-20 error de mutación.",
+    "unit": [
+      {
+        "file": "tests/unit/interview-templates/InterviewTemplatesPage.test.tsx",
+        "test_count": 7,
+        "description": "Hub + listado con api.db mockeado y rutas reales: card del hub clicable → listado (AC-01); filas con Badge 'Problema' condicional —fixture sin fase sin Badge— y resumen '2 bloques · 3 preguntas'/'1 bloque · 1 pregunta' con menú Editar/Duplicar/Eliminar (AC-02); empty + CTA 'Crear primera plantilla' (AC-03); skeletons con Promise<never> y error+Reintentar que rellama, en dos escenarios del mismo it (AC-04); Duplicar → createInterviewTemplate con {name: 'Entrevista MDR (copia)', phase, blocks tal cual} + toast 'Plantilla duplicada' + fila nueva (AC-18); AlertDialog 'Eliminar plantilla' «nombre» → deleteInterviewTemplate + toast 'Plantilla eliminada' + fila fuera (AC-19); y duplicado {ok:false} → toast de error con el listado intacto (AC-20)."
+      },
+      {
+        "file": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx",
+        "test_count": 15,
+        "description": "Editor de dos niveles (getInterviewTemplate mockeado, probe del listado): nuevo con 1 bloque + 1 pregunta en blanco (AC-05); Nombre + Select de fase con 'Sin fase' default y ayuda metodológica + heading Bloques (AC-06); card de bloque completa —'Bloque 1', placeholders, h4 Preguntas, aria-labels, Añadir pregunta— (AC-07); fila de pregunta completa (AC-08); añadir bloque con foco en su TÍTULO (AC-09); añadir pregunta con foco en su texto (AC-10); AC-11 en DOS its (lección: máx 1 tooltip hover por render): subir bloque intercambia con sus preguntas + tooltip 'Ya es el primer bloque', y bajar pregunta acotada por nivel —fixture 2×2, B1 globalmente tercera con su subir deshabilitado por ser primera de SU bloque— + tooltip 'Ya es la primera pregunta'; AC-12 en DOS its: 'La plantilla necesita al menos un bloque' y 'El bloque necesita al menos una pregunta'; guardar → payload con orden visual exacto, fase vía Select y guidance OMITIDA si vacía (not.toHaveProperty) + toast 'Plantilla creada' + navegación (AC-13); 3 'Campo requerido' anidados sin bridge (AC-14); 'Sin fase' default → phase null en el payload, Badge ausente cubierto por AC-02 (AC-15); guard 'Descartar cambios' con cambios y vuelta directa sin ellos (AC-16); y edición precargada con nombre/fase/bloques/guías/preguntas en su orden exacto (AC-17)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "humo-visual": "Aspecto visual de las cards anidadas del editor (dos niveles), sticky bottom bar, iconos y hover del listado: revisión visual manual — jsdom no hace layout ni estilos."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/interview-templates/InterviewTemplatesPage.test.tsx::InterviewTemplatesPage::access from the hub::navigates from the functional hub card to the interview templates list",
+      "AC-02": "tests/unit/interview-templates/InterviewTemplatesPage.test.tsx::InterviewTemplatesPage::listing::renders each row with name, conditional phase badge, block/question summary and the actions menu",
+      "AC-03": "tests/unit/interview-templates/InterviewTemplatesPage.test.tsx::InterviewTemplatesPage::listing::shows the empty state with the \"Crear primera plantilla\" CTA when there are none",
+      "AC-04": "tests/unit/interview-templates/InterviewTemplatesPage.test.tsx::InterviewTemplatesPage::listing::shows skeletons while loading and the error state with a working \"Reintentar\"",
+      "AC-05": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::new template::opens the empty editor with one initial block containing one blank question",
+      "AC-06": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::new template::presents the name field, the optional phase select and the blocks list",
+      "AC-07": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::new template::renders the block card with header, title, block guidance, questions section and actions",
+      "AC-08": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::new template::renders the question row with text, question guidance and its own actions",
+      "AC-09": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::new template::adds an empty block at the end (with a blank question) and focuses its title",
+      "AC-10": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::new template::adds an empty question at the end of the block and focuses its text",
+      "AC-11": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::reordering (2 bloques × 2 preguntas)::swaps blocks with their questions when moved up, disabling the first-block-up with tooltip + tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::reordering (2 bloques × 2 preguntas)::moves a question within its block without crossing block boundaries, with per-block disabled extremes",
+      "AC-12": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::reordering (2 bloques × 2 preguntas)::disables removing the only block with its literal tooltip + tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::reordering (2 bloques × 2 preguntas)::disables removing the only question of a block with its literal tooltip",
+      "AC-13": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::saving::persists the exact visual order omitting empty guidance keys, shows the toast and returns to the list",
+      "AC-14": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::saving::shows nested \"Campo requerido\" errors for name, block title and question text without persisting",
+      "AC-15": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::saving::persists phase as null when \"Sin fase\" (default) is kept (Badge ausente en la fila: cubierto por el fixture sin fase de AC-02)",
+      "AC-16": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::saving::guards leaving with unsaved changes via \"Descartar cambios\" and returns directly when clean",
+      "AC-17": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::editing::loads name, phase, blocks, guidances and questions in their exact stored order",
+      "AC-18": "tests/unit/interview-templates/InterviewTemplatesPage.test.tsx::InterviewTemplatesPage::duplicating::creates an immediate full copy named \"«nombre» (copia)\" with the blocks as-is and shows the toast",
+      "AC-19": "tests/unit/interview-templates/InterviewTemplatesPage.test.tsx::InterviewTemplatesPage::deleting::confirms in the \"Eliminar plantilla\" AlertDialog, deletes and shows \"Plantilla eliminada\"",
+      "AC-20": "tests/unit/interview-templates/InterviewTemplatesPage.test.tsx::InterviewTemplatesPage::mutation errors::shows an error toast and leaves the list untouched when a mutation fails"
+    },
+    "notes": "Sin adaptaciones de infra: getInterviewTemplate se mockea por test (sin default). SPEC-009 AC-09 derogado y remapeado (card del hub funcional, ruta /templates/interview añadida a la réplica del layout). El fix del flaky preexistente de SPEC-011 AC-06 se documenta en las notes de SPEC-011.",
     "created_at": "2026-07-04"
   }
 }
