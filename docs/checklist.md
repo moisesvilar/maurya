@@ -60,7 +60,7 @@ Depende de H1.
 
 Depende de H2. LLM: Claude.
 
-- [ ] 🔴 **Crear entrevista** dentro de empresa/contacto y **asignar template** (RF-GUION-001)
+- [x] 🔴 **Crear entrevista** dentro de empresa/contacto y **asignar template** (RF-GUION-001) — SPEC-013, unit 189/189 PASS
 - [ ] 🔴 **Generar guión personalizado con LLM** a partir de template + info de empresa/contacto (RF-GUION-002)
 - [ ] 🔴 Inyectar **contexto histórico** (transcripciones/notas de entrevistas previas de la misma empresa) en el guión (RF-GUION-003)
 - [ ] 🔴 **Generar objetivos/metas** de la entrevista con LLM (RF-GUION-004)
@@ -140,12 +140,12 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H0 · Spike | 6 | 5 |
 | H1 · Shell | 6 | 6 |
 | H2 · CRUD | 9 | 9 |
-| H3 · IA guión | 5 | 0 |
+| H3 · IA guión | 5 | 1 |
 | H4 · Transcripción | 6 | 0 |
 | H5 · Asistencia | 8 | 0 |
 | H6 · Resumen | 5 | 0 |
 | H7 · Pulido | 7 | 0 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **20** |
+| **Total** | **56** | **21** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
