@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type {
+  LatencyStats,
   MauryaApi,
   PermissionsSnapshot,
   PermissionTarget,
@@ -95,13 +96,17 @@ const api: MauryaApi & { db: DbApi; secrets: SecretsApi; llm: LlmApi } = {
       ipcRenderer.invoke('permissions:open-settings', target)
   },
   recording: {
-    start: (): Promise<string> => ipcRenderer.invoke('recording:start'),
+    // interviewId opcional (SPEC-015): viaja como null cuando no hay entrevista
+    start: (interviewId?: string): Promise<string> =>
+      ipcRenderer.invoke('recording:start', interviewId ?? null),
     writeChunk: (chunk: ArrayBuffer): void => {
       ipcRenderer.send('recording:write-chunk', chunk)
     },
     stop: (): Promise<StopResult> => ipcRenderer.invoke('recording:stop'),
     showInFinder: (filePath: string): Promise<void> =>
       ipcRenderer.invoke('recording:show-in-finder', filePath),
+    getTranscriptStats: (transcriptPath: string): Promise<LatencyStats | null> =>
+      ipcRenderer.invoke('recording:get-transcript-stats', transcriptPath),
     onError: (callback: (message: string) => void): (() => void) => {
       const listener = (_event: IpcRendererEvent, message: string): void => callback(message)
       ipcRenderer.on('recording:error', listener)

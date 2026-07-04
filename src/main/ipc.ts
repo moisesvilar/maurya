@@ -1,5 +1,7 @@
 import { ipcMain, shell } from 'electron'
-import type { PermissionTarget, StopResult } from '../renderer/src/types/audio'
+import { readFileSync } from 'fs'
+import type { LatencyStats, PermissionTarget, StopResult } from '../renderer/src/types/audio'
+import type { Interview } from '../renderer/src/types/domain'
 import type { SecretKind, SecretsResult } from '../renderer/src/types/secrets'
 import type { LlmResult } from '../renderer/src/types/llm'
 import {
@@ -16,6 +18,7 @@ import {
   startTranscription
 } from './transcriptionService'
 import { registerDbIpcHandlers } from './db/ipc'
+import { updateInterview } from './db/repository'
 import {
   getSecretsStatus,
   initSecrets,
@@ -63,6 +66,14 @@ function handleLlm<Args extends unknown[], T>(
   })
 }
 
+/**
+ * Entrevista a la que pertenece la grabación en curso (SPEC-015); null cuando
+ * la captura viene del harness /capture. Se resuelve y resetea SIEMPRE en
+ * `recording:stop` (todos los caminos de parada — detener, desconexión,
+ * cierre, error de escritura — pasan por él).
+ */
+let activeInterviewId: string | null = null
+
 /** Registra todos los canales IPC del spike (excepto el close guard, que vive en index.ts). */
 export function registerIpcHandlers(): void {
   registerDbIpcHandlers()
@@ -84,8 +95,11 @@ export function registerIpcHandlers(): void {
     openPrivacySettings(target)
   )
 
-  ipcMain.handle('recording:start', (event) => {
+  ipcMain.handle('recording:start', (event, interviewId?: string | null) => {
+    // El guard de startRecording ("Ya hay una grabación en curso") lanza ANTES
+    // de tocar activeInterviewId: un segundo start no roba la asociación
     const filePath = startRecording()
+    activeInterviewId = interviewId ?? null
     // Transcripción acoplada a la captura (SPEC-002): sin gesto adicional
     startTranscription(event.sender)
     return filePath
@@ -117,11 +131,43 @@ export function registerIpcHandlers(): void {
       result = stopRecording()
     } catch (error) {
       resetTranscription()
+      activeInterviewId = null
       throw error
     }
     const { transcriptPath, latency } = persistTranscript(result.filePath)
-    return { ...result, transcriptPath, latency }
+    // Asociación a la entrevista (SPEC-015): main persiste la vinculación
+    // aunque el renderer ya no esté montado (auto-guardado al navegar)
+    let interview: Interview | null = null
+    if (activeInterviewId !== null) {
+      try {
+        interview = updateInterview(activeInterviewId, {
+          wavPath: result.filePath,
+          transcriptPath,
+          status: 'recorded'
+        })
+      } catch {
+        // Entrevista borrada durante la grabación: los archivos se conservan
+        interview = null
+      }
+      activeInterviewId = null
+    }
+    return { ...result, transcriptPath, latency, interview }
   })
+
+  ipcMain.handle(
+    'recording:get-transcript-stats',
+    (_event, transcriptPath: string): LatencyStats | null => {
+      // Resumen tras recarga (SPEC-015): lee el {lines, latency} persistido
+      try {
+        const parsed = JSON.parse(readFileSync(transcriptPath, 'utf-8')) as {
+          latency?: LatencyStats | null
+        }
+        return parsed.latency ?? null
+      } catch {
+        return null
+      }
+    }
+  )
 
   ipcMain.handle('recording:show-in-finder', (_event, filePath: string) => {
     shell.showItemInFolder(filePath)

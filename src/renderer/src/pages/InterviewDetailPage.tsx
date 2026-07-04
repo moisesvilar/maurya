@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScriptSection } from '@/components/interviews/ScriptSection'
+import { RecordingSection } from '@/components/recording/RecordingSection'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
 import { useContacts } from '@/hooks/useContacts'
 import { useInterviewTemplates } from '@/hooks/useInterviewTemplates'
@@ -21,13 +22,17 @@ type InterviewDetailState =
  * Layout 2 detalle, la top bar sigue marcando "Discoveries" por prefijo):
  * back button "Volver" al detalle de la empresa, h1 con el título + Badge de
  * estado, fila muted de referencias (empresa · contacto · template, con
- * fallbacks "Sin contacto"/"Sin template") y la sección Guión (ScriptSection,
+ * fallbacks "Sin contacto"/"Sin template"), la sección Grabación
+ * (RecordingSection, SPEC-015: captura mic+sistema con transcripción en vivo,
+ * ENTRE la cabecera y el Guión para que durante la llamada el estado de
+ * grabación quede arriba y el guión debajo) y la sección Guión (ScriptSection,
  * SPEC-014: generación con IA, visualización y edición; deroga el texto
  * secundario del empty state de SPEC-013). Resuelve entrevista y empresa con
  * Promise.all(getInterview, getCompany); un id inexistente o un error del
  * bridge muestran el error state con enlace "Volver a Discoveries". Al generar
- * o editar el guión, onInterviewUpdated refresca la entrevista del estado
- * ready (el Badge pasa a "Preparada" sin recargar).
+ * o editar el guión — o al asociarse una grabación —, onInterviewUpdated
+ * refresca la entrevista del estado ready (el Badge pasa a
+ * "Preparada"/"Grabada" sin recargar).
  * Los nombres de contacto/template se resuelven con los listados ya cargados
  * (useContacts + useInterviewTemplates), sin llamadas extra.
  */
@@ -61,6 +66,13 @@ export function InterviewDetailPage(): React.ReactElement {
       setState({ status: 'ready', interview: interviewResult.data, company: companyResult.data })
     })
   }, [interviewId, companyId])
+
+  /** Callback compartido por Grabación y Guión: refresca la entrevista del estado ready. */
+  const handleInterviewUpdated = useCallback(
+    (interview: Interview): void =>
+      setState((previous) => (previous.status === 'ready' ? { ...previous, interview } : previous)),
+    []
+  )
 
   /** Nombre del contacto asignado; "Sin contacto" si no hay o no se resuelve. */
   const contactLabel = (interview: Interview): string => {
@@ -125,14 +137,12 @@ export function InterviewDetailPage(): React.ReactElement {
             </p>
           </div>
 
-          <ScriptSection
+          <RecordingSection
             interview={state.interview}
-            onInterviewUpdated={(interview) =>
-              setState((previous) =>
-                previous.status === 'ready' ? { ...previous, interview } : previous
-              )
-            }
+            onInterviewUpdated={handleInterviewUpdated}
           />
+
+          <ScriptSection interview={state.interview} onInterviewUpdated={handleInterviewUpdated} />
         </>
       )}
     </div>

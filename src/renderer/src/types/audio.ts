@@ -1,8 +1,10 @@
 /**
- * Tipos compartidos del spike de captura de audio (SPEC-001) y de la
- * transcripción STT streaming con Deepgram (SPEC-002).
+ * Tipos compartidos del spike de captura de audio (SPEC-001), de la
+ * transcripción STT streaming con Deepgram (SPEC-002) y de la grabación
+ * asociada a una entrevista (SPEC-015).
  * Este módulo NO debe depender del DOM: lo importan (type-only) main y preload.
  */
+import type { Interview } from './domain'
 
 /** Estados que devuelve systemPreferences.getMediaAccessStatus en macOS. */
 export type PermissionState = 'not-determined' | 'granted' | 'denied' | 'restricted' | 'unknown'
@@ -107,6 +109,13 @@ export interface StopResult extends RecordingResult {
   transcriptPath: string | null
   /** Estadísticas de latencia STT; null si no hubo resultados finales. */
   latency: LatencyStats | null
+  /**
+   * Entrevista actualizada por main tras asociar la grabación (SPEC-015):
+   * presente solo si `recording:start` recibió un interviewId; null si la
+   * asociación falló (p. ej. entrevista borrada — los archivos se conservan).
+   * Opcional para retrocompatibilidad con el flujo del spike (/capture).
+   */
+  interview?: Interview | null
 }
 
 /** Contrato del bridge expuesto por el preload en window.api. */
@@ -117,11 +126,17 @@ export interface MauryaApi {
     openSettings: (target: PermissionTarget) => Promise<void>
   }
   recording: {
-    start: () => Promise<string>
+    /** `interviewId` opcional (SPEC-015): asocia la grabación a la entrevista al detener. */
+    start: (interviewId?: string) => Promise<string>
     writeChunk: (chunk: ArrayBuffer) => void
     stop: () => Promise<StopResult>
     showInFinder: (filePath: string) => Promise<void>
     onError: (callback: (message: string) => void) => () => void
+    /**
+     * Lee las estadísticas de latencia del `.transcript.json` persistido
+     * (SPEC-015, resumen tras recarga); null si no existe o no es legible.
+     */
+    getTranscriptStats: (transcriptPath: string) => Promise<LatencyStats | null>
   }
   transcription: {
     onStatus: (callback: (event: TranscriptionStatusEvent) => void) => () => void
