@@ -4,6 +4,7 @@ import type {
   CaptureError,
   LatencyStats,
   TranscriptChannel,
+  TranscriptConsent,
   TranscriptLine,
   TranscriptResultEvent,
   TranscriptionStatus,
@@ -357,16 +358,19 @@ export function computeLatencyStats(lines: TranscriptLine[]): LatencyStats | nul
 
 /**
  * Persiste las líneas finales como `spike-<timestamp>.transcript.json` junto
- * al WAV (forma `{ lines, latency, assistant }`, SPEC-003 + SPEC-016) y cierra
- * la sesión. `transcriptPath` y `latency` son null si no hubo resultados
- * finales (en ese caso el summary del asistente no se escribe: sin archivo).
- * `assistant` es el registro de la sesión del asistente (SPEC-016) o null si
- * no hubo asistente (sin clave, sin entrevista). Los lectores previos del
- * archivo ignoran el campo extra.
+ * al WAV (forma `{ lines, latency, assistant, consent }`, SPEC-003 + SPEC-016
+ * + SPEC-019) y cierra la sesión. `transcriptPath` y `latency` son null si no
+ * hubo resultados finales (en ese caso el summary del asistente no se escribe:
+ * sin archivo). `assistant` es el registro de la sesión del asistente
+ * (SPEC-016) o null si no hubo asistente (sin clave, sin entrevista).
+ * `consent` es el registro de consentimiento de grabación (SPEC-019) o null
+ * si no lo hubo (grabaciones del spike /capture). Los lectores previos del
+ * archivo ignoran los campos extra.
  */
 export function persistTranscript(
   wavPath: string,
-  assistant: AssistantSessionSummary | null = null
+  assistant: AssistantSessionSummary | null = null,
+  consent: TranscriptConsent | null = null
 ): PersistResult {
   if (session === null) {
     return { transcriptPath: null, latency: null }
@@ -381,7 +385,7 @@ export function persistTranscript(
   const transcriptPath = wavPath.replace(/\.wav$/, '') + '.transcript.json'
   writeFileSync(
     transcriptPath,
-    JSON.stringify({ lines: target.lines, latency, assistant }, null, 2)
+    JSON.stringify({ lines: target.lines, latency, assistant, consent }, null, 2)
   )
   return { transcriptPath, latency }
 }

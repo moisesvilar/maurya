@@ -34,8 +34,12 @@ export interface UseAudioCaptureResult {
   levels: AudioLevels
   error: CaptureError | null
   result: StopResult | null
-  /** `interviewId` opcional (SPEC-015): main asocia la grabación al detener. */
-  start: (deviceId: string, interviewId?: string) => Promise<void>
+  /**
+   * `interviewId` opcional (SPEC-015): main asocia la grabación al detener.
+   * `consentAcknowledgedAt` opcional (SPEC-019): marca ISO 8601 del
+   * reconocimiento del aviso de grabación, generada en el renderer.
+   */
+  start: (deviceId: string, interviewId?: string, consentAcknowledgedAt?: string) => Promise<void>
   stop: () => Promise<StopResult | null>
   clearError: () => void
 }
@@ -112,7 +116,11 @@ export function useAudioCapture(onSaved: (result: StopResult) => void): UseAudio
   )
 
   const start = useCallback(
-    async (deviceId: string, interviewId?: string): Promise<void> => {
+    async (
+      deviceId: string,
+      interviewId?: string,
+      consentAcknowledgedAt?: string
+    ): Promise<void> => {
       if (recorderRef.current !== null || status !== 'idle') {
         return
       }
@@ -164,7 +172,7 @@ export function useAudioCapture(onSaved: (result: StopResult) => void): UseAudio
           return
         }
 
-        await window.api.recording.start(interviewId)
+        await window.api.recording.start(interviewId, consentAcknowledgedAt)
         const recorder = new WavRecorderService()
         await recorder.start(micStream, systemStream)
 

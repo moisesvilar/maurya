@@ -4,6 +4,7 @@ import type {
   LatencyStats,
   PermissionTarget,
   StopResult,
+  TranscriptConsent,
   TranscriptLinesResult
 } from '../renderer/src/types/audio'
 import type { Interview } from '../renderer/src/types/domain'
@@ -88,6 +89,15 @@ function handleLlm<Args extends unknown[], T>(
  */
 let activeInterviewId: string | null = null
 
+/**
+ * Registro de consentimiento de la grabación en curso (SPEC-019); null cuando
+ * el aviso no se reconoció (captura del harness /capture). Espejo del ciclo de
+ * vida de activeInterviewId: se asigna en `recording:start` TRAS el guard y se
+ * resetea en TODOS los caminos de `recording:stop` (incluido el catch), de
+ * modo que el consent de una entrevista jamás se filtra a la siguiente sesión.
+ */
+let activeConsent: TranscriptConsent | null = null
+
 /** Registra todos los canales IPC del spike (excepto el close guard, que vive en index.ts). */
 export function registerIpcHandlers(): void {
   registerDbIpcHandlers()
@@ -130,20 +140,28 @@ export function registerIpcHandlers(): void {
     openPrivacySettings(target)
   )
 
-  ipcMain.handle('recording:start', (event, interviewId?: string | null) => {
-    // El guard de startRecording ("Ya hay una grabación en curso") lanza ANTES
-    // de tocar activeInterviewId: un segundo start no roba la asociación
-    const filePath = startRecording()
-    activeInterviewId = interviewId ?? null
-    // Transcripción acoplada a la captura (SPEC-002): sin gesto adicional
-    startTranscription(event.sender)
-    // Asistente proactivo (SPEC-016): SOLO con entrevista, nunca en /capture.
-    // Sin clave de Anthropic emite 'no-key' y queda inerte (cero llamadas).
-    if (activeInterviewId !== null) {
-      startAssistant(event.sender, activeInterviewId)
+  ipcMain.handle(
+    'recording:start',
+    (event, interviewId?: string | null, consentAcknowledgedAt?: string | null) => {
+      // El guard de startRecording ("Ya hay una grabación en curso") lanza ANTES
+      // de tocar activeInterviewId/activeConsent: un segundo start no roba la asociación
+      const filePath = startRecording()
+      activeInterviewId = interviewId ?? null
+      // Consentimiento (SPEC-019): decidido en el renderer, persistido al detener
+      activeConsent =
+        consentAcknowledgedAt !== undefined && consentAcknowledgedAt !== null
+          ? { acknowledgedAt: consentAcknowledgedAt }
+          : null
+      // Transcripción acoplada a la captura (SPEC-002): sin gesto adicional
+      startTranscription(event.sender)
+      // Asistente proactivo (SPEC-016): SOLO con entrevista, nunca en /capture.
+      // Sin clave de Anthropic emite 'no-key' y queda inerte (cero llamadas).
+      if (activeInterviewId !== null) {
+        startAssistant(event.sender, activeInterviewId)
+      }
+      return filePath
     }
-    return filePath
-  })
+  )
 
   ipcMain.on('recording:write-chunk', (event, chunk: ArrayBuffer) => {
     const buffer = Buffer.from(chunk)
@@ -176,9 +194,18 @@ export function registerIpcHandlers(): void {
     } catch (error) {
       resetTranscription()
       activeInterviewId = null
+      activeConsent = null
       throw error
     }
-    const { transcriptPath, latency } = persistTranscript(result.filePath, assistantSummary)
+    // El consent se consume y resetea SIEMPRE aquí (SPEC-019), también cuando
+    // no hay entrevista: el registro de una sesión nunca sobrevive a su parada
+    const consent = activeConsent
+    activeConsent = null
+    const { transcriptPath, latency } = persistTranscript(
+      result.filePath,
+      assistantSummary,
+      consent
+    )
     // Asociación a la entrevista (SPEC-015): main persiste la vinculación
     // aunque el renderer ya no esté montado (auto-guardado al navegar)
     let interview: Interview | null = null

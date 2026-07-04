@@ -104,6 +104,16 @@ export interface LatencyStats {
   maxMs: number
 }
 
+/**
+ * Registro de consentimiento de grabación (SPEC-019): reconocimiento del aviso
+ * legal por el usuario, persistido en el `.transcript.json` para trazabilidad.
+ * `acknowledgedAt` es ISO 8601 (momento del inicio de la grabación con el
+ * aviso confirmado o previamente desactivado). Grabaciones del spike → null.
+ */
+export interface TranscriptConsent {
+  acknowledgedAt: string
+}
+
 /** Resultado de detener la grabación: WAV + transcript (null si no hubo líneas). */
 export interface StopResult extends RecordingResult {
   transcriptPath: string | null
@@ -134,8 +144,13 @@ export interface MauryaApi {
     openSettings: (target: PermissionTarget) => Promise<void>
   }
   recording: {
-    /** `interviewId` opcional (SPEC-015): asocia la grabación a la entrevista al detener. */
-    start: (interviewId?: string) => Promise<string>
+    /**
+     * `interviewId` opcional (SPEC-015): asocia la grabación a la entrevista
+     * al detener. `consentAcknowledgedAt` opcional (SPEC-019): marca ISO 8601
+     * del reconocimiento del aviso de grabación; se persiste como `consent`
+     * en el `.transcript.json` (el spike no lo envía → consent null).
+     */
+    start: (interviewId?: string, consentAcknowledgedAt?: string) => Promise<string>
     writeChunk: (chunk: ArrayBuffer) => void
     stop: () => Promise<StopResult>
     showInFinder: (filePath: string) => Promise<void>

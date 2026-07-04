@@ -136,9 +136,10 @@ const api: MauryaApi & {
       ipcRenderer.invoke('permissions:open-settings', target)
   },
   recording: {
-    // interviewId opcional (SPEC-015): viaja como null cuando no hay entrevista
-    start: (interviewId?: string): Promise<string> =>
-      ipcRenderer.invoke('recording:start', interviewId ?? null),
+    // interviewId opcional (SPEC-015) y consentAcknowledgedAt opcional
+    // (SPEC-019): ambos viajan como null cuando no aplican (spike /capture)
+    start: (interviewId?: string, consentAcknowledgedAt?: string): Promise<string> =>
+      ipcRenderer.invoke('recording:start', interviewId ?? null, consentAcknowledgedAt ?? null),
     writeChunk: (chunk: ArrayBuffer): void => {
       ipcRenderer.send('recording:write-chunk', chunk)
     },

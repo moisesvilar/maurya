@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { AssistantPanel } from '@/components/recording/AssistantPanel'
+import { ConsentDialog } from '@/components/recording/ConsentDialog'
 import { LatencyRow } from '@/components/recording/LatencyRow'
 import { MicSelect } from '@/components/recording/MicSelect'
 import { NoKeyAlert } from '@/components/recording/NoKeyAlert'
@@ -27,6 +28,7 @@ import { useAssistant } from '@/hooks/useAssistant'
 import { useAudioCapture } from '@/hooks/useAudioCapture'
 import { useAudioDevices } from '@/hooks/useAudioDevices'
 import { useCloseGuard } from '@/hooks/useCloseGuard'
+import { useConsentPreference } from '@/hooks/useConsentPreference'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useTranscription } from '@/hooks/useTranscription'
 import { cn } from '@/lib/utils'
@@ -81,6 +83,10 @@ export function RecordingSection({
 
   const [newRecordingRequested, setNewRecordingRequested] = useState(false)
   const [confirmOverwrite, setConfirmOverwrite] = useState(false)
+  /** Diálogo "Aviso de grabación" (SPEC-019), previo al arranque salvo preferencia activa. */
+  const [consentDialogOpen, setConsentDialogOpen] = useState(false)
+  const { dismissed: consentDismissed, persistDismiss: persistConsentDismiss } =
+    useConsentPreference()
   /** Latencia leída del .transcript.json persistido (Estado 3 tras recarga). */
   const [persistedLatency, setPersistedLatency] = useState<LatencyStats | null>(null)
 
@@ -159,13 +165,19 @@ export function RecordingSection({
     }
   }, [])
 
-  const handleStart = useCallback((): void => {
+  /**
+   * Arranque real de la captura (flujo SPEC-015 intacto). El timestamp del
+   * consentimiento (SPEC-019) se genera aquí, en el renderer, en el momento
+   * del inicio con el aviso confirmado o previamente desactivado; viaja a main
+   * con recording:start y se persiste en el transcript.json al detener.
+   */
+  const startCapture = useCallback((): void => {
     clearError()
     resetTranscription()
     resetAssistant()
     // El bloqueo por permisos no concedidos lo aplica el propio hook (Alert
     // destructive con los literales del spike, sin arrancar la captura)
-    void start(selectedDeviceId, interviewId).then(() => {
+    void start(selectedDeviceId, interviewId, new Date().toISOString()).then(() => {
       // El intento de inicio puede haber disparado prompts TCC: refrescar Badges
       void refresh()
     })
@@ -178,6 +190,33 @@ export function RecordingSection({
     interviewId,
     refresh
   ])
+
+  // "Iniciar grabación" (SPEC-019): con la preferencia de no mostrar activa
+  // arranca directamente; si no, abre el aviso y la grabación espera
+  const handleStart = useCallback((): void => {
+    if (consentDismissed) {
+      startCapture()
+      return
+    }
+    setConsentDialogOpen(true)
+  }, [consentDismissed, startCapture])
+
+  // Cancelar/Escape/click fuera: cierra sin arrancar y sin persistir nada
+  const handleConsentCancel = useCallback((): void => {
+    setConsentDialogOpen(false)
+  }, [])
+
+  // Confirmación informada: persiste la casilla SOLO aquí y arranca
+  const handleConsentConfirm = useCallback(
+    (dontShowAgain: boolean): void => {
+      if (dontShowAgain) {
+        persistConsentDismiss()
+      }
+      setConsentDialogOpen(false)
+      startCapture()
+    },
+    [persistConsentDismiss, startCapture]
+  )
 
   const handleShowInFinder = useCallback((): void => {
     if (interview.wavPath !== null) {
@@ -290,6 +329,12 @@ export function RecordingSection({
           </div>
         </div>
       )}
+
+      <ConsentDialog
+        open={consentDialogOpen}
+        onCancel={handleConsentCancel}
+        onConfirm={handleConsentConfirm}
+      />
 
       <StopOnCloseDialog
         open={closeDialogOpen}
