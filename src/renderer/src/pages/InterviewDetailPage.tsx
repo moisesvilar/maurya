@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
-import { ArrowLeft, FileText } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ScriptSection } from '@/components/interviews/ScriptSection'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
 import { useContacts } from '@/hooks/useContacts'
 import { useInterviewTemplates } from '@/hooks/useInterviewTemplates'
@@ -20,10 +21,13 @@ type InterviewDetailState =
  * Layout 2 detalle, la top bar sigue marcando "Discoveries" por prefijo):
  * back button "Volver" al detalle de la empresa, h1 con el título + Badge de
  * estado, fila muted de referencias (empresa · contacto · template, con
- * fallbacks "Sin contacto"/"Sin template") y la sección Guión con su empty
- * state (la generación con IA llega en H3 ítems 2-4). Resuelve entrevista y
- * empresa con Promise.all(getInterview, getCompany); un id inexistente o un
- * error del bridge muestran el error state con enlace "Volver a Discoveries".
+ * fallbacks "Sin contacto"/"Sin template") y la sección Guión (ScriptSection,
+ * SPEC-014: generación con IA, visualización y edición; deroga el texto
+ * secundario del empty state de SPEC-013). Resuelve entrevista y empresa con
+ * Promise.all(getInterview, getCompany); un id inexistente o un error del
+ * bridge muestran el error state con enlace "Volver a Discoveries". Al generar
+ * o editar el guión, onInterviewUpdated refresca la entrevista del estado
+ * ready (el Badge pasa a "Preparada" sin recargar).
  * Los nombres de contacto/template se resuelven con los listados ya cargados
  * (useContacts + useInterviewTemplates), sin llamadas extra.
  */
@@ -121,16 +125,14 @@ export function InterviewDetailPage(): React.ReactElement {
             </p>
           </div>
 
-          <section className="flex flex-col gap-4">
-            <h3 className="text-lg font-semibold">Guión</h3>
-            <div className="flex flex-col items-center gap-3 py-12 text-center">
-              <FileText className="size-8 text-muted-foreground" aria-hidden="true" />
-              <p className="text-sm text-muted-foreground">Aún no hay guión</p>
-              <p className="text-sm text-muted-foreground">
-                La generación con IA llegará en la siguiente fase
-              </p>
-            </div>
-          </section>
+          <ScriptSection
+            interview={state.interview}
+            onInterviewUpdated={(interview) =>
+              setState((previous) =>
+                previous.status === 'ready' ? { ...previous, interview } : previous
+              )
+            }
+          />
         </>
       )}
     </div>

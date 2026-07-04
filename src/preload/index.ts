@@ -10,6 +10,7 @@ import type {
 } from '../renderer/src/types/audio'
 import type { DbApi } from '../renderer/src/types/domain'
 import type { SecretsApi } from '../renderer/src/types/secrets'
+import type { LlmApi } from '../renderer/src/types/llm'
 
 /**
  * Bridge de persistencia (SPEC-006): API PLANA (`createCompany`, no
@@ -76,7 +77,17 @@ const secrets: SecretsApi = {
   remove: (kind) => ipcRenderer.invoke('secrets:remove', kind)
 }
 
-const api: MauryaApi & { db: DbApi; secrets: SecretsApi } = {
+/**
+ * Bridge LLM (SPEC-014): la generación corre íntegra en main (SDK + clave);
+ * por aquí solo viajan el interviewId y resultados tipados. La clave de
+ * Anthropic jamás cruza el bridge en ninguna dirección.
+ */
+const llm: LlmApi = {
+  getStatus: () => ipcRenderer.invoke('llm:get-status'),
+  generateScript: (interviewId) => ipcRenderer.invoke('llm:generate-script', interviewId)
+}
+
+const api: MauryaApi & { db: DbApi; secrets: SecretsApi; llm: LlmApi } = {
   permissions: {
     getStatus: (): Promise<PermissionsSnapshot> => ipcRenderer.invoke('permissions:get-status'),
     requestMicrophone: (): Promise<boolean> => ipcRenderer.invoke('permissions:request-microphone'),
@@ -130,7 +141,8 @@ const api: MauryaApi & { db: DbApi; secrets: SecretsApi } = {
     }
   },
   db,
-  secrets
+  secrets,
+  llm
 }
 
 if (process.contextIsolated) {

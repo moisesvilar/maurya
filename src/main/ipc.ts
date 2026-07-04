@@ -1,6 +1,7 @@
 import { ipcMain, shell } from 'electron'
 import type { PermissionTarget, StopResult } from '../renderer/src/types/audio'
 import type { SecretKind, SecretsResult } from '../renderer/src/types/secrets'
+import type { LlmResult } from '../renderer/src/types/llm'
 import {
   askForMicrophoneAccess,
   getPermissionsSnapshot,
@@ -22,6 +23,7 @@ import {
   saveSecret,
   toSecretsError
 } from './secretsService'
+import { generateInterviewScript, getLlmStatus, toLlmError } from './llmService'
 
 /**
  * Registra un canal secrets:* que SIEMPRE resuelve con el envelope
@@ -42,6 +44,25 @@ function handleSecrets<Args extends unknown[], T>(
   })
 }
 
+/**
+ * Registra un canal llm:* que SIEMPRE resuelve con el envelope LlmResult
+ * (mismo patrón que db:* y secrets:*), pero ASYNC: la generación con Claude es
+ * una promesa y hay que await-earla para capturar sus rechazos como
+ * { ok: false, error }. La clave de Anthropic nunca entra ni sale por aquí.
+ */
+function handleLlm<Args extends unknown[], T>(
+  channel: string,
+  operation: (...args: Args) => T | Promise<T>
+): void {
+  ipcMain.handle(channel, async (_event, ...args: unknown[]): Promise<LlmResult<T>> => {
+    try {
+      return { ok: true, data: await operation(...(args as Args)) }
+    } catch (error) {
+      return { ok: false, error: toLlmError(error) }
+    }
+  })
+}
+
 /** Registra todos los canales IPC del spike (excepto el close guard, que vive en index.ts). */
 export function registerIpcHandlers(): void {
   registerDbIpcHandlers()
@@ -51,6 +72,9 @@ export function registerIpcHandlers(): void {
   handleSecrets('secrets:get-status', getSecretsStatus)
   handleSecrets('secrets:save', (kind: SecretKind, value: string) => saveSecret(kind, value))
   handleSecrets('secrets:remove', (kind: SecretKind) => removeSecret(kind))
+
+  handleLlm('llm:get-status', getLlmStatus)
+  handleLlm('llm:generate-script', (interviewId: string) => generateInterviewScript(interviewId))
 
   ipcMain.handle('permissions:get-status', () => getPermissionsSnapshot())
 
