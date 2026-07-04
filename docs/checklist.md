@@ -100,11 +100,11 @@ Depende de H4.
 
 Depende de H5. Cierra el flujo end-to-end.
 
-- [ ] 🔴 **Generar resumen** de la llamada según el note-template configurado (RF-NOTE-001)
+- [x] 🔴 **Generar resumen** de la llamada según el note-template configurado (RF-NOTE-001) — SPEC-017, unit 269/269 PASS (calidad real pendiente de clave del humano)
 - [x] 🔴 **Persistir la transcripción** completa (RF-NOTE-002) — cubierto por SPEC-002 (transcript.json) + SPEC-015 (asociación a la entrevista)
 - [x] 🔴 Dejar transcripciones/notas **disponibles como contexto** para futuras entrevistas (cierra bucle con RF-GUION-003) (RF-NOTE-003) — cubierto por SPEC-014 (contexto histórico lee transcripts y notas)
-- [ ] 🟡 **Consultar y editar** resumen y transcripción (RF-NOTE-004)
-- [ ] 🟢 **Exportar** resumen/transcripción a Markdown u otro formato (RF-NOTE-005)
+- [x] 🟡 **Consultar y editar** resumen y transcripción (RF-NOTE-004) — SPEC-017 (edición con control humano; transcripción en Sheet)
+- [x] 🟢 **Exportar** resumen/transcripción a Markdown u otro formato (RF-NOTE-005) — SPEC-017 (export .md con save dialog nativo). **H6 completo — flujo end-to-end cerrado**
 
 ---
 
@@ -143,9 +143,9 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H3 · IA guión | 5 | 5 |
 | H4 · Transcripción | 6 | 5 |
 | H5 · Asistencia | 8 | 8 |
-| H6 · Resumen | 5 | 0 |
+| H6 · Resumen | 5 | 5 |
 | H7 · Pulido | 7 | 0 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **38** |
+| **Total** | **56** | **43** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
