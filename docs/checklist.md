@@ -85,14 +85,14 @@ Depende de H0 y H3.
 
 Depende de H4.
 
-- [ ] 🔴 **Análisis continuo y proactivo** de la transcripción por el LLM (sin esperar interacción) (RF-ASIS-001)
-- [ ] 🔴 **Sugerencia de siguiente acción**: incidir/pedir detalle vs. continuar (RF-ASIS-002)
-- [ ] 🔴 **Justificación ("porqué")**: falta de evidencia concreta (Mom Test) u objetivo no cumplido (RF-ASIS-003)
-- [ ] 🔴 **Feedback del tamaño justo**: una sugerencia a la vez, glanceable, sin abrumar (RF-ASIS-004, NFR §4.1)
-- [ ] 🟡 **Seguimiento de objetivos en vivo** durante la llamada (RF-ASIS-005)
-- [ ] 🟡 **Detección de señales de alarma** (cumplidos/genéricos/futuros) y reconducción a lo concreto (RF-ASIS-006)
-- [ ] 🔴 **Control de frecuencia/coste** de llamadas al LLM (análisis por turnos/ventanas, no por palabra) (NFR §4.5, Riesgo #5)
-- [ ] 🟡 Feedback in-app (👍/👎) por sugerencia para medir utilidad (KPI #3)
+- [x] 🔴 **Análisis continuo y proactivo** de la transcripción por el LLM (sin esperar interacción) (RF-ASIS-001) — SPEC-016, unit 239/239 PASS
+- [x] 🔴 **Sugerencia de siguiente acción**: incidir/pedir detalle vs. continuar (RF-ASIS-002) — SPEC-016
+- [x] 🔴 **Justificación ("porqué")**: falta de evidencia concreta (Mom Test) u objetivo no cumplido (RF-ASIS-003) — SPEC-016
+- [x] 🔴 **Feedback del tamaño justo**: una sugerencia a la vez, glanceable, sin abrumar (RF-ASIS-004, NFR §4.1) — SPEC-016
+- [x] 🟡 **Seguimiento de objetivos en vivo** durante la llamada (RF-ASIS-005) — SPEC-016
+- [x] 🟡 **Detección de señales de alarma** (cumplidos/genéricos/futuros) y reconducción a lo concreto (RF-ASIS-006) — SPEC-016
+- [x] 🔴 **Control de frecuencia/coste** de llamadas al LLM (análisis por turnos/ventanas, no por palabra) (NFR §4.5, Riesgo #5) — SPEC-016 (3 líneas/20 s/45 s, in-flight guard fijados por test)
+- [x] 🟡 Feedback in-app (👍/👎) por sugerencia para medir utilidad (KPI #3) — SPEC-016 (persistido en transcript.json). **H5 completo**
 
 ---
 
@@ -142,10 +142,10 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H2 · CRUD | 9 | 9 |
 | H3 · IA guión | 5 | 5 |
 | H4 · Transcripción | 6 | 5 |
-| H5 · Asistencia | 8 | 0 |
+| H5 · Asistencia | 8 | 8 |
 | H6 · Resumen | 5 | 0 |
 | H7 · Pulido | 7 | 0 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **30** |
+| **Total** | **56** | **38** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
