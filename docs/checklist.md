@@ -72,11 +72,11 @@ Depende de H2. LLM: Claude.
 
 Depende de H0 y H3.
 
-- [ ] 🔴 Botón **iniciar/detener transcripción** (marca entrevista en curso) (RF-AUDIO-001)
-- [ ] 🔴 Integrar captura **mic + altavoces** del spike en el flujo real de entrevista (RF-AUDIO-002)
-- [ ] 🔴 **Transcripción en vivo** visible durante la llamada (RF-AUDIO-003)
-- [ ] 🔴 Flujo de **permisos y selección de dispositivos** dentro de la app (RF-AUDIO-005)
-- [ ] 🟡 **Atribución de hablante** (diarización) en la transcripción (RF-AUDIO-004)
+- [x] 🔴 Botón **iniciar/detener transcripción** (marca entrevista en curso) (RF-AUDIO-001) — SPEC-015, unit 218/218 PASS
+- [x] 🔴 Integrar captura **mic + altavoces** del spike en el flujo real de entrevista (RF-AUDIO-002) — SPEC-015 (asociación wavPath/transcriptPath + status Grabada)
+- [x] 🔴 **Transcripción en vivo** visible durante la llamada (RF-AUDIO-003) — SPEC-015
+- [x] 🔴 Flujo de **permisos y selección de dispositivos** dentro de la app (RF-AUDIO-005) — SPEC-015
+- [x] 🟡 **Atribución de hablante** (diarización) en la transcripción (RF-AUDIO-004) — SPEC-015
 - [ ] 🔴 Sostener sesión continua de **≥60 min** sin degradarse ni perder audio (NFR §4.5)
 
 ---
@@ -141,11 +141,11 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H1 · Shell | 6 | 6 |
 | H2 · CRUD | 9 | 9 |
 | H3 · IA guión | 5 | 5 |
-| H4 · Transcripción | 6 | 0 |
+| H4 · Transcripción | 6 | 5 |
 | H5 · Asistencia | 8 | 0 |
 | H6 · Resumen | 5 | 0 |
 | H7 · Pulido | 7 | 0 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **25** |
+| **Total** | **56** | **30** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
