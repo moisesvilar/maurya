@@ -6,6 +6,8 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { CompanyDetailPage } from '@/pages/CompanyDetailPage'
 import { DiscoveriesPage } from '@/pages/DiscoveriesPage'
 import { DiscoveryDetailPage } from '@/pages/DiscoveryDetailPage'
+import { InterviewTemplateEditorPage } from '@/pages/InterviewTemplateEditorPage'
+import { InterviewTemplatesPage } from '@/pages/InterviewTemplatesPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { NoteTemplateEditorPage } from '@/pages/NoteTemplateEditorPage'
 import { SettingsPage } from '@/pages/SettingsPage'
@@ -35,6 +37,9 @@ function App(): React.ReactElement {
               element={<CompanyDetailPage />}
             />
             <Route path="templates" element={<TemplatesHubPage />} />
+            <Route path="templates/interview" element={<InterviewTemplatesPage />} />
+            <Route path="templates/interview/new" element={<InterviewTemplateEditorPage />} />
+            <Route path="templates/interview/:id" element={<InterviewTemplateEditorPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="settings/note-templates/new" element={<NoteTemplateEditorPage />} />
             <Route path="settings/note-templates/:id" element={<NoteTemplateEditorPage />} />
