@@ -758,5 +758,50 @@
     },
     "notes": "Adaptación de infra (breakage exacto del plan §5): tests/helpers/mockApi.ts añade llm.generateNote, recording.getTranscriptLines (default ok []) y notes: NotesApi (createMockNotesApi exportado, default {saved:true, filePath:'/tmp/x.md'}). GAP documentado: la calidad real del resumen con la API real es juicio humano (manual_verification).",
     "created_at": "2026-07-04"
+  },
+  "SPEC-018": {
+    "spec_file": "specs/SPEC-018-busqueda-global.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec — el conteo real es 19 (apertura ×4, resultados ×7, navegación ×5, estados ×3): AC-01 botón Buscar abre con foco, AC-02 ⌘K/Ctrl+K, AC-03 Escape cierra sin navegar, AC-04 reabrir vacío, AC-05 discovery en su grupo, AC-06 empresa con discoveryName, AC-07 contacto con companyName, AC-08 entrevista con contexto y Badge de estado, AC-09 grupos en orden solo con hits, AC-10 insensible a mayúsculas/acentos, AC-11 máx 8 por grupo, AC-12 clic discovery navega+cierra, AC-13 clic empresa, AC-14 clic contacto→su empresa, AC-15 clic entrevista, AC-16 flechas+Enter, AC-17 estado inicial literal, AC-18 Sin resultados, AC-19 No se pudo buscar.",
+    "unit": [
+      {
+        "file": "tests/unit/search/search.test.ts",
+        "test_count": 4,
+        "description": "src/main/db/search.ts contra el store REAL inyectado (patrón persistence): normalizeSearchText + coincidencia en ambos sentidos con 'Acmé Córp'↔'acme corp'/'ÁCMÉ' (AC-10); subcadena por tipo con el contexto de navegación resuelto —discoveryName en empresas, companyName+companyId+companyDiscoveryId en contactos, ids anidados+companyName+status en entrevistas— con toEqual exactos (refuerzo AC-05..08); límite de 8 por grupo con 10 coincidencias (AC-11); y query vacía o en blanco → grupos vacíos sin llamar (refuerzo AC-17)."
+      },
+      {
+        "file": "tests/unit/search/GlobalSearch.test.tsx",
+        "test_count": 17,
+        "description": "TopBar + GlobalSearchDialog con MemoryRouter (TopBar FUERA de las Routes como en el Layout real, probes de destino anidadas) y api.db.search mockeado; debounce 150 ms real → findBy/waitFor. Botón 'Buscar' (accessible name limpio: el kbd ⌘K es aria-hidden) abre con foco en el input —waitFor(toHaveFocus), el autofocus de cmdk funciona en jsdom— (AC-01); fireEvent.keyDown(window) con metaKey y ctrlKey abre (AC-02); Escape cierra sin navegar (AC-03); reabrir → input vacío + mensaje inicial (AC-04); hit por grupo con contexto —LECCIÓN: los nombres de discovery/empresa se repiten como contexto en otros grupos → scoping por [cmdk-group], nunca findByText global— (AC-05..08 con Badge 'Grabada'); solo grupos con hits en el orden fijo vía [cmdk-group-heading] (AC-09); clic en cada tipo navega a la ruta ANIDADA correcta (probes DISCOVERY/COMPANY/COMPANY/INTERVIEW) y cierra (AC-12..15); ArrowDown+Enter navega al seleccionado (AC-16, cmdk coopera en jsdom); estado inicial literal sin llamar al bridge (AC-17); 'Sin resultados' con grupos vacíos (AC-18); y '{ok:false}' → 'No se pudo buscar' dentro del diálogo con la app viva (AC-19)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "atajo-teclado-real": "El atajo ⌘K con el teclado físico de macOS (evento nativo del SO frente al keydown sintético de jsdom) y el aspecto visual del palette (ancho, posición top-20%, scroll de la lista): revisión manual.",
+      "volumen-real": "Sensación de latencia con volumen alto de datos reales (el debounce y el límite de 8 están fijados por tests; la percepción es humana)."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::opening and closing::opens the search dialog focusing the input when the \"Buscar\" button is clicked",
+      "AC-02": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::opening and closing::opens the dialog on Cmd+K and on Ctrl+K (window-level shortcut)",
+      "AC-03": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::opening and closing::closes on Escape without navigating",
+      "AC-04": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::opening and closing::reopens with an empty field after closing with text written",
+      "AC-05": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::results::shows a matching discovery under the \"Discoveries\" group + refuerzo main en tests/unit/search/search.test.ts::searchGlobal::substring matching with resolved context::matches by substring on each entity type returning the nested navigation context",
+      "AC-06": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::results::shows a matching company under \"Empresas\" with its discovery name as context + refuerzo main (mismo it de contexto)",
+      "AC-07": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::results::shows a matching contact under \"Contactos\" with its company name as context + refuerzo main (companyDiscoveryId en el hit)",
+      "AC-08": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::results::shows a matching interview under \"Entrevistas\" with company context and its status badge + refuerzo main (status en el hit)",
+      "AC-09": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::results::renders only the groups with hits, in the fixed order",
+      "AC-10": "tests/unit/search/search.test.ts::searchGlobal::normalization::matches names regardless of case and diacritics in both directions",
+      "AC-11": "tests/unit/search/search.test.ts::searchGlobal::group limit::caps each group at 8 results",
+      "AC-12": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::navigation::navigates to the discovery detail and closes when a discovery hit is clicked",
+      "AC-13": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::navigation::navigates to the nested company detail and closes when a company hit is clicked",
+      "AC-14": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::navigation::navigates to the contact's company detail and closes when a contact hit is clicked",
+      "AC-15": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::navigation::navigates to the nested interview detail and closes when an interview hit is clicked",
+      "AC-16": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::navigation::navigates to the arrow-selected result on Enter",
+      "AC-17": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::empty and error states::shows the initial hint and no results before typing + refuerzo main en tests/unit/search/search.test.ts::searchGlobal::blank query::returns empty groups for empty or whitespace-only queries",
+      "AC-18": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::empty and error states::shows the \"Sin resultados\" empty state for a query without matches",
+      "AC-19": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::empty and error states::shows \"No se pudo buscar\" inside the dialog when the bridge fails, without breaking the app"
+    },
+    "notes": "Adaptación de infra (breakage exacto del plan §5): tests/helpers/mockApi.ts añade db.search a createMockDbApi (default sin resultados, overridable). SIN gaps de jsdom: el autofocus de cmdk y las flechas+Enter funcionaron (no hizo falta degradar). Las rutas de destino asertadas son las ANIDADAS reales (desviación documentada del propio código respecto a las planas de la nota técnica).",
+    "created_at": "2026-07-04"
   }
 }
