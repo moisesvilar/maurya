@@ -5,9 +5,8 @@ import type { InterviewStatus } from '@/types/domain'
  * persistidos son ingleses (SPEC-006), la interfaz los presenta en
  * castellano. El Record es completo para que TypeScript obligue a cubrir
  * todos los estados del dominio. `draft` → "Borrador" es contractual en
- * SPEC-013, `prepared` → "Preparada" en SPEC-014 y `recorded` → "Grabada" en
- * SPEC-015; el resto son provisionales (no contractuales) y los revisarán las
- * specs que introduzcan cada estado.
+ * SPEC-013, `prepared` → "Preparada" en SPEC-014, `recorded` → "Grabada" en
+ * SPEC-015 y `summarized` → "Resumida" en SPEC-017.
  */
 export const STATUS_LABELS: Record<InterviewStatus, string> = {
   draft: 'Borrador',
@@ -15,6 +14,6 @@ export const STATUS_LABELS: Record<InterviewStatus, string> = {
   prepared: 'Preparada',
   // Contractual (SPEC-015): estado tras asociar una grabación a la entrevista.
   recorded: 'Grabada',
-  // Provisional (no contractual): lo revisará la spec que introduzca `summarized`.
+  // Contractual (SPEC-017): estado tras generar la nota de resumen con IA.
   summarized: 'Resumida'
 }

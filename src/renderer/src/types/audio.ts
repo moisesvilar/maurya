@@ -118,6 +118,14 @@ export interface StopResult extends RecordingResult {
   interview?: Interview | null
 }
 
+/**
+ * Resultado de leer las líneas del `.transcript.json` persistido (SPEC-017):
+ * envelope propio porque un archivo ausente o corrupto es un estado esperado
+ * de la UI ("No se pudo leer la transcripción"), no una rejection.
+ */
+export type TranscriptLinesResult =
+  { ok: true; lines: TranscriptLine[] } | { ok: false; kind: 'unreadable'; message: string }
+
 /** Contrato del bridge expuesto por el preload en window.api. */
 export interface MauryaApi {
   permissions: {
@@ -137,6 +145,11 @@ export interface MauryaApi {
      * (SPEC-015, resumen tras recarga); null si no existe o no es legible.
      */
     getTranscriptStats: (transcriptPath: string) => Promise<LatencyStats | null>
+    /**
+     * Lee las líneas finales del `.transcript.json` persistido (SPEC-017,
+     * consulta de la transcripción); ilegible → `{ ok: false, kind: 'unreadable' }`.
+     */
+    getTranscriptLines: (transcriptPath: string) => Promise<TranscriptLinesResult>
   }
   transcription: {
     onStatus: (callback: (event: TranscriptionStatusEvent) => void) => () => void

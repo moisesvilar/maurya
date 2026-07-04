@@ -6,12 +6,14 @@ import type {
   PermissionsSnapshot,
   PermissionTarget,
   StopResult,
+  TranscriptLinesResult,
   TranscriptResultEvent,
   TranscriptionStatusEvent
 } from '../renderer/src/types/audio'
 import type { DbApi } from '../renderer/src/types/domain'
 import type { SecretsApi } from '../renderer/src/types/secrets'
 import type { LlmApi } from '../renderer/src/types/llm'
+import type { NotesApi } from '../renderer/src/types/notes'
 import type { AssistantApi, AssistantUpdateEvent } from '../renderer/src/types/assistant'
 
 /**
@@ -86,7 +88,18 @@ const secrets: SecretsApi = {
  */
 const llm: LlmApi = {
   getStatus: () => ipcRenderer.invoke('llm:get-status'),
-  generateScript: (interviewId) => ipcRenderer.invoke('llm:generate-script', interviewId)
+  generateScript: (interviewId) => ipcRenderer.invoke('llm:generate-script', interviewId),
+  generateNote: (interviewId, noteTemplateId) =>
+    ipcRenderer.invoke('llm:generate-note', interviewId, noteTemplateId)
+}
+
+/**
+ * Bridge de exportación (SPEC-017): el save dialog del SO y la escritura del
+ * Markdown corren en main; por aquí solo viajan el interviewId, el destino y
+ * el resultado tipado (envelope NoteExportResult, nunca rejection).
+ */
+const notes: NotesApi = {
+  export: (interviewId, target) => ipcRenderer.invoke('notes:export', interviewId, target)
 }
 
 /**
@@ -106,7 +119,13 @@ const assistant: AssistantApi = {
   sendFeedback: (vote) => ipcRenderer.invoke('assistant:feedback', vote)
 }
 
-const api: MauryaApi & { db: DbApi; secrets: SecretsApi; llm: LlmApi; assistant: AssistantApi } = {
+const api: MauryaApi & {
+  db: DbApi
+  secrets: SecretsApi
+  llm: LlmApi
+  notes: NotesApi
+  assistant: AssistantApi
+} = {
   permissions: {
     getStatus: (): Promise<PermissionsSnapshot> => ipcRenderer.invoke('permissions:get-status'),
     requestMicrophone: (): Promise<boolean> => ipcRenderer.invoke('permissions:request-microphone'),
@@ -125,6 +144,9 @@ const api: MauryaApi & { db: DbApi; secrets: SecretsApi; llm: LlmApi; assistant:
       ipcRenderer.invoke('recording:show-in-finder', filePath),
     getTranscriptStats: (transcriptPath: string): Promise<LatencyStats | null> =>
       ipcRenderer.invoke('recording:get-transcript-stats', transcriptPath),
+    // SPEC-017: líneas finales del transcript persistido para consulta en la UI
+    getTranscriptLines: (transcriptPath: string): Promise<TranscriptLinesResult> =>
+      ipcRenderer.invoke('recording:get-transcript-lines', transcriptPath),
     onError: (callback: (message: string) => void): (() => void) => {
       const listener = (_event: IpcRendererEvent, message: string): void => callback(message)
       ipcRenderer.on('recording:error', listener)
@@ -166,6 +188,7 @@ const api: MauryaApi & { db: DbApi; secrets: SecretsApi; llm: LlmApi; assistant:
   db,
   secrets,
   llm,
+  notes,
   assistant
 }
 

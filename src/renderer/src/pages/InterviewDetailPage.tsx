@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { NoteSection } from '@/components/interviews/NoteSection'
 import { ScriptSection } from '@/components/interviews/ScriptSection'
 import { RecordingSection } from '@/components/recording/RecordingSection'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
@@ -25,7 +26,10 @@ type InterviewDetailState =
  * fallbacks "Sin contacto"/"Sin template"), la sección Grabación
  * (RecordingSection, SPEC-015: captura mic+sistema con transcripción en vivo,
  * ENTRE la cabecera y el Guión para que durante la llamada el estado de
- * grabación quede arriba y el guión debajo) y la sección Guión (ScriptSection,
+ * grabación quede arriba y el guión debajo), la sección Nota (NoteSection,
+ * SPEC-017: resumen con IA según note-template, edición, transcripción y
+ * exportación; entre Grabación y Guión porque tras la llamada la nota se
+ * consulta más que el guión) y la sección Guión (ScriptSection,
  * SPEC-014: generación con IA, visualización y edición; deroga el texto
  * secundario del empty state de SPEC-013). Resuelve entrevista y empresa con
  * Promise.all(getInterview, getCompany); un id inexistente o un error del
@@ -141,6 +145,8 @@ export function InterviewDetailPage(): React.ReactElement {
             interview={state.interview}
             onInterviewUpdated={handleInterviewUpdated}
           />
+
+          <NoteSection interview={state.interview} onInterviewUpdated={handleInterviewUpdated} />
 
           <ScriptSection interview={state.interview} onInterviewUpdated={handleInterviewUpdated} />
         </>

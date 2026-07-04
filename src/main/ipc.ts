@@ -1,9 +1,15 @@
-import { ipcMain, shell } from 'electron'
+import { BrowserWindow, ipcMain, shell } from 'electron'
 import { readFileSync } from 'fs'
-import type { LatencyStats, PermissionTarget, StopResult } from '../renderer/src/types/audio'
+import type {
+  LatencyStats,
+  PermissionTarget,
+  StopResult,
+  TranscriptLinesResult
+} from '../renderer/src/types/audio'
 import type { Interview } from '../renderer/src/types/domain'
 import type { SecretKind, SecretsResult } from '../renderer/src/types/secrets'
 import type { LlmResult } from '../renderer/src/types/llm'
+import type { NoteExportResult, NoteExportTarget } from '../renderer/src/types/notes'
 import {
   askForMicrophoneAccess,
   getPermissionsSnapshot,
@@ -27,6 +33,12 @@ import {
   toSecretsError
 } from './secretsService'
 import { generateInterviewScript, getLlmStatus, toLlmError } from './llmService'
+import {
+  exportInterviewDocument,
+  generateInterviewNote,
+  readTranscriptLines,
+  toNoteExportError
+} from './noteService'
 import { sendAssistantFeedback, startAssistant, stopAssistant } from './assistantService'
 import type { AssistantVote } from '../renderer/src/types/assistant'
 
@@ -88,6 +100,27 @@ export function registerIpcHandlers(): void {
 
   handleLlm('llm:get-status', getLlmStatus)
   handleLlm('llm:generate-script', (interviewId: string) => generateInterviewScript(interviewId))
+  // Nota de resumen (SPEC-017): mismo envelope LlmResult que el guión
+  handleLlm('llm:generate-note', (interviewId: string, noteTemplateId: string) =>
+    generateInterviewNote(interviewId, noteTemplateId)
+  )
+
+  /**
+   * Exportación a Markdown (SPEC-017): handler ad-hoc (no handleLlm) porque el
+   * error tipado es NoteExportError y el save dialog necesita la ventana del
+   * remitente. SIEMPRE resuelve con el envelope NoteExportResult.
+   */
+  ipcMain.handle(
+    'notes:export',
+    async (event, interviewId: string, target: NoteExportTarget): Promise<NoteExportResult> => {
+      try {
+        const window = BrowserWindow.fromWebContents(event.sender)
+        return { ok: true, data: await exportInterviewDocument(window, interviewId, target) }
+      } catch (error) {
+        return { ok: false, error: toNoteExportError(error) }
+      }
+    }
+  )
 
   ipcMain.handle('permissions:get-status', () => getPermissionsSnapshot())
 
@@ -178,6 +211,14 @@ export function registerIpcHandlers(): void {
         return null
       }
     }
+  )
+
+  ipcMain.handle(
+    'recording:get-transcript-lines',
+    (_event, transcriptPath: string): TranscriptLinesResult =>
+      // Consulta de la transcripción (SPEC-017): envelope propio, ilegible →
+      // { ok: false, kind: 'unreadable' } (a diferencia de get-transcript-stats → null)
+      readTranscriptLines(transcriptPath)
   )
 
   ipcMain.handle('recording:show-in-finder', (_event, filePath: string) => {
