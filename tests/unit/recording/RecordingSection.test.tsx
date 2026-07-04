@@ -456,11 +456,15 @@ describe('RecordingSection', () => {
       renderDetail()
       await startRecording(user)
 
-      // Coexistencia: cronómetro de grabación + guión legible en la misma página
+      // Coexistencia: cronómetro de grabación + guión legible en la misma página.
+      // SPEC-016 añadió el panel de objetivos EN VIVO durante la grabación →
+      // hay DOS h4 "Objetivos" (panel del asistente + sección Guión): getAllBy
       expect(screen.getByText('00:00')).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: 'Guión' })).toBeInTheDocument()
       expect(screen.getByText(/Pregunta clave para la llamada/)).toBeInTheDocument()
-      expect(screen.getByRole('heading', { name: 'Objetivos', level: 4 })).toBeInTheDocument()
+      expect(
+        screen.getAllByRole('heading', { name: 'Objetivos', level: 4 }).length
+      ).toBeGreaterThanOrEqual(1)
     })
   })
 })

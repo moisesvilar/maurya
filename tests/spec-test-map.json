@@ -664,7 +664,50 @@
       "AC-13": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::after recording::restores the persisted summary after a reload, reading the latency from the transcript file",
       "AC-14": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::script visibility::keeps the Guión section visible and readable while the recording is running"
     },
-    "notes": "Adaptación de infra: tests/helpers/mockApi.ts añade recording.getTranscriptStats (default null) tras la ampliación del contrato (única rotura de compilación, presupuestada). Los tests previos del detalle de entrevista no requirieron cambios: el bridge del spike ya estaba mockeado por el helper y la sección nueva degrada bien con los defaults.",
+    "notes": "Adaptación de infra: tests/helpers/mockApi.ts añade recording.getTranscriptStats (default null) tras la ampliación del contrato (única rotura de compilación, presupuestada). Los tests previos del detalle de entrevista no requirieron cambios: el bridge del spike ya estaba mockeado por el helper y la sección nueva degrada bien con los defaults. SPEC-016 añadió el panel de objetivos EN VIVO durante la grabación → el test de AC-14 pasó a getAllBy para el h4 'Objetivos' (dos headings: panel del asistente + sección Guión; regresión de contrato presupuestada, no bug).",
+    "created_at": "2026-07-04",
+    "updated_at": "2026-07-04"
+  },
+  "SPEC-016": {
+    "spec_file": "specs/SPEC-016-asistencia-tiempo-real.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec (15): AC-01 análisis proactivo con sugerencia, AC-02 'Analizando…' sin ocultar la anterior, AC-03 sin clave inactivo con Link a Ajustes, AC-04 transcripción inactiva → asistente inactivo, AC-05 sugerencia en su tamaño justo, AC-06 la nueva sustituye a la anterior, AC-07 dig_deeper con porqué concreto, AC-08 chips de alarma, AC-09 objetivos en vivo acumulativos, AC-10 sin objetivos sin panel, AC-11 feedback 👍/👎, AC-12 registro persistido en el transcript, AC-13 control de frecuencia y coste, AC-14 error discreto con reintento, AC-15 fin de la grabación.",
+    "unit": [
+      {
+        "file": "tests/unit/assistant/assistantService.test.ts",
+        "test_count": 8,
+        "description": "assistantService en Node (SDK mockeado con clases de error espejo; transcriptionService/repository REALES: las líneas finales se inyectan por la vía pública conexión Deepgram mockeada → finalLineListener; vi.useFakeTimers({toFake:['Date']}) para gobernar el intervalo sin romper promesas): 2 líneas no llaman y la 3ª dispara analyzing→active con la sugerencia, fijando MIN_NEW_FINAL_LINES=3/MIN_INTERVAL_MS=20000 (AC-01+AC-13); material de sobra dentro de la ventana no llama y pasada la ventana sí (AC-13); guard in-flight: promesa colgada + más líneas y tiempo → una sola llamada (AC-13); sin clave → evento no-key e inerte con stop null (AC-03 servicio); objectivesMet acumulativo con índices fuera de rango filtrados (AC-09 servicio); error del SDK → evento error kind auth con contadores intactos y reintento en la siguiente ventana (AC-14 servicio); feedback mutable hasta la siguiente sugerencia + summary {suggestionCount:2, feedback:{up:1,down:1}} y persistTranscript escribiendo el campo assistant en el JSON (AC-11 servicio + AC-12); y stop: listener retirado (líneas posteriores no llaman), timer limpio y respuesta tardía descartada sin eventos nuevos (AC-15 servicio)."
+      },
+      {
+        "file": "tests/unit/assistant/AssistantPanel.test.tsx",
+        "test_count": 12,
+        "description": "Panel del asistente y de objetivos vía InterviewDetailPage grabando (mocks del spike + emitAssistantUpdate): texto inicial literal (parte AC-01); 'Analizando…' conservando la sugerencia anterior (AC-02); no-key con 'Asistente inactivo — configura tu clave de Anthropic en' + Link a /settings (AC-03 UI); transcripción inactiva → sin actividad del panel, estado inicial persiste (AC-04); sugerencia en su tamaño justo: Badge 'Continúa' + pregunta + porqué y NADA más (sin chips, sin Analizando, sin error, sin texto inicial) (AC-05); la nueva sustituye a la anterior (AC-06); dig_deeper → Badge 'Profundiza' con el porqué concreto (AC-07); chips 'Cumplido'/'Genérico'/'Hipotético' (AC-08); panel de objetivos con line-through en los cubiertos según objectivesMet (AC-09 UI); sin objetivos → sin panel (AC-10); 👍/👎 → sendFeedback('up'|'down') con resaltado bg-accent conmutable (AC-11 UI); línea discreta 'No se pudo analizar (se reintentará): …' bajo la sugerencia conservada (AC-14 UI); y al detener → Estado 3 sin panel (AC-15 UI)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "calidad-sugerencias-llamada-real": "Calidad de las sugerencias del copiloto en una llamada real (¿ayudan sin distraer? Riesgo #2) y latencia percibida del análisis: juicio humano con la clave de Anthropic real configurada (pendiente del humano, patrón SPEC-014).",
+      "test-usabilidad": "Test de usabilidad del PRD (Riesgo #2, planificado para H7): observar a un entrevistador real usando el panel durante una entrevista completa.",
+      "coste-real": "Consumo real de tokens/coste por sesión con la API real: los parámetros de control (3 líneas / 20 s / 45 s fallback, effort low, max_tokens 1024) están fijados por tests; la factura real la valida el humano."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/assistant/assistantService.test.ts::assistantService::proactive triggering::does not call with fewer than MIN_NEW_FINAL_LINES and analyzes proactively on the third final line + tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::activation states::shows the initial waiting text while recording before any suggestion",
+      "AC-02": "tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::activation states::shows the discreet \"Analizando…\" indicator without hiding the previous suggestion",
+      "AC-03": "tests/unit/assistant/assistantService.test.ts::assistantService::without an Anthropic key::emits no-key and stays inert: zero calls and stop returns null + tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::activation states::shows the inactive no-key state with a link to Ajustes",
+      "AC-04": "tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::activation states::stays in the initial state while the transcription is inactive (no assistant activity)",
+      "AC-05": "tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::the suggestion::shows exactly the action badge, the suggested question and the one-line reason — nothing else",
+      "AC-06": "tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::the suggestion::replaces the previous suggestion when a new one arrives (only one visible)",
+      "AC-07": "tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::the suggestion::shows the amber \"Profundiza\" badge with the concrete reason for dig_deeper",
+      "AC-08": "tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::the suggestion::shows the alarm chips with their Spanish labels when alarms are detected",
+      "AC-09": "tests/unit/assistant/assistantService.test.ts::assistantService::objectives tracking::accumulates objectivesMet across analyses filtering out-of-range indices + tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::live objectives::shows the objectives panel with pending/covered states from objectivesMet",
+      "AC-10": "tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::live objectives::does not show the objectives panel when the interview has no objectives",
+      "AC-11": "tests/unit/assistant/assistantService.test.ts::assistantService::feedback and persistence::registers mutable votes per suggestion and persists the session summary in the transcript + tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::feedback::sends the vote and highlights the chosen thumb, switchable until the next suggestion",
+      "AC-12": "tests/unit/assistant/assistantService.test.ts::assistantService::feedback and persistence::registers mutable votes per suggestion and persists the session summary in the transcript (mismo it: persistTranscript escribe el campo assistant en el JSON)",
+      "AC-13": "tests/unit/assistant/assistantService.test.ts::assistantService::proactive triggering::does not call again before MIN_INTERVAL_MS even with enough new lines, and does after it + tests/unit/assistant/assistantService.test.ts::assistantService::proactive triggering::never runs two analyses at once: new lines during an in-flight call do not trigger another",
+      "AC-14": "tests/unit/assistant/assistantService.test.ts::assistantService::API errors::emits a typed error keeping the counters so the next window retries + tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::errors::shows the discreet retry line under the preserved suggestion on analysis error",
+      "AC-15": "tests/unit/assistant/assistantService.test.ts::assistantService::stop::detaches the listener and discards late in-flight responses after stop + tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::end of recording::removes the assistant panel when the recording stops into the recorded state"
+    },
+    "notes": "Adaptación de infra (causa única del breakage, presupuestada): tests/helpers/mockApi.ts amplía BridgeApi con assistant: AssistantApi (onUpdate con unsubscribe real; sendFeedback resuelto) + emitAssistantUpdate en el handle — esto recupera los tests de recording/script/interviews sin tocarlos. La forma PersistedTranscript del test de SPEC-002 gana el campo assistant ({ lines, latency, assistant }).",
     "created_at": "2026-07-04"
   }
 }

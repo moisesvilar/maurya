@@ -59,10 +59,11 @@ interface PersistedLine {
   receivedAtMs: number
 }
 
-/** Forma del transcript.json desde SPEC-003: { lines, latency }. */
+/** Forma del transcript.json: { lines, latency } (SPEC-003) + assistant (SPEC-016). */
 interface PersistedTranscript {
   lines: PersistedLine[]
   latency: { count: number; p50Ms: number; p95Ms: number; maxMs: number } | null
+  assistant: { suggestionCount: number; feedback: { up: number; down: number } } | null
 }
 
 function getConnection(index: number): FakeConnection {

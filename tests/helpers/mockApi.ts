@@ -4,6 +4,7 @@
  * tests pueden configurarlo con vi.mocked(...) sin ningún `as any`.
  */
 import { vi } from 'vitest'
+import type { AssistantApi, AssistantUpdateEvent } from '@/types/assistant'
 import type { MauryaApi, TranscriptResultEvent, TranscriptionStatusEvent } from '@/types/audio'
 import type { DbApi } from '@/types/domain'
 import type { LlmApi } from '@/types/llm'
@@ -11,9 +12,14 @@ import type { SecretsApi } from '@/types/secrets'
 
 /**
  * Forma completa del bridge: MauryaApi + api.db (SPEC-006) + api.secrets
- * (SPEC-007) + api.llm (SPEC-014).
+ * (SPEC-007) + api.llm (SPEC-014) + api.assistant (SPEC-016).
  */
-export type BridgeApi = MauryaApi & { db: DbApi; secrets: SecretsApi; llm: LlmApi }
+export type BridgeApi = MauryaApi & {
+  db: DbApi
+  secrets: SecretsApi
+  llm: LlmApi
+  assistant: AssistantApi
+}
 
 /**
  * Mock tipado de api.llm (SPEC-014). getStatus resuelve por defecto SIN clave
@@ -58,6 +64,8 @@ export interface MockApiHandle {
   emitTranscriptionStatus: (event: TranscriptionStatusEvent) => void
   /** Simula un resultado (parcial o final) de transcripción emitido por main (SPEC-002). */
   emitTranscriptionResult: (event: TranscriptResultEvent) => void
+  /** Simula un evento del asistente proactivo emitido por main (SPEC-016). */
+  emitAssistantUpdate: (event: AssistantUpdateEvent) => void
 }
 
 /**
@@ -125,11 +133,24 @@ export function createMockApi(): MockApiHandle {
   const errorCallbacks: Array<(message: string) => void> = []
   const statusCallbacks: Array<(event: TranscriptionStatusEvent) => void> = []
   const resultCallbacks: Array<(event: TranscriptResultEvent) => void> = []
+  const assistantCallbacks: Array<(event: AssistantUpdateEvent) => void> = []
 
   const api: BridgeApi = {
     db: createMockDbApi(),
     secrets: createMockSecretsApi(),
     llm: createMockLlmApi(),
+    assistant: {
+      onUpdate: vi.fn<AssistantApi['onUpdate']>((callback) => {
+        assistantCallbacks.push(callback)
+        return () => {
+          const index = assistantCallbacks.indexOf(callback)
+          if (index >= 0) {
+            assistantCallbacks.splice(index, 1)
+          }
+        }
+      }),
+      sendFeedback: vi.fn<AssistantApi['sendFeedback']>().mockResolvedValue(undefined)
+    },
     permissions: {
       getStatus: vi.fn<MauryaApi['permissions']['getStatus']>().mockResolvedValue({
         microphone: 'granted',
@@ -208,6 +229,9 @@ export function createMockApi(): MockApiHandle {
     },
     emitTranscriptionResult: (event: TranscriptResultEvent): void => {
       resultCallbacks.slice().forEach((callback) => callback(event))
+    },
+    emitAssistantUpdate: (event: AssistantUpdateEvent): void => {
+      assistantCallbacks.slice().forEach((callback) => callback(event))
     }
   }
 }
