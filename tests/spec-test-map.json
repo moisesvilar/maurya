@@ -630,5 +630,41 @@
     },
     "notes": "Adaptación de infra: tests/helpers/mockApi.ts amplía BridgeApi con llm: LlmApi (getStatus default {hasAnthropicKey:false}; generateScript configurable por test) tras el cambio de contrato del preload (window.api.llm).",
     "created_at": "2026-07-04"
+  },
+  "SPEC-015": {
+    "spec_file": "specs/SPEC-015-grabacion-entrevista.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec (14): AC-01 preparación (badges+select+Iniciar), AC-02 permiso denegado no arranca, AC-03 select disabled+tooltip grabando, AC-04 iniciar con asociación + cronómetro + medidores + Detener destructive, AC-05 detener asocia wav/transcript + Grabada + toast, AC-06 navegar fuera auto-guarda, AC-07 close guard del spike, AC-08 desconexión controlada conservando y asociando, AC-09 transcripción en vivo con fuente/hablante y Badge, AC-10 sin key graba con Alert informativo, AC-11 resumen (duración/latencia/rutas/Finder), AC-12 Nueva grabación con AlertDialog de sobrescritura, AC-13 persistencia tras recarga, AC-14 guión visible durante la grabación.",
+    "unit": [
+      {
+        "file": "tests/unit/recording/RecordingSection.test.tsx",
+        "test_count": 14,
+        "description": "Sección Grabación vía InterviewDetailPage con rutas reales (servicios del spike mockeados con el patrón SPEC-001 + bridge window.api; 'Micrófono' aparece ×2-3 → roles/getAllBy): preparación con badges Concedido×2 + combobox habilitado + Iniciar grabación (AC-01); permiso denegado → Alert destructive con el literal del spike sin arrancar —localizado por título + closest('[role=alert]') porque puede convivir con otros alerts— (AC-02); select disabled con tooltip durante la grabación (AC-03); iniciar → recording.start('i-1') asociando la entrevista + cronómetro 00:00 + 2 progressbars + Detener data-variant destructive (AC-04); detener con StopResult.interview → toast 'Grabación guardada' + Badge 'Grabada' + Estado 3 con Duración 01:35 y rutas (AC-05); navegar fuera (Volver) durante la grabación → cleanup invoca recording.stop sin diálogo (AC-06); close-requested → StopOnCloseDialog 'Detener captura' (AC-07); desconexión del micrófono (track ended con el fake) → Alert 'Dispositivo desconectado' + stop asociando (Badge Grabada + wavPath) — camino finalize compartido con SPEC-001 AC-13 (AC-08); eventos de transcripción → línea con fuente/Hablante 1 + Badge 'Transcribiendo' (AC-09); status no-key → 'Falta la key de Deepgram' con la grabación operativa (AC-10); resumen persistido: rutas + Latencia STT (getTranscriptStats) + Mostrar en Finder → showInFinder(wavPath) (AC-11); 'Nueva grabación' → AlertDialog 'Sobrescribir grabación' con el literal y 'Sobrescribir' vuelve a preparación (AC-12); recarga = montaje directo con la Interview grabada → getTranscriptStats(transcriptPath) + fila de latencia con Badge OK (AC-13); y guión legible (heading + contenido + Objetivos) coexistiendo con el cronómetro (AC-14)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "verificacion-acustica-flujo-real": "Verificación acústica end-to-end en el flujo real de la entrevista (audio real de mic+sistema, transcripción real con Deepgram, archivos reproducibles): requiere hardware/red/humano, igual que en SPEC-001/002.",
+      "sesion-60-min": "Sesión sostenida ≥60 minutos sin pérdida de audio ni fugas de memoria (ítem 6 de H4): ejecución prolongada de la app real con monitorización, manual del humano.",
+      "navegacion-cierre-desconexion-reales": "Auto-guardado al navegar, close guard y desconexión física del micrófono con la app y hardware reales: los caminos lógicos están automatizados (AC-06/07/08); la observación end-to-end es manual."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::preparation::shows the permission badges, the microphone select and the \"Iniciar grabación\" button",
+      "AC-02": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::preparation::does not start and shows the destructive alert with the spike literal when a permission is denied",
+      "AC-03": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::preparation::disables the microphone select with a tooltip while recording",
+      "AC-04": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::recording::starts the capture associated to the interview showing chronometer, both meters and a destructive Detener",
+      "AC-05": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::recording::stops associating wav/transcript to the interview, flips the badge to \"Grabada\" and toasts \"Grabación guardada\"",
+      "AC-06": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::recording::auto-stops and saves when navigating away from the detail during a recording",
+      "AC-07": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::recording::keeps the spike close guard: closing the app during a recording opens the \"Detener captura\" dialog",
+      "AC-08": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::recording::stops in a controlled way on device disconnection, keeping the recording associated and showing the cause (camino finalize compartido: ver también SPEC-001 AC-13)",
+      "AC-09": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::live transcription::shows live lines with source badge and speaker label plus the \"Transcribiendo\" status badge",
+      "AC-10": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::live transcription::keeps recording without transcription showing the no-key informative alert",
+      "AC-11": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::after recording::shows the summary with paths, the latency row and a working \"Mostrar en Finder\"",
+      "AC-12": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::after recording::asks to overwrite in the \"Sobrescribir grabación\" dialog and returns to preparation on confirm",
+      "AC-13": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::after recording::restores the persisted summary after a reload, reading the latency from the transcript file",
+      "AC-14": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::script visibility::keeps the Guión section visible and readable while the recording is running"
+    },
+    "notes": "Adaptación de infra: tests/helpers/mockApi.ts añade recording.getTranscriptStats (default null) tras la ampliación del contrato (única rotura de compilación, presupuestada). Los tests previos del detalle de entrevista no requirieron cambios: el bridge del spike ya estaba mockeado por el helper y la sección nueva degrada bien con los defaults.",
+    "created_at": "2026-07-04"
   }
 }

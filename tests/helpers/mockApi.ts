@@ -147,6 +147,10 @@ export function createMockApi(): MockApiHandle {
       writeChunk: vi.fn<MauryaApi['recording']['writeChunk']>(),
       stop: vi.fn<MauryaApi['recording']['stop']>(),
       showInFinder: vi.fn<MauryaApi['recording']['showInFinder']>().mockResolvedValue(undefined),
+      // SPEC-015: latencia del transcript persistido (Estado 3 tras recarga)
+      getTranscriptStats: vi
+        .fn<MauryaApi['recording']['getTranscriptStats']>()
+        .mockResolvedValue(null),
       onError: vi.fn<MauryaApi['recording']['onError']>((callback) => {
         errorCallbacks.push(callback)
         return () => {
