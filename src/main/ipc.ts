@@ -27,6 +27,8 @@ import {
   toSecretsError
 } from './secretsService'
 import { generateInterviewScript, getLlmStatus, toLlmError } from './llmService'
+import { sendAssistantFeedback, startAssistant, stopAssistant } from './assistantService'
+import type { AssistantVote } from '../renderer/src/types/assistant'
 
 /**
  * Registra un canal secrets:* que SIEMPRE resuelve con el envelope
@@ -102,6 +104,11 @@ export function registerIpcHandlers(): void {
     activeInterviewId = interviewId ?? null
     // Transcripción acoplada a la captura (SPEC-002): sin gesto adicional
     startTranscription(event.sender)
+    // Asistente proactivo (SPEC-016): SOLO con entrevista, nunca en /capture.
+    // Sin clave de Anthropic emite 'no-key' y queda inerte (cero llamadas).
+    if (activeInterviewId !== null) {
+      startAssistant(event.sender, activeInterviewId)
+    }
     return filePath
   })
 
@@ -124,7 +131,11 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle('recording:stop', async (): Promise<StopResult> => {
-    // Primero el flush de Deepgram (CloseStream + últimos finales), luego el WAV
+    // El asistente se desactiva SÍNCRONO y primero (SPEC-016): ni el flush de
+    // Deepgram ni la parada del WAV pueden disparar más análisis; una
+    // respuesta aún en vuelo se descarta en el servicio.
+    const assistantSummary = stopAssistant()
+    // Después el flush de Deepgram (CloseStream + últimos finales), luego el WAV
     await finishTranscription()
     let result: ReturnType<typeof stopRecording>
     try {
@@ -134,7 +145,7 @@ export function registerIpcHandlers(): void {
       activeInterviewId = null
       throw error
     }
-    const { transcriptPath, latency } = persistTranscript(result.filePath)
+    const { transcriptPath, latency } = persistTranscript(result.filePath, assistantSummary)
     // Asociación a la entrevista (SPEC-015): main persiste la vinculación
     // aunque el renderer ya no esté montado (auto-guardado al navegar)
     let interview: Interview | null = null
@@ -171,5 +182,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('recording:show-in-finder', (_event, filePath: string) => {
     shell.showItemInFolder(filePath)
+  })
+
+  // Valoración 👍/👎 de la sugerencia vigente del asistente (SPEC-016)
+  ipcMain.handle('assistant:feedback', (_event, vote: AssistantVote) => {
+    sendAssistantFeedback(vote)
   })
 }

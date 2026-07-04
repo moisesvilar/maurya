@@ -9,6 +9,7 @@ import type {
   TranscriptionStatus,
   TranscriptionStatusEvent
 } from '../renderer/src/types/audio'
+import type { AssistantSessionSummary } from '../renderer/src/types/assistant'
 import { DeepgramConnection, classifyConnectionFailure } from './deepgramService'
 import type { DeepgramResult } from './deepgramService'
 import { getDecryptedSecret } from './secretsService'
@@ -49,6 +50,18 @@ interface Session {
 }
 
 let session: Session | null = null
+
+/**
+ * Listener de líneas finales (SPEC-016): el assistantService se engancha aquí
+ * para acumular material de análisis. Se invoca tras el push en handleResult,
+ * SIEMPRE dentro de try/catch: el asistente jamás puede romper la transcripción.
+ */
+let finalLineListener: ((line: TranscriptLine) => void) | null = null
+
+/** Registra (o retira, con null) el listener de líneas finales del asistente. */
+export function setFinalLineListener(listener: ((line: TranscriptLine) => void) | null): void {
+  finalLineListener = listener
+}
 
 /**
  * Resolución de la clave Deepgram (SPEC-007), re-evaluada en cada captura:
@@ -168,6 +181,14 @@ function handleResult(target: Session, result: DeepgramResult): void {
     console.log(
       `[transcription] final channel=${channel} latencia=${receivedAtMs - line.endMs}ms chars=${line.text.length}`
     )
+    // Tee hacia el asistente (SPEC-016): un fallo suyo nunca afecta a esto
+    if (finalLineListener !== null) {
+      try {
+        finalLineListener(line)
+      } catch {
+        // el asistente es degradable; la transcripción sigue siendo la fuente de verdad
+      }
+    }
   }
   emitResult(target, {
     ...line,
@@ -336,10 +357,17 @@ export function computeLatencyStats(lines: TranscriptLine[]): LatencyStats | nul
 
 /**
  * Persiste las líneas finales como `spike-<timestamp>.transcript.json` junto
- * al WAV (forma `{ lines, latency }`, SPEC-003) y cierra la sesión.
- * `transcriptPath` y `latency` son null si no hubo resultados finales.
+ * al WAV (forma `{ lines, latency, assistant }`, SPEC-003 + SPEC-016) y cierra
+ * la sesión. `transcriptPath` y `latency` son null si no hubo resultados
+ * finales (en ese caso el summary del asistente no se escribe: sin archivo).
+ * `assistant` es el registro de la sesión del asistente (SPEC-016) o null si
+ * no hubo asistente (sin clave, sin entrevista). Los lectores previos del
+ * archivo ignoran el campo extra.
  */
-export function persistTranscript(wavPath: string): PersistResult {
+export function persistTranscript(
+  wavPath: string,
+  assistant: AssistantSessionSummary | null = null
+): PersistResult {
   if (session === null) {
     return { transcriptPath: null, latency: null }
   }
@@ -351,7 +379,10 @@ export function persistTranscript(wavPath: string): PersistResult {
   }
   const latency = computeLatencyStats(target.lines)
   const transcriptPath = wavPath.replace(/\.wav$/, '') + '.transcript.json'
-  writeFileSync(transcriptPath, JSON.stringify({ lines: target.lines, latency }, null, 2))
+  writeFileSync(
+    transcriptPath,
+    JSON.stringify({ lines: target.lines, latency, assistant }, null, 2)
+  )
   return { transcriptPath, latency }
 }
 

@@ -1,0 +1,68 @@
+import { useCallback, useEffect, useState } from 'react'
+import type { AssistantState, AssistantSuggestion, AssistantVote } from '@/types/assistant'
+import type { LlmError } from '@/types/llm'
+
+export interface UseAssistantResult {
+  state: AssistantState
+  /** Última sugerencia válida: 'analyzing' y 'error' la conservan visible. */
+  suggestion: AssistantSuggestion | null
+  /** Índices 0-based de objetivos cubiertos (acumulativo, lo mantiene main). */
+  objectivesMet: number[]
+  error: LlmError | null
+  /** Voto de la sugerencia vigente; se resetea con cada sugerencia nueva. */
+  vote: AssistantVote | null
+  sendFeedback: (vote: AssistantVote) => void
+  /** Llamar al iniciar una grabación nueva (patrón useTranscription). */
+  reset: () => void
+}
+
+/**
+ * Estado del asistente proactivo (SPEC-016), suscrito a los eventos push del
+ * main process. Reglas clave: 'analyzing' y 'error' NO borran la sugerencia
+ * anterior (solo una nueva 'active' la sustituye, reseteando el voto); el
+ * feedback es optimista (resaltado inmediato, main registra el contador).
+ */
+export function useAssistant(): UseAssistantResult {
+  const [state, setState] = useState<AssistantState>('idle')
+  const [suggestion, setSuggestion] = useState<AssistantSuggestion | null>(null)
+  const [objectivesMet, setObjectivesMet] = useState<number[]>([])
+  const [error, setError] = useState<LlmError | null>(null)
+  const [vote, setVote] = useState<AssistantVote | null>(null)
+
+  useEffect(() => {
+    return window.api.assistant.onUpdate((event) => {
+      setState(event.state)
+      setObjectivesMet(event.objectivesMet)
+      if (event.state === 'active' && event.suggestion !== undefined) {
+        setSuggestion(event.suggestion)
+        setVote(null)
+        setError(null)
+        return
+      }
+      if (event.state === 'error') {
+        setError(event.error ?? null)
+        return
+      }
+      if (event.state === 'analyzing') {
+        // Reintento en marcha: se retira la línea de error, se conserva la sugerencia
+        setError(null)
+      }
+    })
+  }, [])
+
+  const sendFeedback = useCallback((next: AssistantVote): void => {
+    // Optimista: el resaltado no espera al IPC (main nunca lo rechaza)
+    setVote(next)
+    void window.api.assistant.sendFeedback(next)
+  }, [])
+
+  const reset = useCallback((): void => {
+    setState('idle')
+    setSuggestion(null)
+    setObjectivesMet([])
+    setError(null)
+    setVote(null)
+  }, [])
+
+  return { state, suggestion, objectivesMet, error, vote, sendFeedback, reset }
+}

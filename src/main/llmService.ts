@@ -69,8 +69,9 @@ export function toLlmError(error: unknown): LlmError {
  * Resolución de la clave de Anthropic (patrón SPEC-007), re-evaluada en cada
  * uso: 1º clave de Ajustes (cifrada con safeStorage) → 2º ANTHROPIC_API_KEY de
  * .env.local (fallback de desarrollo) → 3º null (estado UI 'sin clave').
+ * Exportada para compartirla con assistantService (SPEC-016) sin duplicarla.
  */
-function getAnthropicKey(): string | null {
+export function getAnthropicKey(): string | null {
   const fromSettings = getDecryptedSecret('anthropic')
   if (fromSettings !== null) {
     return fromSettings
@@ -313,8 +314,9 @@ function parseGeneratedScript(raw: string): GeneratedScript {
  * Mapea las excepciones tipadas del SDK a LlmOperationError. El orden importa:
  * APIConnectionError es subclase de APIError en el SDK de TypeScript, así que
  * se comprueba ANTES. Los mensajes nunca incluyen la clave.
+ * Exportado para compartirlo con assistantService (SPEC-016) sin duplicarlo.
  */
-function mapSdkError(error: unknown): LlmOperationError {
+export function mapSdkError(error: unknown): LlmOperationError {
   if (error instanceof LlmOperationError) {
     return error
   }

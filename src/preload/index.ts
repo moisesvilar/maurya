@@ -12,6 +12,7 @@ import type {
 import type { DbApi } from '../renderer/src/types/domain'
 import type { SecretsApi } from '../renderer/src/types/secrets'
 import type { LlmApi } from '../renderer/src/types/llm'
+import type { AssistantApi, AssistantUpdateEvent } from '../renderer/src/types/assistant'
 
 /**
  * Bridge de persistencia (SPEC-006): API PLANA (`createCompany`, no
@@ -88,7 +89,24 @@ const llm: LlmApi = {
   generateScript: (interviewId) => ipcRenderer.invoke('llm:generate-script', interviewId)
 }
 
-const api: MauryaApi & { db: DbApi; secrets: SecretsApi; llm: LlmApi } = {
+/**
+ * Bridge del asistente en tiempo real (SPEC-016): el análisis corre íntegro en
+ * main (SDK + clave); por aquí solo viajan eventos tipados y el voto 👍/👎.
+ * La clave de Anthropic jamás cruza el bridge en ninguna dirección.
+ */
+const assistant: AssistantApi = {
+  onUpdate: (callback: (event: AssistantUpdateEvent) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, payload: AssistantUpdateEvent): void =>
+      callback(payload)
+    ipcRenderer.on('assistant:update', listener)
+    return (): void => {
+      ipcRenderer.removeListener('assistant:update', listener)
+    }
+  },
+  sendFeedback: (vote) => ipcRenderer.invoke('assistant:feedback', vote)
+}
+
+const api: MauryaApi & { db: DbApi; secrets: SecretsApi; llm: LlmApi; assistant: AssistantApi } = {
   permissions: {
     getStatus: (): Promise<PermissionsSnapshot> => ipcRenderer.invoke('permissions:get-status'),
     requestMicrophone: (): Promise<boolean> => ipcRenderer.invoke('permissions:request-microphone'),
@@ -147,7 +165,8 @@ const api: MauryaApi & { db: DbApi; secrets: SecretsApi; llm: LlmApi } = {
   },
   db,
   secrets,
-  llm
+  llm,
+  assistant
 }
 
 if (process.contextIsolated) {

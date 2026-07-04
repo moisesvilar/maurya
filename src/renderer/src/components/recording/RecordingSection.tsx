@@ -12,15 +12,18 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { AssistantPanel } from '@/components/recording/AssistantPanel'
 import { LatencyRow } from '@/components/recording/LatencyRow'
 import { MicSelect } from '@/components/recording/MicSelect'
 import { NoKeyAlert } from '@/components/recording/NoKeyAlert'
+import { ObjectivesPanel } from '@/components/recording/ObjectivesPanel'
 import { PermissionBadges } from '@/components/recording/PermissionBadges'
 import { TranscriptArea } from '@/components/recording/TranscriptArea'
 import { TranscriptionStatusBadge } from '@/components/recording/transcriptionStatusBadge'
 import { CaptureErrorAlert } from '@/components/spike/CaptureErrorAlert'
 import { LevelMeter } from '@/components/spike/LevelMeter'
 import { StopOnCloseDialog } from '@/components/spike/StopOnCloseDialog'
+import { useAssistant } from '@/hooks/useAssistant'
 import { useAudioCapture } from '@/hooks/useAudioCapture'
 import { useAudioDevices } from '@/hooks/useAudioDevices'
 import { useCloseGuard } from '@/hooks/useCloseGuard'
@@ -66,6 +69,15 @@ export function RecordingSection({
     error: transcriptionError,
     reset: resetTranscription
   } = useTranscription()
+  const {
+    state: assistantState,
+    suggestion: assistantSuggestion,
+    objectivesMet,
+    error: assistantError,
+    vote: assistantVote,
+    sendFeedback,
+    reset: resetAssistant
+  } = useAssistant()
 
   const [newRecordingRequested, setNewRecordingRequested] = useState(false)
   const [confirmOverwrite, setConfirmOverwrite] = useState(false)
@@ -150,13 +162,22 @@ export function RecordingSection({
   const handleStart = useCallback((): void => {
     clearError()
     resetTranscription()
+    resetAssistant()
     // El bloqueo por permisos no concedidos lo aplica el propio hook (Alert
     // destructive con los literales del spike, sin arrancar la captura)
     void start(selectedDeviceId, interviewId).then(() => {
       // El intento de inicio puede haber disparado prompts TCC: refrescar Badges
       void refresh()
     })
-  }, [clearError, resetTranscription, start, selectedDeviceId, interviewId, refresh])
+  }, [
+    clearError,
+    resetTranscription,
+    resetAssistant,
+    start,
+    selectedDeviceId,
+    interviewId,
+    refresh
+  ])
 
   const handleShowInFinder = useCallback((): void => {
     if (interview.wavPath !== null) {
@@ -197,6 +218,18 @@ export function RecordingSection({
             </Button>
             <TranscriptionStatusBadge status={transcriptionStatus} />
           </div>
+          {/* Asistente (SPEC-016): entre la fila superior y los medidores —
+              lo que el entrevistador debe ver de un vistazo */}
+          <AssistantPanel
+            state={assistantState}
+            suggestion={assistantSuggestion}
+            error={assistantError}
+            vote={assistantVote}
+            onVote={sendFeedback}
+          />
+          {interview.objectives.length > 0 && (
+            <ObjectivesPanel objectives={interview.objectives} objectivesMet={objectivesMet} />
+          )}
           <div className="space-y-3">
             <LevelMeter label="Micrófono" value={levels.microphone} />
             <LevelMeter label="Sistema" value={levels.system} />
