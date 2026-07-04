@@ -1,0 +1,123 @@
+/**
+ * Tests del detalle mínimo de entrevista (SPEC-013, AC-11..AC-13). Resuelve
+ * entrevista + empresa con getInterview/getCompany y los nombres de
+ * contacto/template con los listados ya cargados (fallbacks "Sin contacto"/
+ * "Sin template" con referencias null).
+ */
+import { render, screen, type RenderResult } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { CompanyDetailPage } from '@/pages/CompanyDetailPage'
+import { InterviewDetailPage } from '@/pages/InterviewDetailPage'
+import type { Company, Interview } from '@/types/domain'
+import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
+
+let mockApi: MockApiHandle
+
+const COMPANY: Company = {
+  id: 'c-1',
+  discoveryId: 'd-1',
+  name: 'Acme Corp',
+  website: null,
+  linkedinUrl: null,
+  createdAt: '2026-07-02T12:00:00.000Z',
+  updatedAt: '2026-07-02T12:00:00.000Z'
+}
+
+const INTERVIEW: Interview = {
+  id: 'i-1',
+  companyId: 'c-1',
+  contactId: null,
+  templateId: null,
+  title: 'Discovery con Acme',
+  status: 'draft',
+  scriptMarkdown: null,
+  objectives: [],
+  wavPath: null,
+  transcriptPath: null,
+  createdAt: '2026-07-04T10:00:00.000Z',
+  updatedAt: '2026-07-04T10:00:00.000Z'
+}
+
+function renderAt(initialEntry: string): RenderResult {
+  return render(
+    <TooltipProvider>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <Routes>
+          <Route
+            path="/discoveries/:discoveryId/companies/:companyId"
+            element={<CompanyDetailPage />}
+          />
+          <Route
+            path="/discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
+            element={<InterviewDetailPage />}
+          />
+        </Routes>
+      </MemoryRouter>
+      <Toaster />
+    </TooltipProvider>
+  )
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  mockApi = installMockApi()
+  vi.mocked(mockApi.api.db.getCompany).mockResolvedValue({ ok: true, data: COMPANY })
+  vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({ ok: true, data: INTERVIEW })
+})
+
+describe('InterviewDetailPage', () => {
+  describe('header and references', () => {
+    // SPEC-013 · AC-11
+    it('shows title, "Borrador" badge and refs with the null fallbacks, and "Volver" returns to the company', async () => {
+      const user = userEvent.setup()
+      renderAt('/discoveries/d-1/companies/c-1/interviews/i-1')
+
+      expect(
+        await screen.findByRole('heading', { name: 'Discovery con Acme', level: 1 })
+      ).toBeInTheDocument()
+      expect(screen.getByText('Borrador')).toBeInTheDocument()
+      // Referencias con fallbacks (fixture con contactId/templateId null)
+      expect(screen.getByText(/Acme Corp · Sin contacto · Sin template/)).toBeInTheDocument()
+
+      // Volver regresa al detalle de la empresa
+      await user.click(screen.getByRole('button', { name: 'Volver' }))
+      expect(
+        await screen.findByRole('heading', { name: 'Acme Corp', level: 1 })
+      ).toBeInTheDocument()
+      expect(await screen.findByText('Aún no hay entrevistas')).toBeInTheDocument()
+    })
+
+    // SPEC-013 · AC-12
+    it('shows the Guión section with its empty state and the AI secondary text', async () => {
+      renderAt('/discoveries/d-1/companies/c-1/interviews/i-1')
+
+      await screen.findByRole('heading', { name: 'Discovery con Acme', level: 1 })
+      expect(screen.getByRole('heading', { name: 'Guión' })).toBeInTheDocument()
+      expect(screen.getByText('Aún no hay guión')).toBeInTheDocument()
+      expect(
+        screen.getByText('La generación con IA llegará en la siguiente fase')
+      ).toBeInTheDocument()
+    })
+  })
+
+  describe('nonexistent interview', () => {
+    // SPEC-013 · AC-13
+    it('shows the error state with the "Volver a Discoveries" link when getInterview fails', async () => {
+      vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({
+        ok: false,
+        error: { kind: 'not-found', message: 'No existe entrevista con id i-404' }
+      })
+      renderAt('/discoveries/d-1/companies/c-1/interviews/i-404')
+
+      expect(await screen.findByText('No existe entrevista con id i-404')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Volver a Discoveries' })).toHaveAttribute(
+        'href',
+        '/discoveries'
+      )
+    })
+  })
+})

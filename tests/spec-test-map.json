@@ -552,5 +552,44 @@
     },
     "notes": "Sin adaptaciones de infra: getInterviewTemplate se mockea por test (sin default). SPEC-009 AC-09 derogado y remapeado (card del hub funcional, ruta /templates/interview añadida a la réplica del layout). El fix del flaky preexistente de SPEC-011 AC-06 se documenta en las notes de SPEC-011.",
     "created_at": "2026-07-04"
+  },
+  "SPEC-013": {
+    "spec_file": "specs/SPEC-013-crear-entrevista.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec (14): AC-01 fila con título+Badge Borrador+refs+menú, AC-02 empty con CTA, AC-03 skeletons, AC-04 dialog con Título(foco)+Selects opcionales, AC-05 crear con click/Enter en borrador con refs, AC-06 título vacío, AC-07 sin contactos/templates solo sentinels, AC-08 editar precargado, AC-09 editar título vacío, AC-10 eliminar con AlertDialog de notas, AC-11 detalle con Volver+h1+Badge+refs con fallbacks, AC-12 sección Guión empty, AC-13 id inexistente, AC-14 error de mutación.",
+    "unit": [
+      {
+        "file": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx",
+        "test_count": 12,
+        "description": "Sección Entrevistas del detalle de empresa (api.db mockeado; la página tiene DOS grupos de menús 'Acciones' y DOS AlertDialogs → matching por fila con closest(li) del título, nunca índice global): fila con Link al detalle + Badge 'Borrador' + refs resueltas 'Jane Doe · Entrevista MDR' + menú Editar/Eliminar (AC-01); empty + CTA (AC-02); skeletons con listInterviews pendiente (AC-03); dialog 'Nueva entrevista' con Título enfocado y placeholder 'Discovery con Acme Corp' + Selects con 'Sin contacto'/'Sin template' y el template con su fase entre paréntesis (AC-04); AC-05 en DOS its: crear con click y refs elegidas → createInterview {companyId,title,contactId,templateId} + toast 'Entrevista creada' + fila, y crear con Enter sin tocar Selects → sentinels a null; título vacío → 'Campo requerido' sin bridge (AC-06); sin contactos ni templates → Selects solo con el sentinel y la creación sigue funcionando (AC-07); editar precargado (título + Selects con los valores) → updateInterview con los 3 campos + toast 'Cambios guardados' + fila actualizada (AC-08); editar a vacío → error sin bridge (AC-09); AlertDialog 'Eliminar entrevista' con '«título» y sus notas.' → deleteInterview + toast 'Entrevista eliminada' + fila fuera (AC-10); y create {ok:false} → toast de error + dialog abierto + lista intacta (AC-14)."
+      },
+      {
+        "file": "tests/unit/interviews/InterviewDetailPage.test.tsx",
+        "test_count": 3,
+        "description": "Detalle mínimo de entrevista (getInterview+getCompany mockeados; nombres resueltos con listContacts/listInterviewTemplates): h1 + Badge 'Borrador' + fila de referencias con fallbacks 'Acme Corp · Sin contacto · Sin template' (fixture con refs null) y Volver → detalle de la empresa (AC-11); sección Guión con 'Aún no hay guión' + 'La generación con IA llegará en la siguiente fase' (AC-12); y getInterview not-found → error + link 'Volver a Discoveries' (AC-13)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "humo-visual": "Aspecto visual de la sección Entrevistas (badges, refs muted, menús ⋯) y del detalle: revisión visual manual — jsdom no hace layout ni estilos."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::listing::renders each interview row with title link, \"Borrador\" badge, resolved refs and its own actions menu",
+      "AC-02": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::listing::shows the empty state with the \"Crear primera entrevista\" CTA when there are none",
+      "AC-03": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::listing::shows skeletons in the interviews section while the list is loading",
+      "AC-04": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::creating an interview::opens the \"Nueva entrevista\" dialog with focused title and the optional contact/template selects",
+      "AC-05": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::creating an interview::creates in draft with the chosen refs on \"Crear\" click, shows the toast and lists the row + tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::creating an interview::creates on Enter mapping the untouched selects to null refs",
+      "AC-06": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::creating an interview::shows the inline \"Campo requerido\" error for an empty title without calling the bridge",
+      "AC-07": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::creating an interview::offers only the sentinels when there are no contacts nor templates, and creation still works",
+      "AC-08": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::editing an interview::opens the edit dialog preloaded, saves the three fields via updateInterview and shows \"Cambios guardados\"",
+      "AC-09": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::editing an interview::shows the inline \"Campo requerido\" error when editing to an empty title without calling the bridge",
+      "AC-10": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::deleting an interview::confirms in the \"Eliminar entrevista\" AlertDialog with the notes warning and deletes with its toast",
+      "AC-11": "tests/unit/interviews/InterviewDetailPage.test.tsx::InterviewDetailPage::header and references::shows title, \"Borrador\" badge and refs with the null fallbacks, and \"Volver\" returns to the company",
+      "AC-12": "tests/unit/interviews/InterviewDetailPage.test.tsx::InterviewDetailPage::header and references::shows the Guión section with its empty state and the AI secondary text",
+      "AC-13": "tests/unit/interviews/InterviewDetailPage.test.tsx::InterviewDetailPage::nonexistent interview::shows the error state with the \"Volver a Discoveries\" link when getInterview fails",
+      "AC-14": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::mutation errors::shows an error toast, keeps the dialog open and leaves the list untouched when the bridge fails"
+    },
+    "notes": "Sin adaptaciones de infra ni regresión sobre tests previos (la sección Entrevistas es nueva y los tests de SPEC-011 acotan por fila, no por conteos globales). getInterview se mockea por test.",
+    "created_at": "2026-07-04"
   }
 }
