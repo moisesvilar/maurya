@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { ArrowLeft, Building2, Globe, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Globe, MoreHorizontal, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   AlertDialog,
@@ -20,73 +20,75 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
-import { CompanyFormDialog } from '@/components/companies/CompanyFormDialog'
+import { ContactFormDialog } from '@/components/companies/ContactFormDialog'
 import { ExternalIconLink, LinkedinIcon } from '@/components/companies/ExternalIconLink'
-import { useCompanies } from '@/hooks/useCompanies'
-import type { Company, Discovery } from '@/types/domain'
+import { useContacts } from '@/hooks/useContacts'
+import type { Company, Contact } from '@/types/domain'
 
-type DiscoveryDetailState =
+type CompanyDetailState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; discovery: Discovery }
+  | { status: 'ready'; company: Company }
+
+/** Hostname visible del enlace ("empresa.com"); si la URL no parsea, cruda. */
+function hostnameOf(url: string): string {
+  try {
+    return new URL(url).hostname
+  } catch {
+    return url
+  }
+}
 
 /**
- * Detalle de un discovery: back button "Volver" (página de detalle,
- * profundidad 2 — regla 2.3), h1 con el nombre (SPEC-010) y la sección
- * Empresas con CRUD completo (SPEC-011): alta/edición en Dialog, eliminación
- * con AlertDialog de cascada explícita, nombre-Link al detalle de empresa e
- * iconos-enlace externos condicionales. Resuelve el discovery con
- * `listDiscoveries` + find por id (nota técnica: volumen trivial); un id
- * inválido o un error del bridge muestran el error state con enlace
- * "Volver a Discoveries". Los Dialogs viven a nivel de página, FUERA del
- * DropdownMenu, gobernados por pendingEdit/pendingDelete; la apertura desde
- * onSelect se difiere con setTimeout(0) (mitigador del incidente conocido de
- * Radix dropdown → dialog, patrón DiscoveriesPage).
+ * Detalle de una empresa (SPEC-011, ruta
+ * /discoveries/:discoveryId/companies/:companyId — Layout 2 detalle, la top
+ * bar sigue marcando "Discoveries" por prefijo): back button "Volver" al
+ * detalle del discovery, h1 con el nombre, fila muted con los enlaces
+ * externos (hostname visible) y la sección Contactos con CRUD completo.
+ * Resuelve la empresa con `getCompany` (SPEC-006); un id inexistente o un
+ * error del bridge muestran el error state con enlace "Volver a Discoveries".
+ * Los Dialogs viven a nivel de página, FUERA del DropdownMenu, gobernados por
+ * pendingEdit/pendingDelete; la apertura desde onSelect se difiere con
+ * setTimeout(0) (mitigador del incidente conocido de Radix dropdown → dialog).
  */
-export function DiscoveryDetailPage(): React.ReactElement {
-  const { id } = useParams<{ id: string }>()
+export function CompanyDetailPage(): React.ReactElement {
+  const { discoveryId, companyId } = useParams<{ discoveryId: string; companyId: string }>()
   const navigate = useNavigate()
-  const [state, setState] = useState<DiscoveryDetailState>({ status: 'loading' })
+  const [state, setState] = useState<CompanyDetailState>({ status: 'loading' })
   const {
-    state: companiesState,
-    createCompany,
-    updateCompany,
-    removeCompany
-  } = useCompanies(id ?? '')
+    state: contactsState,
+    createContact,
+    updateContact,
+    removeContact
+  } = useContacts(companyId ?? '')
   const [createOpen, setCreateOpen] = useState(false)
-  const [pendingEdit, setPendingEdit] = useState<Company | null>(null)
-  const [pendingDelete, setPendingDelete] = useState<Company | null>(null)
+  const [pendingEdit, setPendingEdit] = useState<Contact | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Contact | null>(null)
 
   // No marca loading por sí mismo: el estado inicial ya lo es y el efecto de
   // montaje no debe hacer setState síncrono (react-hooks/set-state-in-effect);
   // los setState viven en el callback de la promesa (patrón useNoteTemplates).
-  // La UI no navega detalle→detalle, así que no hay estado stale entre ids.
   useEffect(() => {
-    void window.api.db.listDiscoveries().then((result) => {
+    void window.api.db.getCompany(companyId ?? '').then((result) => {
       if (!result.ok) {
         setState({ status: 'error', message: result.error.message })
         return
       }
-      const discovery = result.data.find((candidate) => candidate.id === id)
-      if (discovery === undefined) {
-        setState({ status: 'error', message: 'Discovery no encontrado' })
-        return
-      }
-      setState({ status: 'ready', discovery })
+      setState({ status: 'ready', company: result.data })
     })
-  }, [id])
+  }, [companyId])
 
-  const openEdit = (company: Company): void => {
-    setTimeout(() => setPendingEdit(company), 0)
+  const openEdit = (contact: Contact): void => {
+    setTimeout(() => setPendingEdit(contact), 0)
   }
 
-  const openDelete = (company: Company): void => {
-    setTimeout(() => setPendingDelete(company), 0)
+  const openDelete = (contact: Contact): void => {
+    setTimeout(() => setPendingDelete(contact), 0)
   }
 
   const handleConfirmDelete = (): void => {
     if (pendingDelete !== null) {
-      void removeCompany(pendingDelete.id)
+      void removeContact(pendingDelete.id)
     }
     setPendingDelete(null)
   }
@@ -94,7 +96,7 @@ export function DiscoveryDetailPage(): React.ReactElement {
   return (
     <div className="flex flex-col gap-6 p-6">
       <div>
-        <Button variant="ghost" onClick={() => void navigate('/discoveries')}>
+        <Button variant="ghost" onClick={() => void navigate(`/discoveries/${discoveryId}`)}>
           <ArrowLeft />
           Volver
         </Button>
@@ -118,17 +120,40 @@ export function DiscoveryDetailPage(): React.ReactElement {
 
       {state.status === 'ready' && (
         <>
-          <h1 className="text-2xl font-semibold">{state.discovery.name}</h1>
+          <div className="flex flex-col gap-2">
+            <h1 className="text-2xl font-semibold">{state.company.name}</h1>
+            {(state.company.website !== null || state.company.linkedinUrl !== null) && (
+              <div className="flex items-center gap-4 text-muted-foreground">
+                {state.company.website !== null && (
+                  <ExternalIconLink
+                    href={state.company.website}
+                    ariaLabel="Abrir website"
+                    icon={Globe}
+                    label={hostnameOf(state.company.website)}
+                  />
+                )}
+                {state.company.linkedinUrl !== null && (
+                  <ExternalIconLink
+                    href={state.company.linkedinUrl}
+                    ariaLabel="Abrir LinkedIn"
+                    icon={LinkedinIcon}
+                    label={hostnameOf(state.company.linkedinUrl)}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+
           <section className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-4">
-              <h3 className="text-lg font-semibold">Empresas</h3>
+              <h3 className="text-lg font-semibold">Contactos</h3>
               <Button onClick={() => setCreateOpen(true)}>
                 <Plus />
-                Nueva empresa
+                Nuevo contacto
               </Button>
             </div>
 
-            {companiesState.status === 'loading' && (
+            {contactsState.status === 'loading' && (
               <div className="flex flex-col gap-3">
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />
@@ -136,44 +161,35 @@ export function DiscoveryDetailPage(): React.ReactElement {
               </div>
             )}
 
-            {companiesState.status === 'error' && (
+            {contactsState.status === 'error' && (
               <p className="py-12 text-center text-sm text-muted-foreground">
-                {companiesState.message}
+                {contactsState.message}
               </p>
             )}
 
-            {companiesState.status === 'ready' && companiesState.companies.length === 0 && (
+            {contactsState.status === 'ready' && contactsState.contacts.length === 0 && (
               <div className="flex flex-col items-center gap-3 py-12 text-center">
-                <Building2 className="size-8 text-muted-foreground" aria-hidden="true" />
-                <p className="text-sm text-muted-foreground">Aún no hay empresas</p>
-                <Button onClick={() => setCreateOpen(true)}>Añadir primera empresa</Button>
+                <Users className="size-8 text-muted-foreground" aria-hidden="true" />
+                <p className="text-sm text-muted-foreground">Aún no hay contactos</p>
+                <Button onClick={() => setCreateOpen(true)}>Añadir primer contacto</Button>
               </div>
             )}
 
-            {companiesState.status === 'ready' && companiesState.companies.length > 0 && (
+            {contactsState.status === 'ready' && contactsState.contacts.length > 0 && (
               <ul className="flex flex-col divide-y rounded-md border">
-                {companiesState.companies.map((company) => (
+                {contactsState.contacts.map((contact) => (
                   <li
-                    key={company.id}
+                    key={contact.id}
                     className="flex items-center justify-between gap-2 px-4 py-3"
                   >
                     <div className="flex items-center gap-3">
-                      <Link
-                        to={`/discoveries/${id}/companies/${company.id}`}
-                        className="text-sm font-medium hover:underline"
-                      >
-                        {company.name}
-                      </Link>
-                      {company.website !== null && (
-                        <ExternalIconLink
-                          href={company.website}
-                          ariaLabel="Abrir website"
-                          icon={Globe}
-                        />
+                      <span className="text-sm font-medium">{contact.name}</span>
+                      {contact.position !== null && (
+                        <span className="text-sm text-muted-foreground">{contact.position}</span>
                       )}
-                      {company.linkedinUrl !== null && (
+                      {contact.linkedinUrl !== null && (
                         <ExternalIconLink
-                          href={company.linkedinUrl}
+                          href={contact.linkedinUrl}
                           ariaLabel="Abrir LinkedIn"
                           icon={LinkedinIcon}
                         />
@@ -186,14 +202,14 @@ export function DiscoveryDetailPage(): React.ReactElement {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => openEdit(company)}>
+                        <DropdownMenuItem onSelect={() => openEdit(contact)}>
                           <Pencil />
                           Editar
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
                           variant="destructive"
-                          onSelect={() => openDelete(company)}
+                          onSelect={() => openDelete(contact)}
                         >
                           <Trash2 />
                           Eliminar
@@ -208,26 +224,26 @@ export function DiscoveryDetailPage(): React.ReactElement {
         </>
       )}
 
-      <CompanyFormDialog
+      <ContactFormDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        title="Nueva empresa"
+        title="Nuevo contacto"
         submitLabel="Crear"
-        onSubmit={createCompany}
+        onSubmit={createContact}
       />
 
-      <CompanyFormDialog
+      <ContactFormDialog
         open={pendingEdit !== null}
         onOpenChange={(open) => {
           if (!open) {
             setPendingEdit(null)
           }
         }}
-        title="Editar empresa"
+        title="Editar contacto"
         submitLabel="Guardar"
-        company={pendingEdit}
+        contact={pendingEdit}
         onSubmit={(values) =>
-          pendingEdit !== null ? updateCompany(pendingEdit.id, values) : Promise.resolve(false)
+          pendingEdit !== null ? updateContact(pendingEdit.id, values) : Promise.resolve(false)
         }
       />
 
@@ -241,10 +257,9 @@ export function DiscoveryDetailPage(): React.ReactElement {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar empresa</AlertDialogTitle>
+            <AlertDialogTitle>Eliminar contacto</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminarán permanentemente «{pendingDelete?.name ?? ''}» y todos sus contactos y
-              entrevistas.
+              Se eliminará permanentemente «{pendingDelete?.name ?? ''}».
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

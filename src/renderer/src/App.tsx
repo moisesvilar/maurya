@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from '@/components/layout/Layout'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { CompanyDetailPage } from '@/pages/CompanyDetailPage'
 import { DiscoveriesPage } from '@/pages/DiscoveriesPage'
 import { DiscoveryDetailPage } from '@/pages/DiscoveryDetailPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -29,6 +30,10 @@ function App(): React.ReactElement {
             <Route path="capture" element={<SpikeAudioCapturePage />} />
             <Route path="discoveries" element={<DiscoveriesPage />} />
             <Route path="discoveries/:id" element={<DiscoveryDetailPage />} />
+            <Route
+              path="discoveries/:discoveryId/companies/:companyId"
+              element={<CompanyDetailPage />}
+            />
             <Route path="templates" element={<TemplatesHubPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="settings/note-templates/new" element={<NoteTemplateEditorPage />} />
