@@ -38,3 +38,7 @@ npm run build:mac    # typecheck + electron-vite build + electron-builder --mac
 firma **ad-hoc** (sin Developer ID ni notarización).
 - Requisitos: macOS 14.2+ (backend CATap del loopback), Node 20+.
 
+## Licencia
+
+Maurya es open source bajo licencia [MIT](LICENSE).
+
