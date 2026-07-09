@@ -2,6 +2,13 @@
 
  Maurya es tu copiloto para entrevistas de descubrimiento. Te ayuda a aplicar The Mom Test en tiempo real: escucha la conversación, detecta cuándo se desvía hacia generalidades, opiniones o cumplidos de cortesía, y te sugiere cómo reconducirla hacia hechos concretos. Así sales de cada entrevista con problemas reales y relevantes.
 
+## Servicios externos
+
+Maurya se apoya en dos APIs, cuyas claves se configuran en Ajustes:
+
+- **Deepgram** — transcripción de voz a texto en streaming (mic + audio del sistema).
+- **Claude (Anthropic)** — el LLM que prepara el guión, asiste en tiempo real y resume la entrevista.
+
 ## Comandos
 
 ```bash
