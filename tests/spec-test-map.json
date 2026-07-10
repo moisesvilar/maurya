@@ -606,8 +606,8 @@
       },
       {
         "file": "tests/unit/script/ScriptSection.test.tsx",
-        "test_count": 10,
-        "description": "Sección Guión vía InterviewDetailPage (api.llm + api.db mockeados; DOS botones 'Generar guión' cabecera+empty → getAllBy): generar happy con promesa controlada → 'Generando guión…' disabled → guión + objetivos + Badge 'Preparada' + toast 'Guión generado' (AC-01 UI); sin template → disabled + tooltip 'Asigna un template para generar el guión' (AC-02 UI); sin clave → Alert con Link a /settings + disabled (AC-03 UI); Regenerar → AlertDialog 'Se sobrescribirán el guión y los objetivos actuales.' y confirmar rellama generateScript (AC-05); generateScript {ok:false} → toast con la causa y sin cambios (Badge sigue 'Borrador') (AC-06 UI); lectura con whitespace-pre-wrap + h4 Objetivos + lista (AC-07); empty 'Aún no hay guión' con 2 botones habilitados y sin el secundario derogado (AC-08); edición → Textarea con el markdown + inputs por objetivo + añadir/quitar (AC-09); guardar → updateInterview {scriptMarkdown, objectives filtrados} SIN status + toast 'Cambios guardados' + vuelta a lectura (AC-10 + AC-12 juntos verificando el filtrado); y cancelar con cambios → 'Descartar cambios' con Seguir editando/Descartar, y sin cambios vuelta directa (AC-11)."
+        "test_count": 13,
+        "description": "Sección Guión vía InterviewDetailPage (api.llm + api.db mockeados; DOS botones 'Generar guión' cabecera+empty → getAllBy): generar happy con promesa controlada → 'Generando guión…' disabled → guión + objetivos + Badge 'Preparada' + toast 'Guión generado' (AC-01 UI); sin template → disabled + tooltip 'Asigna un template para generar el guión' (AC-02 UI); sin clave → Alert con Link a /settings + disabled (AC-03 UI); Regenerar → AlertDialog 'Se sobrescribirán el guión y los objetivos actuales.' y confirmar rellama generateScript (AC-05); generateScript {ok:false} → toast con la causa y sin cambios (Badge sigue 'Borrador') (AC-06 UI); lectura con whitespace-pre-wrap + h4 Objetivos + lista (AC-07); empty 'Aún no hay guión' con 2 botones habilitados y sin el secundario derogado (AC-08); edición → Textarea con el markdown + inputs por objetivo + añadir/quitar (AC-09); guardar → updateInterview {scriptMarkdown, objectives filtrados} SIN status + toast 'Cambios guardados' + vuelta a lectura (AC-10 + AC-12 juntos verificando el filtrado); y cancelar con cambios → 'Descartar cambios' con Seguir editando/Descartar, y sin cambios vuelta directa (AC-11). Adaptada por SPEC-025: lectura como markdown enriquecido (MarkdownView) y edición con editor WYSIWYG (cambios vía toolbar); incluye el describe \"wysiwyg (SPEC-025)\" con 3 tests propios de esa spec."
       }
     ],
     "e2e": [],
@@ -623,16 +623,16 @@
       "AC-04": "tests/unit/script/llmService.test.ts::llmService::historical context::injects previous same-company transcripts and notes into the user prompt, omitting other companies and corrupt transcripts",
       "AC-05": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::generation::asks for confirmation in the \"Regenerar guión\" AlertDialog and regenerates on confirm",
       "AC-06": "tests/unit/script/llmService.test.ts::llmService::SDK and format errors::maps SDK errors to typed kinds and leaves the interview untouched in every case + tests/unit/script/ScriptSection.test.tsx::ScriptSection::generation::shows an error toast and leaves the interview unchanged when the generation fails",
-      "AC-07": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::reading::renders the script preserving line breaks (pre-wrap) and the Objetivos list below",
+      "AC-07": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::reading::renders the script as rich markdown (real headings, no raw syntax) and the Objetivos list below (render adaptado por SPEC-025)",
       "AC-08": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::reading::shows the \"Aún no hay guión\" empty state with the generate button when prerequisites are met",
-      "AC-09": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::switches to a textarea plus editable objectives with add/remove controls",
+      "AC-09": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::switches to the WYSIWYG editor with rendered content plus editable objectives with add/remove controls (editor adaptado por SPEC-025)",
       "AC-10": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::saves via updateInterview without status, silently dropping empty objectives, and returns to read mode",
       "AC-11": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::asks to discard unsaved changes on cancel, and returns directly when clean",
       "AC-12": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::saves via updateInterview without status, silently dropping empty objectives, and returns to read mode (mismo it que AC-10: el payload aserta el filtrado de vacíos) + filtrado también fijado en el servicio (AC-01 servicio: objetivos vacíos descartados)"
     },
     "notes": "Adaptación de infra: tests/helpers/mockApi.ts amplía BridgeApi con llm: LlmApi (getStatus default {hasAnthropicKey:false}; generateScript configurable por test) tras el cambio de contrato del preload (window.api.llm). SPEC-020 (schema v2): los seeds de llmService.test.ts y las fixtures de ScriptSection.test.tsx ganan discoveryId; el prompt de usuario incluye ahora la sección '## Discovery' también con empresa (los asserts existentes no se ven afectados). La degradación sin empresa se cubre en tests/unit/script/llmService.captures.test.ts bajo SPEC-020.",
     "created_at": "2026-07-04",
-    "updated_at": "2026-07-10"
+    "updated_at": "2026-07-10T18:30:00.000Z"
   },
   "SPEC-015": {
     "spec_file": "specs/SPEC-015-grabacion-entrevista.md",
@@ -725,8 +725,8 @@
       },
       {
         "file": "tests/unit/notes/NoteSection.test.tsx",
-        "test_count": 22,
-        "description": "Sección Nota + TranscriptSheet vía InterviewDetailPage (mocks del spike + bridge; within(section) anclado al heading 'Nota' por colisiones con Grabación/Guión): selector 'Note-template' preseleccionado + 'Generar nota' + 'Ver transcripción' (AC-01); sin grabación → 'Graba la entrevista para poder generar la nota.' sin selector ni botón (AC-02); sin templates → hint con Link 'Gestionar note-templates' a /settings?tab=note-templates + disabled con tooltip 'Necesitas un note-template' (AC-03); sin clave → aviso con Link a Ajustes + disabled (AC-04); 'Generando nota…' disabled con promesa pendiente (AC-06); éxito → generateNote('i-1','nt-1') + Badge 'Resumida' + toast 'Nota generada' + nota con h4 por sección (AC-07); AlertDialog 'Regenerar nota' con el literal de sustitución y Cancelar sin llamada (AC-08); confirmar regenera y sustituye el contenido (AC-09); error → Alert destructive con el mensaje, nota previa y Badge intactos, sin toast (AC-10); lectura con Editar/Exportar/Ver transcripción/Regenerar nota (AC-11); Editar → Textarea 'Nota' con el markdown + Guardar/Descartar (AC-12); Guardar → updateNote + toast 'Nota guardada' + lectura con el contenido nuevo (AC-13); Descartar con cambios → AlertDialog 'Descartar cambios' y restaura lo persistido (AC-14); sin cambios → directo sin diálogo (AC-15); el guardado usa SOLO updateNote {contentMarkdown} sin updateInterview, Badge sigue 'Resumida' (AC-16); Sheet (Dialog de radix) con 'Tú'/'Interlocutor 2' y textos, getTranscriptLines(transcriptPath) (AC-17); ilegible → 'No se pudo leer la transcripción' en el Sheet con la página viva detrás (AC-18 UI); menú Exportar → export('i-1','note') + toast 'Nota exportada' (AC-19); export('i-1','transcript') + toast 'Transcripción exportada' (AC-20); cancelación {saved:false} → sin toast alguno (AC-21); {ok:false} → toast 'No se pudo exportar' (AC-22); y Badge 'Resumida' en la cabecera del detalle (STATUS_LABELS compartido con el listado) (AC-23)."
+        "test_count": 27,
+        "description": "Sección Nota + TranscriptSheet vía InterviewDetailPage (mocks del spike + bridge; within(section) anclado al heading 'Nota' por colisiones con Grabación/Guión): selector 'Note-template' preseleccionado + 'Generar nota' + 'Ver transcripción' (AC-01); sin grabación → 'Graba la entrevista para poder generar la nota.' sin selector ni botón (AC-02); sin templates → hint con Link 'Gestionar note-templates' a /settings?tab=note-templates + disabled con tooltip 'Necesitas un note-template' (AC-03); sin clave → aviso con Link a Ajustes + disabled (AC-04); 'Generando nota…' disabled con promesa pendiente (AC-06); éxito → generateNote('i-1','nt-1') + Badge 'Resumida' + toast 'Nota generada' + nota con h4 por sección (AC-07); AlertDialog 'Regenerar nota' con el literal de sustitución y Cancelar sin llamada (AC-08); confirmar regenera y sustituye el contenido (AC-09); error → Alert destructive con el mensaje, nota previa y Badge intactos, sin toast (AC-10); lectura con Editar/Exportar/Ver transcripción/Regenerar nota (AC-11); Editar → Textarea 'Nota' con el markdown + Guardar/Descartar (AC-12); Guardar → updateNote + toast 'Nota guardada' + lectura con el contenido nuevo (AC-13); Descartar con cambios → AlertDialog 'Descartar cambios' y restaura lo persistido (AC-14); sin cambios → directo sin diálogo (AC-15); el guardado usa SOLO updateNote {contentMarkdown} sin updateInterview, Badge sigue 'Resumida' (AC-16); Sheet (Dialog de radix) con 'Tú'/'Interlocutor 2' y textos, getTranscriptLines(transcriptPath) (AC-17); ilegible → 'No se pudo leer la transcripción' en el Sheet con la página viva detrás (AC-18 UI); menú Exportar → export('i-1','note') + toast 'Nota exportada' (AC-19); export('i-1','transcript') + toast 'Transcripción exportada' (AC-20); cancelación {saved:false} → sin toast alguno (AC-21); {ok:false} → toast 'No se pudo exportar' (AC-22); y Badge 'Resumida' en la cabecera del detalle (STATUS_LABELS compartido con el listado) (AC-23). Adaptada por SPEC-025: render enriquecido (headings reales h2, no h4 sintéticos), edición WYSIWYG vía toolbar, fixture del record-first con guión (la disposición SPEC-025 oculta la Nota sin guión/transcripción/nota) y re-anclaje tras el remonte al generar; incluye el describe \"wysiwyg (SPEC-025)\" con 5 tests propios de esa spec."
       }
     ],
     "e2e": [],
@@ -747,7 +747,7 @@
       "AC-09": "tests/unit/notes/NoteSection.test.tsx::NoteSection::generation::regenerates on confirm replacing the note and toasting \"Nota generada\" + tests/unit/notes/noteService.test.ts::noteService::generation::updates the existing note in place when regenerating instead of creating a second one",
       "AC-10": "tests/unit/notes/NoteSection.test.tsx::NoteSection::generation::shows a destructive alert with the mapped message and keeps interview and previous note intact on LLM error + tests/unit/notes/noteService.test.ts::noteService::generation::maps SDK and format errors leaving the interview and its previous note untouched",
       "AC-11": "tests/unit/notes/NoteSection.test.tsx::NoteSection::reading and editing::shows the note in read mode with Editar, Exportar, Ver transcripción and Regenerar nota",
-      "AC-12": "tests/unit/notes/NoteSection.test.tsx::NoteSection::reading and editing::switches to a textarea with Guardar and Descartar when Editar is clicked",
+      "AC-12": "tests/unit/notes/NoteSection.test.tsx::NoteSection::reading and editing::switches to the WYSIWYG editor with rendered content, Guardar and Descartar when Editar is clicked (editor adaptado por SPEC-025)",
       "AC-13": "tests/unit/notes/NoteSection.test.tsx::NoteSection::reading and editing::persists the edit, returns to read mode and toasts \"Nota guardada\" on Guardar",
       "AC-14": "tests/unit/notes/NoteSection.test.tsx::NoteSection::reading and editing::asks to discard changes and restores the persisted content on confirm",
       "AC-15": "tests/unit/notes/NoteSection.test.tsx::NoteSection::reading and editing::returns to read mode directly without any dialog when discarding with no changes",
@@ -762,7 +762,7 @@
     },
     "notes": "Adaptación de infra (breakage exacto del plan §5): tests/helpers/mockApi.ts añade llm.generateNote, recording.getTranscriptLines (default ok []) y notes: NotesApi (createMockNotesApi exportado, default {saved:true, filePath:'/tmp/x.md'}). GAP documentado: la calidad real del resumen con la API real es juicio humano (manual_verification). SPEC-020 (schema v2): el seed de noteService.test.ts y la fixture de NoteSection.test.tsx ganan discoveryId (rotura de compilación presupuestada, no bug). La degradación de la nota sin empresa se cubre en tests/unit/notes/noteService.captures.test.ts bajo SPEC-020.",
     "created_at": "2026-07-04",
-    "updated_at": "2026-07-10"
+    "updated_at": "2026-07-10T18:30:00.000Z"
   },
   "SPEC-018": {
     "spec_file": "specs/SPEC-018-busqueda-global.md",
@@ -923,7 +923,7 @@
       "AC-12": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::disables the Discovery select with \"No hay discoveries\" and links to create one when there are zero discoveries",
       "AC-13": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::creating a capture::creates the capture with discoveryId and companyId null, toasts \"Captura creada\" and navigates to its detail + tests/unit/persistence/repository.captures.test.ts::repository (SPEC-020 capturas)::createInterview capture-first::creates a capture with the chosen discoveryId, null companyId/contactId and draft status",
       "AC-14": "tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::header::shows the \"Volver\" back button to /captures, the h1 title, the status badge and the muted refs row with fallbacks",
-      "AC-15": "tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::sections::mounts the same interview sections in order: Grabación, Nota and Guión + tests/unit/notes/noteService.captures.test.ts::noteService (SPEC-020 capturas)::generates the note for a companyless capture declaring \"Sin empresa asignada.\" in the prompt and persists status summarized (comportamiento interno de cada sección: suites SPEC-015/016/017/019 sobre los mismos componentes; componente físico: MANUAL)",
+      "AC-15": "tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::sections::mounts Grabación first and the SPEC-025 Nota/Guión disposition for a capture with transcript (adaptado por SPEC-025: la disposición Nota/Guión pasó a ser condicional vía NoteScriptSections)",
       "AC-16": "tests/unit/assistant/assistantService.test.ts::assistantService (suite completa de SPEC-016 corriendo sobre una captura SIN empresa — seed SPEC-020): la activación por interviewId, las sugerencias, el feedback y la persistencia funcionan sin empresa asignada (grabación real: MANUAL)",
       "AC-17": "tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::error state::shows the error state with a \"Volver a Capturas\" link when the capture id does not exist",
       "AC-18": "tests/unit/script/llmService.captures.test.ts::llmService (SPEC-020 capturas)::generation without a company::generates from the template and the discovery name only, omitting the company/contact/history sections, and sets status prepared",
@@ -947,7 +947,7 @@
     },
     "notes": "Migración v1→v2 (Notas técnicas, sin AC propio) cubierta en repository.captures.test.ts::v1 to v2 migration; el invariante endurecido de updateInterview (contacto exige empresa) en ::createInterview capture-first::rejects updating a companyless capture with a contactId via updateInterview. Desviación declarada del implementador asumida por los tests: la fila muted del listado omite las partes null y 'Sin empresa' va como Badge outline (wireframe prevalece sobre el literal del AC-03). Breakage presupuestado repuesto: mockApi (+listAllInterviews/+assignInterviewCompany), fixtures de Interview con discoveryId en 8 suites, firmas de createInterview con discoveryId, tests del shell reescritos a 'Capturas'/redirects, seed del asistente sin empresa. Corrección post-run 2026-07-10: el test del empty por filtro de CapturesPage desambigua los DOS botones 'Limpiar filtros' legítimos (barra + empty state) scopeando al contenedor del empty state con within(), asertando que hay exactamente 2 y que el del empty state restaura el listado. SPEC-021 añadió el segmento de coste al final de la fila muted de ambas cabeceras de detalle: los asserts exactos de la fila en CaptureDetailPage.test.tsx pasan a regex (getNodeText conserva el separador final) y el test de AC-14 aserta además 'Sin datos de coste' (captura sin aiUsage). Regresión presupuestada, no bug.",
     "created_at": "2026-07-10",
-    "updated_at": "2026-07-10"
+    "updated_at": "2026-07-10T18:30:00.000Z"
   },
   "SPEC-021": {
     "spec_file": "specs/SPEC-021-medicion-control-coste-ia.md",
@@ -1166,5 +1166,66 @@
     "created_at": "2026-07-10",
     "updated_at": "2026-07-10",
     "iteration_spec_file": "specs/SPEC-024-iter-1-empaquetado-hardening-final.md"
+  },
+  "SPEC-025": {
+    "spec_file": "specs/SPEC-025-wysiwyg-markdown.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición — 30 en total: disposición ×9 (AC-01..09), guión visualización ×2 (AC-10..11), guión edición ×8 (AC-12..19), nota visualización ×2 (AC-20..21), nota edición ×7 (AC-22..28), persistencia/export/regeneración ×2 (AC-29..30). Estrategia jsdom+ProseMirror: la escritura libre (beforeinput nativo) no es reproducible en jsdom; los cambios del editor se ejercitan vía toolbar (API de TipTap) y atajos que ProseMirror implementa como keydown handlers (Ctrl+A, Backspace). AC-13 se cubre con selección por Ctrl+A + Negrita en el componente MarkdownEditor.",
+    "unit": [
+      {
+        "file": "tests/unit/markdown/MarkdownEditor.test.tsx",
+        "test_count": 4,
+        "description": "Componente MarkdownEditor: toolbar de 7 acciones con nombres accesibles, render inicial enriquecido sin sintaxis cruda, negrita sobre selección (AC-13, Ctrl+A + click con aria-pressed), serialización markdown por onChange tras cambio de bloque, y guard de round-trip (sin ediciones no emite onChange)."
+      },
+      {
+        "file": "tests/unit/markdown/NoteScriptSections.test.tsx",
+        "test_count": 9,
+        "description": "Disposición de NoteScriptSections (AC-01..09): apilados condicionales (solo Guión; Guión+controles de nota con transcripción o guión; Nota primero sin guión), pestañas \"Notas\"/\"Guión\" con Notas activa por defecto, cambio de pestaña, transición a pestañas al generar la nota, y conservación de modo edición/borrador al alternar pestañas (forceMount)."
+      },
+      {
+        "file": "tests/unit/script/ScriptSection.test.tsx",
+        "test_count": 13,
+        "description": "Mitad guión de SPEC-025 dentro de la suite de ScriptSection: lectura enriquecida (AC-10), empty state (AC-11, test de SPEC-014 intacto), editor WYSIWYG + objetivos como Inputs (AC-12/19), guardado con toast (AC-14), cancelar con/sin cambios (AC-16/17) y describe \"wysiwyg (SPEC-025)\": round-trip exacto (AC-15), fallo de guardado (AC-18) y regeneración tras editar (AC-30)."
+      },
+      {
+        "file": "tests/unit/notes/NoteSection.test.tsx",
+        "test_count": 27,
+        "description": "Mitad nota de SPEC-025 dentro de la suite de NoteSection: editor WYSIWYG (AC-22), guardado (AC-23), descartar con/sin cambios (AC-25/26) y describe \"wysiwyg (SPEC-025)\": render rico completo (AC-20), round-trip exacto (AC-24), vaciado+guardado vacío (AC-27), fallo de guardado (AC-28) y export tras edición (AC-29)."
+      }
+    ],
+    "e2e": [],
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/markdown/NoteScriptSections.test.tsx::NoteScriptSections::stacked layouts::shows only the Guión section (empty state) when there is no script, no note and no transcript",
+      "AC-02": "tests/unit/markdown/NoteScriptSections.test.tsx::NoteScriptSections::stacked layouts::shows the Guión section plus the note generation controls when there is a transcript but no script and no note",
+      "AC-03": "tests/unit/markdown/NoteScriptSections.test.tsx::NoteScriptSections::stacked layouts::stacks the full Guión section and the note generation controls without tabs when there is a script but no note",
+      "AC-04": "tests/unit/markdown/NoteScriptSections.test.tsx::NoteScriptSections::tabs when both exist::renders the \"Notas\" and \"Guión\" tabs, in that order, when both note and script exist",
+      "AC-05": "tests/unit/markdown/NoteScriptSections.test.tsx::NoteScriptSections::tabs when both exist::activates the \"Notas\" tab by default showing the note content",
+      "AC-06": "tests/unit/markdown/NoteScriptSections.test.tsx::NoteScriptSections::tabs when both exist::shows the full Guión section (content, Editar and Regenerar) when the \"Guión\" tab is clicked",
+      "AC-07": "tests/unit/markdown/NoteScriptSections.test.tsx::NoteScriptSections::tabs when both exist::switches to tabs with \"Notas\" active showing the fresh note after generating it from the stacked layout",
+      "AC-08": "tests/unit/markdown/NoteScriptSections.test.tsx::NoteScriptSections::stacked layouts::stacks the full Nota section first and the Guión section below, without tabs, when there is a note but no script",
+      "AC-09": "tests/unit/markdown/NoteScriptSections.test.tsx::NoteScriptSections::tabs when both exist::keeps the edit mode and the draft when switching tabs back and forth",
+      "AC-10": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::reading::renders the script as rich markdown (real headings, no raw syntax) and the Objetivos list below",
+      "AC-11": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::reading::shows the \"Aún no hay guión\" empty state with the generate button when prerequisites are met (test de SPEC-014 · AC-08, comportamiento intacto)",
+      "AC-12": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::switches to the WYSIWYG editor with rendered content plus editable objectives with add/remove controls",
+      "AC-13": "tests/unit/markdown/MarkdownEditor.test.tsx::MarkdownEditor::applies bold visually to the selected text when Negrita is clicked, marking the button pressed (selección vía Ctrl+A; el editor es el mismo componente en guión y nota)",
+      "AC-14": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::saves via updateInterview without status, silently dropping empty objectives, and returns to read mode",
+      "AC-15": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::wysiwyg (SPEC-025)::persists the exact original markdown when saving without touching the editor (semantic round-trip)",
+      "AC-16": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::asks to discard unsaved changes on cancel, and returns directly when clean",
+      "AC-17": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::asks to discard unsaved changes on cancel, and returns directly when clean",
+      "AC-18": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::wysiwyg (SPEC-025)::toasts the storage error and stays in edit mode with the change intact when saving fails",
+      "AC-19": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::switches to the WYSIWYG editor with rendered content plus editable objectives with add/remove controls",
+      "AC-20": "tests/unit/notes/NoteSection.test.tsx::NoteSection::wysiwyg (SPEC-025)::renders the note as fully rich markdown: headings of any level, bold, italics and lists",
+      "AC-21": "tests/unit/notes/NoteSection.test.tsx::NoteSection::base states::shows the template selector and the \"Generar nota\" button for a recorded interview without note + resto de base states de SPEC-017 (AC-02/03/04), sin cambios de comportamiento",
+      "AC-22": "tests/unit/notes/NoteSection.test.tsx::NoteSection::reading and editing::switches to the WYSIWYG editor with rendered content, Guardar and Descartar when Editar is clicked",
+      "AC-23": "tests/unit/notes/NoteSection.test.tsx::NoteSection::reading and editing::persists the edit, returns to read mode and toasts \"Nota guardada\" on Guardar",
+      "AC-24": "tests/unit/notes/NoteSection.test.tsx::NoteSection::wysiwyg (SPEC-025)::persists the exact original markdown when saving without touching the editor (semantic round-trip)",
+      "AC-25": "tests/unit/notes/NoteSection.test.tsx::NoteSection::reading and editing::asks to discard changes and restores the persisted content on confirm",
+      "AC-26": "tests/unit/notes/NoteSection.test.tsx::NoteSection::reading and editing::returns to read mode directly without any dialog when discarding with no changes",
+      "AC-27": "tests/unit/notes/NoteSection.test.tsx::NoteSection::wysiwyg (SPEC-025)::saves an empty note without errors when the editor is fully cleared",
+      "AC-28": "tests/unit/notes/NoteSection.test.tsx::NoteSection::wysiwyg (SPEC-025)::toasts the storage error and stays in edit mode with the change intact when saving fails",
+      "AC-29": "tests/unit/notes/NoteSection.test.tsx::NoteSection::wysiwyg (SPEC-025)::exports the note through the same export path after a WYSIWYG edit was saved (mitad UI; la equivalencia del .md con lo persistido la garantiza el export de main de SPEC-017, que vuelca contentMarkdown tal cual)",
+      "AC-30": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::wysiwyg (SPEC-025)::replaces the edited script on confirmed regeneration and renders the new one as rich markdown"
+    },
+    "created_at": "2026-07-10T18:30:00.000Z",
+    "updated_at": "2026-07-10T18:30:00.000Z"
   }
 }

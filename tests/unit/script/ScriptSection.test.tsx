@@ -1,11 +1,16 @@
 /**
- * Tests de la sección Guión del detalle de entrevista (SPEC-014, mitad UI).
+ * Tests de la sección Guión del detalle de entrevista (SPEC-014, mitad UI;
+ * lectura/edición adaptadas por SPEC-025 al render markdown enriquecido +
+ * editor WYSIWYG, con sus ACs nuevos en el describe "wysiwyg (SPEC-025)").
  * Frontera de mocking: api.llm + api.db. Montado vía InterviewDetailPage con
  * rutas reales (el Badge de estado vive en la cabecera de la página y se
  * actualiza con onInterviewUpdated).
  * Lecciones aplicadas: hay DOS botones "Generar guión" (cabecera + empty) →
  * getAllBy; máx 1 tooltip hover por render; sonner tolerante; sin asserts de
- * foco síncrono innecesarios.
+ * foco síncrono innecesarios. jsdom+ProseMirror: los cambios en el editor se
+ * hacen vía toolbar (API de TipTap, sin beforeinput nativo); con el documento
+ * intacto el editor no emite onChange, así el dirty-check y el round-trip son
+ * deterministas.
  */
 import { render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -220,13 +225,17 @@ describe('ScriptSection', () => {
   })
 
   describe('reading', () => {
-    // SPEC-014 · AC-07
-    it('renders the script preserving line breaks (pre-wrap) and the Objetivos list below', async () => {
+    // SPEC-014 · AC-07 (render adaptado por SPEC-025) + SPEC-025 · AC-10
+    it('renders the script as rich markdown (real headings, no raw syntax) and the Objetivos list below', async () => {
       setInterview(WITH_SCRIPT)
       renderDetail()
 
-      const script = await screen.findByText(/Guión adaptado/)
-      expect(script).toHaveClass('whitespace-pre-wrap')
+      const view = await screen.findByTestId('script-markdown-view')
+      expect(within(view).getByText('Guión adaptado').closest('h1')).not.toBeNull()
+      expect(within(view).getByText('Bloque 1').closest('h2')).not.toBeNull()
+      expect(within(view).getByText('Pregunta adaptada a Acme')).toBeInTheDocument()
+      // Sin sintaxis markdown en crudo
+      expect(view.textContent).not.toContain('#')
       expect(screen.getByRole('heading', { name: 'Objetivos', level: 4 })).toBeInTheDocument()
       const items = screen.getAllByRole('listitem')
       expect(items.map((item) => item.textContent)).toEqual(['Objetivo A', 'Objetivo B'])
@@ -253,17 +262,22 @@ describe('ScriptSection', () => {
   })
 
   describe('editing', () => {
-    // SPEC-014 · AC-09
-    it('switches to a textarea plus editable objectives with add/remove controls', async () => {
+    // SPEC-014 · AC-09 (editor adaptado por SPEC-025) + SPEC-025 · AC-12 y AC-19
+    it('switches to the WYSIWYG editor with rendered content plus editable objectives with add/remove controls', async () => {
       const user = userEvent.setup()
       setInterview(WITH_SCRIPT)
       renderDetail()
 
       await user.click(await screen.findByRole('button', { name: 'Editar' }))
 
-      expect(screen.getByLabelText('Guión')).toHaveValue(
-        '# Guión adaptado\n\n## Bloque 1\nPregunta adaptada a Acme'
-      )
+      // Editor WYSIWYG con el contenido renderizado (no sintaxis cruda) y editable
+      const editor = screen.getByTestId('script-markdown-editor')
+      const area = within(editor).getByLabelText('Guión')
+      expect(area).toHaveAttribute('contenteditable', 'true')
+      expect(within(area).getByText('Guión adaptado').closest('h1')).not.toBeNull()
+      expect(within(area).getByText('Bloque 1').closest('h2')).not.toBeNull()
+      expect(within(editor).getByRole('toolbar', { name: 'Formato' })).toBeInTheDocument()
+      // Los objetivos siguen siendo Inputs de texto plano (SPEC-025 · AC-19)
       expect(screen.getByLabelText('Objetivo 1')).toHaveValue('Objetivo A')
       expect(screen.getByLabelText('Objetivo 2')).toHaveValue('Objetivo B')
 
@@ -278,22 +292,26 @@ describe('ScriptSection', () => {
       expect(screen.queryByLabelText('Objetivo 3')).not.toBeInTheDocument()
     })
 
-    // SPEC-014 · AC-10 + AC-12 (guardado con filtrado de objetivos vacíos, sin status)
+    // SPEC-014 · AC-10 + AC-12 (guardado con filtrado de objetivos vacíos, sin
+    // status; edición vía toolbar por SPEC-025) + SPEC-025 · AC-14
     it('saves via updateInterview without status, silently dropping empty objectives, and returns to read mode', async () => {
       const user = userEvent.setup()
+      const savedMarkdown = '### Guión adaptado\n\n## Bloque 1\n\nPregunta adaptada a Acme'
       setInterview(WITH_SCRIPT)
       vi.mocked(mockApi.api.db.updateInterview).mockResolvedValue({
         ok: true,
         data: {
           ...WITH_SCRIPT,
-          scriptMarkdown: WITH_SCRIPT.scriptMarkdown + '\nLínea añadida',
+          scriptMarkdown: savedMarkdown,
           objectives: ['Objetivo A', 'Objetivo B']
         }
       })
       renderDetail()
 
       await user.click(await screen.findByRole('button', { name: 'Editar' }))
-      await user.type(screen.getByLabelText('Guión'), '\nLínea añadida')
+      // Cambio real vía toolbar: el primer bloque (h1) pasa a Encabezado 3
+      const editor = screen.getByTestId('script-markdown-editor')
+      await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
       // Un objetivo nuevo que se queda vacío y otro con solo espacios
       await user.click(screen.getByRole('button', { name: 'Añadir objetivo' }))
       await user.click(screen.getByRole('button', { name: 'Añadir objetivo' }))
@@ -302,7 +320,7 @@ describe('ScriptSection', () => {
       await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
       expect(vi.mocked(mockApi.api.db.updateInterview)).toHaveBeenCalledWith('i-1', {
-        scriptMarkdown: '# Guión adaptado\n\n## Bloque 1\nPregunta adaptada a Acme\nLínea añadida',
+        scriptMarkdown: savedMarkdown,
         objectives: ['Objetivo A', 'Objetivo B']
       })
       const payload = vi.mocked(mockApi.api.db.updateInterview).mock.calls[0][1]
@@ -311,30 +329,95 @@ describe('ScriptSection', () => {
       const toasts = await screen.findAllByText('Cambios guardados')
       expect(toasts.length).toBeGreaterThanOrEqual(1)
       // Vuelta al modo lectura
-      await waitFor(() => expect(screen.queryByLabelText('Guión')).not.toBeInTheDocument())
+      await waitFor(() =>
+        expect(screen.queryByTestId('script-markdown-editor')).not.toBeInTheDocument()
+      )
       expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument()
     })
 
-    // SPEC-014 · AC-11
+    // SPEC-014 · AC-11 (interacción vía toolbar por SPEC-025) + SPEC-025 · AC-16 y AC-17
     it('asks to discard unsaved changes on cancel, and returns directly when clean', async () => {
       const user = userEvent.setup()
       setInterview(WITH_SCRIPT)
       renderDetail()
 
-      // Con cambios → AlertDialog "Descartar cambios"
+      // Con cambios (toolbar: h1 → Encabezado 2) → AlertDialog "Descartar cambios"
       await user.click(await screen.findByRole('button', { name: 'Editar' }))
-      await user.type(screen.getByLabelText('Guión'), ' cambio')
+      const editor = screen.getByTestId('script-markdown-editor')
+      await user.click(within(editor).getByRole('button', { name: 'Encabezado 2' }))
       await user.click(screen.getByRole('button', { name: 'Cancelar' }))
       const dialog = await screen.findByRole('alertdialog')
       expect(within(dialog).getByRole('heading', { name: 'Descartar cambios' })).toBeInTheDocument()
       await user.click(within(dialog).getByRole('button', { name: 'Descartar' }))
-      await waitFor(() => expect(screen.queryByLabelText('Guión')).not.toBeInTheDocument())
+      await waitFor(() =>
+        expect(screen.queryByTestId('script-markdown-editor')).not.toBeInTheDocument()
+      )
 
       // Sin cambios → vuelta directa sin diálogo
       await user.click(screen.getByRole('button', { name: 'Editar' }))
       await user.click(screen.getByRole('button', { name: 'Cancelar' }))
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
-      expect(screen.queryByLabelText('Guión')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('script-markdown-editor')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('wysiwyg (SPEC-025)', () => {
+    // SPEC-025 · AC-15
+    it('persists the exact original markdown when saving without touching the editor (semantic round-trip)', async () => {
+      const user = userEvent.setup()
+      setInterview(WITH_SCRIPT)
+      vi.mocked(mockApi.api.db.updateInterview).mockResolvedValue({ ok: true, data: WITH_SCRIPT })
+      renderDetail()
+
+      await user.click(await screen.findByRole('button', { name: 'Editar' }))
+      await user.click(screen.getByRole('button', { name: 'Guardar' }))
+
+      // Sin ediciones el borrador es el string persistido: estructura intacta
+      expect(vi.mocked(mockApi.api.db.updateInterview)).toHaveBeenCalledWith('i-1', {
+        scriptMarkdown: '# Guión adaptado\n\n## Bloque 1\nPregunta adaptada a Acme',
+        objectives: ['Objetivo A', 'Objetivo B']
+      })
+    })
+
+    // SPEC-025 · AC-18
+    it('toasts the storage error and stays in edit mode with the change intact when saving fails', async () => {
+      const user = userEvent.setup()
+      setInterview(WITH_SCRIPT)
+      vi.mocked(mockApi.api.db.updateInterview).mockResolvedValue({
+        ok: false,
+        error: { kind: 'storage', message: 'No se pudo escribir la base de datos' }
+      })
+      renderDetail()
+
+      await user.click(await screen.findByRole('button', { name: 'Editar' }))
+      const editor = screen.getByTestId('script-markdown-editor')
+      await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
+      await user.click(screen.getByRole('button', { name: 'Guardar' }))
+
+      const toasts = await screen.findAllByText('No se pudo escribir la base de datos')
+      expect(toasts.length).toBeGreaterThanOrEqual(1)
+      // Sigue en edición y con el cambio aplicado (el h1 pasó a h3)
+      const editorStill = screen.getByTestId('script-markdown-editor')
+      expect(within(editorStill).getByText('Guión adaptado').closest('h3')).not.toBeNull()
+    })
+
+    // SPEC-025 · AC-30
+    it('replaces the edited script on confirmed regeneration and renders the new one as rich markdown', async () => {
+      const user = userEvent.setup()
+      setInterview(WITH_SCRIPT)
+      vi.mocked(mockApi.api.llm.generateScript).mockResolvedValue({ ok: true, data: GENERATED })
+      renderDetail()
+
+      await user.click(await screen.findByRole('button', { name: 'Regenerar' }))
+      const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByRole('button', { name: 'Regenerar' }))
+
+      const view = await screen.findByTestId('script-markdown-view')
+      await waitFor(() => {
+        expect(within(view).getByText('Guión generado').closest('h1')).not.toBeNull()
+      })
+      expect(within(view).getByText('Contenido nuevo')).toBeInTheDocument()
+      expect(within(view).queryByText('Guión adaptado')).not.toBeInTheDocument()
     })
   })
 })

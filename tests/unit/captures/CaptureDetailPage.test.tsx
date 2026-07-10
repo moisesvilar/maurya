@@ -150,20 +150,30 @@ describe('CaptureDetailPage', () => {
   })
 
   describe('sections', () => {
-    // SPEC-020 · AC-15 (las mismas secciones, en el mismo orden, montadas tal cual;
-    // su comportamiento íntegro lo garantizan las suites de SPEC-015/016/017/019)
-    it('mounts the same interview sections in order: Grabación, Nota and Guión', async () => {
+    // SPEC-020 · AC-15, adaptado por SPEC-025: las mismas secciones montadas
+    // tal cual tras la Grabación, pero la disposición Nota/Guión ahora es
+    // condicional (NoteScriptSections) — con transcripción y sin guión ni nota
+    // se apilan Guión + controles de generación de la nota; la disposición
+    // completa la cubre tests/unit/markdown/NoteScriptSections.test.tsx
+    it('mounts Grabación first and the SPEC-025 Nota/Guión disposition for a capture with transcript', async () => {
+      setInterview(
+        capture({
+          wavPath: '/tmp/maurya-recordings/captura.wav',
+          transcriptPath: '/tmp/maurya-recordings/captura.transcript.json',
+          status: 'recorded'
+        })
+      )
       renderDetail()
 
       await screen.findByRole('heading', { level: 1, name: 'Captura sin empresa' })
       const headings = await screen.findAllByRole('heading', { level: 3 })
       const titles = headings.map((heading) => heading.textContent)
       const grabacion = titles.indexOf('Grabación')
-      const nota = titles.indexOf('Nota')
       const guion = titles.indexOf('Guión')
+      const nota = titles.indexOf('Nota')
       expect(grabacion).toBeGreaterThanOrEqual(0)
-      expect(nota).toBeGreaterThan(grabacion)
-      expect(guion).toBeGreaterThan(nota)
+      expect(guion).toBeGreaterThan(grabacion)
+      expect(nota).toBeGreaterThan(guion)
       // Las secciones reciben la captura real: la Grabación ofrece su CTA
       // (findBy: los permisos del spike se resuelven async antes de habilitarla)
       expect(await screen.findByRole('button', { name: 'Iniciar grabación' })).toBeInTheDocument()
