@@ -65,6 +65,40 @@ if (typeof window !== 'undefined') {
     })
   }
 
+  // ProseMirror (editor WYSIWYG de SPEC-025) mide la selección con las APIs
+  // de geometría de Range/Element al reaccionar a selectionchange
+  // (coordsAtPos → scrollToSelection). jsdom no implementa getClientRects en
+  // Range → "TypeError: target.getClientRects is not a function" como
+  // unhandled error (run SPEC-025-20260710T205833Z: 428/428 PASS pero exit 1).
+  // Rects a cero bastan: en jsdom no se asierta geometría, solo que PM no
+  // lance. Lista vacía en getClientRects → PM cae a getBoundingClientRect.
+  const zeroDomRect = (): DOMRect =>
+    ({
+      x: 0,
+      y: 0,
+      width: 0,
+      height: 0,
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      toJSON: () => ({})
+    }) as DOMRect
+  const emptyDomRectList = (): DOMRectList => {
+    const list: DOMRect[] & { item?: (index: number) => DOMRect | null } = []
+    list.item = () => null
+    return list as unknown as DOMRectList
+  }
+  if (typeof Range.prototype.getClientRects !== 'function') {
+    Range.prototype.getClientRects = emptyDomRectList
+  }
+  if (typeof Range.prototype.getBoundingClientRect !== 'function') {
+    Range.prototype.getBoundingClientRect = zeroDomRect
+  }
+  if (typeof Element.prototype.getClientRects !== 'function') {
+    Element.prototype.getClientRects = emptyDomRectList
+  }
+
   // Radix usa pointer capture y scrollIntoView, ausentes en jsdom
   if (typeof Element.prototype.hasPointerCapture !== 'function') {
     Element.prototype.hasPointerCapture = () => false
