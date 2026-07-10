@@ -21,6 +21,8 @@ export interface UseTranscriptionResult {
   lines: TranscriptLineView[]
   partials: TranscriptPartials
   error: CaptureError | null
+  /** Modo degradado sin diarización (SPEC-022): true mientras dure la sesión. */
+  degraded: boolean
   reset: () => void
 }
 
@@ -33,10 +35,13 @@ export function useTranscription(): UseTranscriptionResult {
   const [lines, setLines] = useState<TranscriptLineView[]>([])
   const [partials, setPartials] = useState<TranscriptPartials>(EMPTY_PARTIALS)
   const [error, setError] = useState<CaptureError | null>(null)
+  const [degraded, setDegraded] = useState(false)
 
   useEffect(() => {
     return window.api.transcription.onStatus((event) => {
       setStatus(event.status)
+      // Modo degradado (SPEC-022): la marca viaja solo cuando aplica
+      setDegraded(event.degraded === true)
       if (event.error !== undefined) {
         setError(event.error)
       } else if (event.status === 'active') {
@@ -75,7 +80,8 @@ export function useTranscription(): UseTranscriptionResult {
     setLines([])
     setPartials(EMPTY_PARTIALS)
     setError(null)
+    setDegraded(false)
   }, [])
 
-  return { status, lines, partials, error, reset }
+  return { status, lines, partials, error, degraded, reset }
 }

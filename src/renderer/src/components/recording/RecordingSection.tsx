@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { AssistantPanel } from '@/components/recording/AssistantPanel'
 import { ConsentDialog } from '@/components/recording/ConsentDialog'
+import { DegradedTranscriptionAlert } from '@/components/recording/DegradedTranscriptionAlert'
 import { LatencyRow } from '@/components/recording/LatencyRow'
 import { MicSelect } from '@/components/recording/MicSelect'
 import { NoKeyAlert } from '@/components/recording/NoKeyAlert'
@@ -69,6 +70,7 @@ export function RecordingSection({
     lines,
     partials,
     error: transcriptionError,
+    degraded: transcriptionDegraded,
     reset: resetTranscription
   } = useTranscription()
   const {
@@ -238,6 +240,9 @@ export function RecordingSection({
 
       {error !== null && <CaptureErrorAlert error={error} />}
       {transcriptionError !== null && <CaptureErrorAlert error={transcriptionError} />}
+      {/* Modo degradado sin diarización (SPEC-022): informativo, persistente
+          durante la sesión; el gate `capturing` lo retira al terminar */}
+      {capturing && transcriptionDegraded && <DegradedTranscriptionAlert />}
 
       {/* Estado 2 — Grabando */}
       {capturing && (

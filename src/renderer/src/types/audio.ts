@@ -91,6 +91,12 @@ export interface TranscriptResultEvent extends TranscriptLine {
 export interface TranscriptionStatusEvent {
   status: TranscriptionStatus
   error?: CaptureError
+  /**
+   * Modo degradado sin diarización (SPEC-022): presente (true) solo tras el
+   * fallback de conexión sin diarize; ausente = sesión normal. Nunca viaja
+   * como false explícito.
+   */
+  degraded?: boolean
 }
 
 /**

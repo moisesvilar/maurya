@@ -5,8 +5,17 @@
  * Vive EXCLUSIVAMENTE en el main process: la key nunca cruza al renderer.
  */
 
-const DEEPGRAM_URL =
-  'wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=16000&channels=2&multichannel=true&interim_results=true&language=es&diarize=true'
+const DEEPGRAM_BASE_URL =
+  'wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=16000&channels=2&multichannel=true&interim_results=true&language=es'
+
+/**
+ * URL de conexión (SPEC-022): con diarización (comportamiento por defecto,
+ * idéntica byte a byte a la histórica) o sin ella (fallback de último recurso
+ * cuando Deepgram rechaza repetidamente la conexión con diarize=true).
+ */
+function buildDeepgramUrl(diarize: boolean): string {
+  return diarize ? `${DEEPGRAM_BASE_URL}&diarize=true` : DEEPGRAM_BASE_URL
+}
 
 /** Guardarraíl de backpressure: por encima se descartan chunks (el WAV no se ve afectado). */
 const MAX_BUFFERED_BYTES = 1024 * 1024
@@ -30,6 +39,15 @@ export interface DeepgramCallbacks {
   onResult: (result: DeepgramResult) => void
   onClose: (code: number) => void
   onError: (message: string) => void
+}
+
+/**
+ * Opciones de conexión (SPEC-022). `diarize` por defecto true: solo el
+ * fallback de degradación elegante conecta sin diarización. Sin diarize,
+ * `words[].speaker` no llega y `majoritySpeaker` ya devuelve null.
+ */
+export interface DeepgramConnectionOptions {
+  diarize?: boolean
 }
 
 /** Palabra del mensaje `Results`; con diarize=true incluye el índice de hablante. */
@@ -83,9 +101,9 @@ export class DeepgramConnection {
   /** true si la conexión llegó a abrirse (distingue fallo de auth/red de una caída posterior). */
   opened = false
 
-  constructor(apiKey: string, callbacks: DeepgramCallbacks) {
+  constructor(apiKey: string, callbacks: DeepgramCallbacks, options?: DeepgramConnectionOptions) {
     this.callbacks = callbacks
-    this.ws = new WebSocket(DEEPGRAM_URL, ['token', apiKey])
+    this.ws = new WebSocket(buildDeepgramUrl(options?.diarize ?? true), ['token', apiKey])
     this.ws.binaryType = 'arraybuffer'
     this.ws.onopen = (): void => {
       this.opened = true

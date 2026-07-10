@@ -38,6 +38,19 @@ interface Session {
   awaitingOpen: boolean
   finishing: boolean
   retriesUsed: number
+  /**
+   * true si ALGUNA conexión de la SESIÓN llegó a abrir (SPEC-022). Es un flag
+   * de sesión, no de conexión: una caída tras abrir no es culpa de la
+   * diarización y no debe disparar el fallback (comportamiento de reconexión
+   * de SPEC-002 intacto).
+   */
+  everOpened: boolean
+  /**
+   * Modo degradado sin diarización (SPEC-022). Doble función: "fallback ya
+   * intentado" (se pone una vez, nunca se limpia en la sesión → un único
+   * intento) y "modo vigente" (parametriza openConnection y emitStatus).
+   */
+  degraded: boolean
   lines: TranscriptLine[]
   queue: Buffer[]
   /** Epoch del primer chunk enviado tras el open vigente: base de los tiempos de Deepgram. */
@@ -81,7 +94,13 @@ function getApiKey(): string | null {
 function emitStatus(target: Session, status: TranscriptionStatus, error?: CaptureError): void {
   target.status = status
   if (!target.sender.isDestroyed()) {
-    const event: TranscriptionStatusEvent = error !== undefined ? { status, error } : { status }
+    // La marca de modo degradado (SPEC-022) viaja SOLO cuando aplica (spread
+    // condicional): el shape del evento de las sesiones normales no cambia.
+    const event: TranscriptionStatusEvent = {
+      status,
+      ...(error !== undefined ? { error } : {}),
+      ...(target.degraded ? { degraded: true } : {})
+    }
     target.sender.send('transcription:status', event)
   }
 }
@@ -109,6 +128,8 @@ export function startTranscription(sender: WebContents): void {
     awaitingOpen: false,
     finishing: false,
     retriesUsed: 0,
+    everOpened: false,
+    degraded: false,
     lines: [],
     queue: [],
     audioBaseMs: null,
@@ -128,37 +149,44 @@ export function startTranscription(sender: WebContents): void {
 
 function openConnection(target: Session, apiKey: string): void {
   target.awaitingOpen = true
-  target.connection = new DeepgramConnection(apiKey, {
-    onOpen: (): void => {
-      if (session !== target) {
-        return
+  // SPEC-022: en modo degradado se conecta sin diarización — una reconexión
+  // posterior de la misma sesión tampoco la reintroduce.
+  target.connection = new DeepgramConnection(
+    apiKey,
+    {
+      onOpen: (): void => {
+        if (session !== target) {
+          return
+        }
+        target.awaitingOpen = false
+        target.everOpened = true
+        target.audioBaseMs = null
+        // Drenar la cola acumulada durante la (re)conexión, en orden
+        const pending = target.queue
+        target.queue = []
+        for (const chunk of pending) {
+          sendChunk(target, chunk)
+        }
+        startKeepAlive(target)
+        // 'active' sin error limpia el Alert de conexión en el renderer (reintento con éxito)
+        emitStatus(target, 'active')
+      },
+      onResult: (result): void => {
+        if (session === target) {
+          handleResult(target, result)
+        }
+      },
+      onClose: (code): void => {
+        if (session === target) {
+          handleClose(target, code)
+        }
+      },
+      onError: (): void => {
+        // El detalle real (401 vs red) se clasifica en handleClose; aquí no hay información útil
       }
-      target.awaitingOpen = false
-      target.audioBaseMs = null
-      // Drenar la cola acumulada durante la (re)conexión, en orden
-      const pending = target.queue
-      target.queue = []
-      for (const chunk of pending) {
-        sendChunk(target, chunk)
-      }
-      startKeepAlive(target)
-      // 'active' sin error limpia el Alert de conexión en el renderer (reintento con éxito)
-      emitStatus(target, 'active')
     },
-    onResult: (result): void => {
-      if (session === target) {
-        handleResult(target, result)
-      }
-    },
-    onClose: (code): void => {
-      if (session === target) {
-        handleClose(target, code)
-      }
-    },
-    onError: (): void => {
-      // El detalle real (401 vs red) se clasifica en handleClose; aquí no hay información útil
-    }
-  })
+    { diarize: !target.degraded }
+  )
 }
 
 function handleResult(target: Session, result: DeepgramResult): void {
@@ -235,6 +263,17 @@ function retryOrGiveUp(target: Session, code: number): void {
       kind: 'deepgram-connection',
       message: `Se perdió la conexión con Deepgram (código ${code}). Reintentando la conexión…`
     })
+    openConnection(target, target.apiKey)
+    return
+  }
+  // SPEC-022: último recurso — un único intento sin diarización, solo si
+  // ninguna conexión de la SESIÓN llegó a abrir (quizá el plan/modelo no
+  // soporta diarize). El camino auth nunca llega aquí (handleClose emite
+  // AUTH_ERROR y retorna antes). Intento silencioso: el Alert "Reintentando
+  // la conexión…" previo sigue visible; si abre, onOpen emite 'active'
+  // degradado; si falla, se vuelve aquí y cae en la rendición actual.
+  if (!target.everOpened && !target.degraded && target.apiKey !== null) {
+    target.degraded = true
     openConnection(target, target.apiKey)
     return
   }
