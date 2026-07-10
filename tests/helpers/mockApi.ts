@@ -155,7 +155,14 @@ function createMockDbApi(): DbApi {
       .fn<DbApi['getNoteByInterview']>()
       .mockResolvedValue({ ok: true, data: null }),
     updateNote: vi.fn<DbApi['updateNote']>(),
-    deleteNote: vi.fn<DbApi['deleteNote']>()
+    deleteNote: vi.fn<DbApi['deleteNote']>(),
+
+    // SPEC-021: ajustes de coste de IA (default de solo-lectura seguro: sin
+    // límite configurado; el set se configura por test)
+    getAiCostSettings: vi
+      .fn<DbApi['getAiCostSettings']>()
+      .mockResolvedValue({ ok: true, data: { limitUsd: null } }),
+    setAiCostSettings: vi.fn<DbApi['setAiCostSettings']>()
   }
 }
 
@@ -181,7 +188,9 @@ export function createMockApi(): MockApiHandle {
           }
         }
       }),
-      sendFeedback: vi.fn<AssistantApi['sendFeedback']>().mockResolvedValue(undefined)
+      sendFeedback: vi.fn<AssistantApi['sendFeedback']>().mockResolvedValue(undefined),
+      // SPEC-021: reanuda el asistente pausado por límite de coste
+      resume: vi.fn<AssistantApi['resume']>().mockResolvedValue(undefined)
     },
     permissions: {
       getStatus: vi.fn<MauryaApi['permissions']['getStatus']>().mockResolvedValue({

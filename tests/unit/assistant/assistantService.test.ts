@@ -370,7 +370,13 @@ describe('assistantService', () => {
       sendAssistantFeedback('up')
 
       const summary = stopAssistant()
-      expect(summary).toEqual({ suggestionCount: 2, feedback: { up: 1, down: 1 } })
+      // SPEC-021: el summary gana el usage de la sesión (las respuestas del
+      // SDK mockeado no traen bloque usage → 2 llamadas con 0 tokens)
+      expect(summary).toEqual({
+        suggestionCount: 2,
+        feedback: { up: 1, down: 1 },
+        usage: { calls: 2, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }
+      })
 
       // AC-12: el transcript.json persiste el registro de la sesión
       const dir = mkdtempSync(join(tmpdir(), 'maurya-assistant-transcript-'))
@@ -381,7 +387,11 @@ describe('assistantService', () => {
       const persisted = JSON.parse(readFileSync(transcriptPath, 'utf8')) as {
         assistant: AssistantSessionSummary | null
       }
-      expect(persisted.assistant).toEqual({ suggestionCount: 2, feedback: { up: 1, down: 1 } })
+      expect(persisted.assistant).toEqual({
+        suggestionCount: 2,
+        feedback: { up: 1, down: 1 },
+        usage: { calls: 2, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }
+      })
     })
   })
 
@@ -400,7 +410,12 @@ describe('assistantService', () => {
       await waitForCreateCalls(1)
 
       const summary = stopAssistant()
-      expect(summary).toEqual({ suggestionCount: 0, feedback: { up: 0, down: 0 } })
+      // SPEC-021: sin análisis completados el usage viaja a ceros
+      expect(summary).toEqual({
+        suggestionCount: 0,
+        feedback: { up: 0, down: 0 },
+        usage: { calls: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }
+      })
       const eventsAtStop = assistantEvents(send).length
 
       // Nuevas líneas tras el stop: el listener se retiró → cero llamadas nuevas

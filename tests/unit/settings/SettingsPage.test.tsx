@@ -171,12 +171,19 @@ describe('SettingsPage', () => {
       expect(alert).toHaveTextContent('Cifrado no disponible')
       expect(alert).toHaveClass('text-destructive')
 
+      // SPEC-021 añadió la card "Coste de IA" con su propio Guardar (3 en
+      // total); el cifrado solo deshabilita los DOS de las filas de claves
+      // (el límite de coste no es un secreto y no depende de safeStorage)
       const saveButtons = screen.getAllByRole('button', { name: 'Guardar' })
-      expect(saveButtons).toHaveLength(2)
-      saveButtons.forEach((button) => expect(button).toBeDisabled())
+      expect(saveButtons).toHaveLength(3)
+      const keyRowButtons = saveButtons.filter(
+        (button) => button.closest('[data-testid="ai-cost-settings-card"]') === null
+      )
+      expect(keyRowButtons).toHaveLength(2)
+      keyRowButtons.forEach((button) => expect(button).toBeDisabled())
 
       // Lección Radix: el trigger real del Tooltip es el span envolvente (tabIndex 0)
-      const wrapper = saveButtons[0].parentElement
+      const wrapper = keyRowButtons[0].parentElement
       if (wrapper === null) {
         throw new Error('El botón Guardar deshabilitado debe estar envuelto por el TooltipTrigger')
       }
