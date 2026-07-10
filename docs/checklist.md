@@ -126,7 +126,7 @@ Depende de H6. MVP listo para usuarios de validación.
 
 Peticiones humanas directas posteriores al cierre del flujo end-to-end.
 
-- [x] 🟡 **Editor markdown WYSIWYG + pestañas Notas/Guión** en el detalle de entrevista: visualización enriquecida, edición sin sintaxis, y reorganización anti-scroll (pestañas "Notas"/"Guión" cuando coexisten, nota primero) (RF-GUION-005, RF-NOTE-004) — SPEC-025, unit 428/428 PASS (30/30 ACs; TipTap v3 + @tiptap/markdown); verificación manual de escritura libre pendiente de humano. **H8 completo**
+- [x] 🟡 **Editor markdown WYSIWYG + pestañas Notas/Guión** en el detalle de entrevista: visualización enriquecida, edición sin sintaxis, y reorganización anti-scroll (pestañas "Notas"/"Guión" cuando coexisten, nota primero) (RF-GUION-005, RF-NOTE-004) — SPEC-027, unit 428/428 PASS (30/30 ACs; TipTap v3 + @tiptap/markdown); verificación manual de escritura libre pendiente de humano. **H8 completo**
 
 ---
 

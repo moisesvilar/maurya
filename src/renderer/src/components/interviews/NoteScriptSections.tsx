@@ -13,7 +13,7 @@ interface NoteScriptSectionsProps {
 }
 
 /**
- * Disposición de las secciones Nota y Guión en el detalle (SPEC-025):
+ * Disposición de las secciones Nota y Guión en el detalle (SPEC-027):
  * - Sin guión, sin nota y sin transcripción → solo la sección Guión.
  * - Sin nota pero con transcripción o guión → Guión + controles de generación
  *   de la nota, apilados.

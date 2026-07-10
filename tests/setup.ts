@@ -65,11 +65,11 @@ if (typeof window !== 'undefined') {
     })
   }
 
-  // ProseMirror (editor WYSIWYG de SPEC-025) mide la selección con las APIs
+  // ProseMirror (editor WYSIWYG de SPEC-027) mide la selección con las APIs
   // de geometría de Range/Element al reaccionar a selectionchange
   // (coordsAtPos → scrollToSelection). jsdom no implementa getClientRects en
   // Range → "TypeError: target.getClientRects is not a function" como
-  // unhandled error (run SPEC-025-20260710T205833Z: 428/428 PASS pero exit 1).
+  // unhandled error (run SPEC-027-20260710T205833Z: 428/428 PASS pero exit 1).
   // Rects a cero bastan: en jsdom no se asierta geometría, solo que PM no
   // lance. Lista vacía en getClientRects → PM cae a getBoundingClientRect.
   const zeroDomRect = (): DOMRect =>

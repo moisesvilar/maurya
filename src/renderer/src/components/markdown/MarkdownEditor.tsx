@@ -17,7 +17,7 @@ interface ToolbarAction {
   run: (editor: Editor) => void
 }
 
-/** Toolbar mínima de la spec (SPEC-025): la sintaxis que producen guión y nota. */
+/** Toolbar mínima de la spec (SPEC-027): la sintaxis que producen guión y nota. */
 const TOOLBAR_ACTIONS: ToolbarAction[] = [
   {
     key: 'heading-2',
@@ -79,7 +79,7 @@ interface MarkdownEditorProps {
 }
 
 /**
- * Editor markdown WYSIWYG (SPEC-025): TipTap + extensión oficial Markdown.
+ * Editor markdown WYSIWYG (SPEC-027): TipTap + extensión oficial Markdown.
  * El contenido se parsea desde Markdown al montar y se serializa de vuelta a
  * Markdown en cada actualización del documento — onChange solo se dispara con
  * ediciones reales, así el borrador del padre conserva el string original

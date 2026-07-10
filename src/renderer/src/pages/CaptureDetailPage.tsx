@@ -28,7 +28,7 @@ type CaptureDetailState =
  * Detalle de una captura (SPEC-020, ruta /captures/:id — Layout 2 detalle):
  * misma experiencia que el detalle de entrevista de Discoveries — la sección
  * Grabación (RecordingSection) y las secciones Nota y Guión compuestas por
- * NoteScriptSections (SPEC-025: apiladas o en pestañas "Notas"/"Guión"), con
+ * NoteScriptSections (SPEC-027: apiladas o en pestañas "Notas"/"Guión"), con
  * el mismo onInterviewUpdated compartido. La diferencia es el contexto: la captura
  * puede no tener empresa todavía; en ese caso la cabecera muestra el botón
  * "Asignar empresa" que abre el Sheet de asignación diferida.

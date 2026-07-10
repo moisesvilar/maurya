@@ -9,7 +9,7 @@ interface MarkdownViewProps {
 }
 
 /**
- * Vista de lectura de Markdown renderizado (SPEC-025): instancia TipTap no
+ * Vista de lectura de Markdown renderizado (SPEC-027): instancia TipTap no
  * editable con las mismas extensiones que MarkdownEditor, garantizando un
  * render idéntico en lectura y edición (encabezados, listas, énfasis, citas).
  * Sustituye al pre-wrap del guión y al parser ad-hoc de `## ` de la nota.

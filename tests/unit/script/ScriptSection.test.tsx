@@ -1,7 +1,7 @@
 /**
  * Tests de la sección Guión del detalle de entrevista (SPEC-014, mitad UI;
- * lectura/edición adaptadas por SPEC-025 al render markdown enriquecido +
- * editor WYSIWYG, con sus ACs nuevos en el describe "wysiwyg (SPEC-025)").
+ * lectura/edición adaptadas por SPEC-027 al render markdown enriquecido +
+ * editor WYSIWYG, con sus ACs nuevos en el describe "wysiwyg (SPEC-027)").
  * Frontera de mocking: api.llm + api.db. Montado vía InterviewDetailPage con
  * rutas reales (el Badge de estado vive en la cabecera de la página y se
  * actualiza con onInterviewUpdated).
@@ -225,7 +225,7 @@ describe('ScriptSection', () => {
   })
 
   describe('reading', () => {
-    // SPEC-014 · AC-07 (render adaptado por SPEC-025) + SPEC-025 · AC-10
+    // SPEC-014 · AC-07 (render adaptado por SPEC-027) + SPEC-027 · AC-10
     it('renders the script as rich markdown (real headings, no raw syntax) and the Objetivos list below', async () => {
       setInterview(WITH_SCRIPT)
       renderDetail()
@@ -262,7 +262,7 @@ describe('ScriptSection', () => {
   })
 
   describe('editing', () => {
-    // SPEC-014 · AC-09 (editor adaptado por SPEC-025) + SPEC-025 · AC-12 y AC-19
+    // SPEC-014 · AC-09 (editor adaptado por SPEC-027) + SPEC-027 · AC-12 y AC-19
     it('switches to the WYSIWYG editor with rendered content plus editable objectives with add/remove controls', async () => {
       const user = userEvent.setup()
       setInterview(WITH_SCRIPT)
@@ -277,7 +277,7 @@ describe('ScriptSection', () => {
       expect(within(area).getByText('Guión adaptado').closest('h1')).not.toBeNull()
       expect(within(area).getByText('Bloque 1').closest('h2')).not.toBeNull()
       expect(within(editor).getByRole('toolbar', { name: 'Formato' })).toBeInTheDocument()
-      // Los objetivos siguen siendo Inputs de texto plano (SPEC-025 · AC-19)
+      // Los objetivos siguen siendo Inputs de texto plano (SPEC-027 · AC-19)
       expect(screen.getByLabelText('Objetivo 1')).toHaveValue('Objetivo A')
       expect(screen.getByLabelText('Objetivo 2')).toHaveValue('Objetivo B')
 
@@ -293,7 +293,7 @@ describe('ScriptSection', () => {
     })
 
     // SPEC-014 · AC-10 + AC-12 (guardado con filtrado de objetivos vacíos, sin
-    // status; edición vía toolbar por SPEC-025) + SPEC-025 · AC-14
+    // status; edición vía toolbar por SPEC-027) + SPEC-027 · AC-14
     it('saves via updateInterview without status, silently dropping empty objectives, and returns to read mode', async () => {
       const user = userEvent.setup()
       const savedMarkdown = '### Guión adaptado\n\n## Bloque 1\n\nPregunta adaptada a Acme'
@@ -335,7 +335,7 @@ describe('ScriptSection', () => {
       expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument()
     })
 
-    // SPEC-014 · AC-11 (interacción vía toolbar por SPEC-025) + SPEC-025 · AC-16 y AC-17
+    // SPEC-014 · AC-11 (interacción vía toolbar por SPEC-027) + SPEC-027 · AC-16 y AC-17
     it('asks to discard unsaved changes on cancel, and returns directly when clean', async () => {
       const user = userEvent.setup()
       setInterview(WITH_SCRIPT)
@@ -361,8 +361,8 @@ describe('ScriptSection', () => {
     })
   })
 
-  describe('wysiwyg (SPEC-025)', () => {
-    // SPEC-025 · AC-15
+  describe('wysiwyg (SPEC-027)', () => {
+    // SPEC-027 · AC-15
     it('persists the exact original markdown when saving without touching the editor (semantic round-trip)', async () => {
       const user = userEvent.setup()
       setInterview(WITH_SCRIPT)
@@ -379,7 +379,7 @@ describe('ScriptSection', () => {
       })
     })
 
-    // SPEC-025 · AC-18
+    // SPEC-027 · AC-18
     it('toasts the storage error and stays in edit mode with the change intact when saving fails', async () => {
       const user = userEvent.setup()
       setInterview(WITH_SCRIPT)
@@ -401,7 +401,7 @@ describe('ScriptSection', () => {
       expect(within(editorStill).getByText('Guión adaptado').closest('h3')).not.toBeNull()
     })
 
-    // SPEC-025 · AC-30
+    // SPEC-027 · AC-30
     it('replaces the edited script on confirmed regeneration and renders the new one as rich markdown', async () => {
       const user = userEvent.setup()
       setInterview(WITH_SCRIPT)

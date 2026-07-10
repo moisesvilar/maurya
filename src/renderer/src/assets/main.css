@@ -119,7 +119,7 @@
   }
 }
 
-/* Contenido markdown enriquecido (SPEC-025): el preflight de Tailwind resetea
+/* Contenido markdown enriquecido (SPEC-027): el preflight de Tailwind resetea
    encabezados, listas y márgenes; aquí se restauran SOLO dentro de
    .markdown-content (vista de lectura y editor WYSIWYG de guión/nota). */
 @layer components {

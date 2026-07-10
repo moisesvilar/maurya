@@ -1,7 +1,7 @@
 /**
  * Tests de la sección Nota y del Sheet de transcripción (SPEC-017, mitad UI;
- * lectura/edición adaptadas por SPEC-025 al render markdown enriquecido +
- * editor WYSIWYG, con sus ACs nuevos en el describe "wysiwyg (SPEC-025)"),
+ * lectura/edición adaptadas por SPEC-027 al render markdown enriquecido +
+ * editor WYSIWYG, con sus ACs nuevos en el describe "wysiwyg (SPEC-027)"),
  * montados vía InterviewDetailPage con rutas reales (mocks del spike, patrón
  * SPEC-015/016).
  * Lecciones aplicadas: "Ver transcripción"/"Editar"/"Guardar" pueden colisionar
@@ -10,7 +10,7 @@
  * fondo aria-hidden); toasts sonner duplicados → getAllBy; máx 1 hover de
  * tooltip por render. jsdom+ProseMirror: cambios vía toolbar (API TipTap);
  * documento intacto = sin onChange → dirty-check y round-trip deterministas.
- * SPEC-025 (disposición): sin guión/nota/transcripción la sección Nota NO se
+ * SPEC-027 (disposición): sin guión/nota/transcripción la sección Nota NO se
  * monta → el fixture del record-first lleva guión; y tras generar la nota la
  * sección se remonta reordenada → re-anclar el section y encadenar el mock de
  * getNoteByInterview (2 lecturas iniciales null, después la nota persistida).
@@ -181,7 +181,7 @@ describe('NoteSection', () => {
       expect(within(section).getByRole('button', { name: 'Ver transcripción' })).toBeInTheDocument()
     })
 
-    // SPEC-017 · AC-02 (fixture con guión: por la disposición de SPEC-025, sin
+    // SPEC-017 · AC-02 (fixture con guión: por la disposición de SPEC-027, sin
     // guión ni transcripción ni nota la sección Nota no se muestra)
     it('shows the record-first empty state without selector nor generate button when there is no recording', async () => {
       setInterview(
@@ -267,7 +267,7 @@ describe('NoteSection', () => {
       expect(loading).toBeDisabled()
     })
 
-    // SPEC-017 · AC-07 (render adaptado por SPEC-025: '## ' es un h2 real; la
+    // SPEC-017 · AC-07 (render adaptado por SPEC-027: '## ' es un h2 real; la
     // sección se remonta reordenada al aparecer la nota → re-anclar y encadenar
     // el mock de getNoteByInterview)
     it('flips the badge to "Resumida", toasts "Nota generada" and shows the note on success', async () => {
@@ -393,7 +393,7 @@ describe('NoteSection', () => {
       expect(within(section).getByText('«Nos lleva dos días»')).toBeInTheDocument()
     })
 
-    // SPEC-017 · AC-12 (editor adaptado por SPEC-025) + SPEC-025 · AC-22
+    // SPEC-017 · AC-12 (editor adaptado por SPEC-027) + SPEC-027 · AC-22
     it('switches to the WYSIWYG editor with rendered content, Guardar and Descartar when Editar is clicked', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
@@ -413,7 +413,7 @@ describe('NoteSection', () => {
       expect(within(section).getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
     })
 
-    // SPEC-017 · AC-13 (edición vía toolbar por SPEC-025) + SPEC-025 · AC-23
+    // SPEC-017 · AC-13 (edición vía toolbar por SPEC-027) + SPEC-027 · AC-23
     it('persists the edit, returns to read mode and toasts "Nota guardada" on Guardar', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
@@ -447,7 +447,7 @@ describe('NoteSection', () => {
       ).toBeInTheDocument()
     })
 
-    // SPEC-017 · AC-14 (edición vía toolbar por SPEC-025) + SPEC-025 · AC-25
+    // SPEC-017 · AC-14 (edición vía toolbar por SPEC-027) + SPEC-027 · AC-25
     it('asks to discard changes and restores the persisted content on confirm', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
@@ -478,7 +478,7 @@ describe('NoteSection', () => {
       expect(vi.mocked(mockApi.api.db.updateNote)).not.toHaveBeenCalled()
     })
 
-    // SPEC-017 · AC-15 + SPEC-025 · AC-26
+    // SPEC-017 · AC-15 + SPEC-027 · AC-26
     it('returns to read mode directly without any dialog when discarding with no changes', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
@@ -495,7 +495,7 @@ describe('NoteSection', () => {
       )
     })
 
-    // SPEC-017 · AC-16 (edición vía toolbar por SPEC-025)
+    // SPEC-017 · AC-16 (edición vía toolbar por SPEC-027)
     it('saves only contentMarkdown so the interview status stays "Resumida"', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
@@ -518,14 +518,14 @@ describe('NoteSection', () => {
     })
   })
 
-  describe('wysiwyg (SPEC-025)', () => {
+  describe('wysiwyg (SPEC-027)', () => {
     const RICH_NOTE: Note = {
       ...NOTE,
       contentMarkdown:
         '## Dolores\n\n### Detalle\n\nTexto con **negrita** y *cursiva*.\n\n- primer dolor\n- segundo dolor'
     }
 
-    // SPEC-025 · AC-20
+    // SPEC-027 · AC-20
     it('renders the note as fully rich markdown: headings of any level, bold, italics and lists', async () => {
       setInterview(SUMMARIZED)
       setNote(RICH_NOTE)
@@ -544,7 +544,7 @@ describe('NoteSection', () => {
       expect(view.textContent).not.toContain('**')
     })
 
-    // SPEC-025 · AC-24
+    // SPEC-027 · AC-24
     it('persists the exact original markdown when saving without touching the editor (semantic round-trip)', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
@@ -561,7 +561,7 @@ describe('NoteSection', () => {
       })
     })
 
-    // SPEC-025 · AC-27 (vaciado vía atajos de ProseMirror: Ctrl+A + Backspace)
+    // SPEC-027 · AC-27 (vaciado vía atajos de ProseMirror: Ctrl+A + Backspace)
     it('saves an empty note without errors when the editor is fully cleared', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
@@ -589,7 +589,7 @@ describe('NoteSection', () => {
       expect(toasts.length).toBeGreaterThanOrEqual(1)
     })
 
-    // SPEC-025 · AC-28
+    // SPEC-027 · AC-28
     it('toasts the storage error and stays in edit mode with the change intact when saving fails', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
@@ -613,7 +613,7 @@ describe('NoteSection', () => {
       expect(within(editorStill).getByText('Dolores').closest('h3')).not.toBeNull()
     })
 
-    // SPEC-025 · AC-29 (mitad UI: la equivalencia del fichero exportado con lo
+    // SPEC-027 · AC-29 (mitad UI: la equivalencia del fichero exportado con lo
     // persistido la garantiza el export de main de SPEC-017, que vuelca
     // contentMarkdown tal cual)
     it('exports the note through the same export path after a WYSIWYG edit was saved', async () => {

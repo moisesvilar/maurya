@@ -150,12 +150,12 @@ describe('CaptureDetailPage', () => {
   })
 
   describe('sections', () => {
-    // SPEC-020 · AC-15, adaptado por SPEC-025: las mismas secciones montadas
+    // SPEC-020 · AC-15, adaptado por SPEC-027: las mismas secciones montadas
     // tal cual tras la Grabación, pero la disposición Nota/Guión ahora es
     // condicional (NoteScriptSections) — con transcripción y sin guión ni nota
     // se apilan Guión + controles de generación de la nota; la disposición
     // completa la cubre tests/unit/markdown/NoteScriptSections.test.tsx
-    it('mounts Grabación first and the SPEC-025 Nota/Guión disposition for a capture with transcript', async () => {
+    it('mounts Grabación first and the SPEC-027 Nota/Guión disposition for a capture with transcript', async () => {
       setInterview(
         capture({
           wavPath: '/tmp/maurya-recordings/captura.wav',

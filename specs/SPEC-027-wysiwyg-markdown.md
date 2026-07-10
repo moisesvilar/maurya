@@ -1,4 +1,4 @@
-# SPEC-025 — Editor markdown WYSIWYG para guión y nota de entrevista
+# SPEC-027 — Editor markdown WYSIWYG para guión y nota de entrevista
 
 > Traza a: RF-GUION-005 (editar guión y objetivos), RF-NOTE-004 (consulta y edición del resumen).
 > Origen: petición humana directa 2026-07-10 (mejora post-MVP sobre SPEC-014 y SPEC-017; dada de

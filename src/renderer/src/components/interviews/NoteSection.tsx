@@ -43,7 +43,7 @@ type NoteState = { status: 'loading' } | { status: 'ready'; note: Note | null }
 interface NoteSectionProps {
   interview: Interview
   onInterviewUpdated: (interview: Interview) => void
-  /** Notifica la existencia de la nota (carga inicial y tras generar) — lo usa NoteScriptSections para la disposición (SPEC-025). */
+  /** Notifica la existencia de la nota (carga inicial y tras generar) — lo usa NoteScriptSections para la disposición (SPEC-027). */
   onNoteChange?: (note: Note | null) => void
 }
 
@@ -51,7 +51,7 @@ interface NoteSectionProps {
  * Sección Nota del detalle de entrevista (SPEC-017): generación del resumen
  * con Claude según el note-template elegido (main process), lectura de la nota
  * renderizada como Markdown (MarkdownView) y edición manual con editor WYSIWYG
- * (MarkdownEditor, SPEC-025; Riesgo #6: control humano), consulta de la
+ * (MarkdownEditor, SPEC-027; Riesgo #6: control humano), consulta de la
  * transcripción en Sheet y exportación a Markdown vía save dialog del SO.
  * Patrón ScriptSection (SPEC-014): estado local sin hook aparte;
  * prerrequisitos (transcripción, note-template y clave de Anthropic)

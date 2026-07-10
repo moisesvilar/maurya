@@ -27,7 +27,7 @@ type InterviewDetailState =
  * (RecordingSection, SPEC-015: captura mic+sistema con transcripción en vivo,
  * ENTRE la cabecera y el resto para que durante la llamada el estado de
  * grabación quede arriba) y, debajo, las secciones Nota y Guión compuestas por
- * NoteScriptSections (SPEC-025): apiladas mientras falte una de las dos y en
+ * NoteScriptSections (SPEC-027): apiladas mientras falte una de las dos y en
  * pestañas "Notas"/"Guión" cuando coexisten. Resuelve entrevista y empresa con
  * Promise.all(getInterview, getCompany); un id inexistente o un error del
  * bridge muestran el error state con enlace "Volver a Discoveries". Al generar
