@@ -13,6 +13,9 @@ files:
   - '!{vitest.config.ts,components.json,start.sh,CLAUDE.md}'
 asarUnpack:
   - resources/**
+# Sello ad-hoc real del bundle (SPEC-024-iter-1): con identity: null,
+# electron-builder omite la firma; el hook firma con entitlements y verifica
+afterPack: build/afterPack.js
 mac:
   target:
     - target: dmg
