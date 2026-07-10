@@ -126,7 +126,7 @@ Depende de H6. MVP listo para usuarios de validación.
 
 Peticiones humanas directas posteriores al cierre del flujo end-to-end.
 
-- [ ] 🟡 **Editor markdown WYSIWYG + pestañas Notas/Guión** en el detalle de entrevista: visualización enriquecida, edición sin sintaxis, y reorganización anti-scroll (pestañas "Notas"/"Guión" cuando coexisten, nota primero) (RF-GUION-005, RF-NOTE-004) — SPEC-025
+- [x] 🟡 **Editor markdown WYSIWYG + pestañas Notas/Guión** en el detalle de entrevista: visualización enriquecida, edición sin sintaxis, y reorganización anti-scroll (pestañas "Notas"/"Guión" cuando coexisten, nota primero) (RF-GUION-005, RF-NOTE-004) — SPEC-025, unit 428/428 PASS (30/30 ACs; TipTap v3 + @tiptap/markdown); verificación manual de escritura libre pendiente de humano. **H8 completo**
 
 ---
 
@@ -153,8 +153,8 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H5 · Asistencia | 8 | 8 |
 | H6 · Resumen | 5 | 5 |
 | H7 · Pulido | 7 | 6 |
-| H8 · Post-MVP | 1 | 0 |
+| H8 · Post-MVP | 1 | 1 |
 | Validación | 4 | 0 |
-| **Total** | **57** | **51** |
+| **Total** | **57** | **52** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
