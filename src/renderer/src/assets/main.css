@@ -118,3 +118,62 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Contenido markdown enriquecido (SPEC-025): el preflight de Tailwind resetea
+   encabezados, listas y márgenes; aquí se restauran SOLO dentro de
+   .markdown-content (vista de lectura y editor WYSIWYG de guión/nota). */
+@layer components {
+  .markdown-content {
+    @apply text-sm leading-relaxed;
+  }
+  .markdown-content > * + * {
+    @apply mt-3;
+  }
+  .markdown-content h1 {
+    @apply mt-5 text-xl font-semibold;
+  }
+  .markdown-content h2 {
+    @apply mt-5 text-lg font-semibold;
+  }
+  .markdown-content h3 {
+    @apply mt-4 text-base font-semibold;
+  }
+  .markdown-content h4,
+  .markdown-content h5,
+  .markdown-content h6 {
+    @apply mt-4 text-sm font-semibold;
+  }
+  .markdown-content > :first-child {
+    @apply mt-0;
+  }
+  .markdown-content ul {
+    @apply list-disc pl-6;
+  }
+  .markdown-content ol {
+    @apply list-decimal pl-6;
+  }
+  .markdown-content li + li {
+    @apply mt-1;
+  }
+  .markdown-content li > p {
+    @apply mt-0;
+  }
+  .markdown-content blockquote {
+    @apply border-l-2 pl-4 text-muted-foreground italic;
+  }
+  .markdown-content code {
+    @apply rounded bg-muted px-1 py-0.5 font-mono text-[0.85em];
+  }
+  .markdown-content pre {
+    @apply overflow-x-auto rounded-md bg-muted p-3 font-mono;
+  }
+  .markdown-content pre code {
+    @apply bg-transparent p-0;
+  }
+  .markdown-content hr {
+    @apply my-4;
+  }
+  .markdown-content a {
+    @apply underline underline-offset-4;
+  }
+}

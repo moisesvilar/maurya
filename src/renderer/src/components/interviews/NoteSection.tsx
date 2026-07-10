@@ -28,8 +28,9 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { MarkdownEditor } from '@/components/markdown/MarkdownEditor'
+import { MarkdownView } from '@/components/markdown/MarkdownView'
 import { TranscriptSheet } from '@/components/interviews/TranscriptSheet'
 import { useNoteTemplates } from '@/hooks/useNoteTemplates'
 import type { Interview, Note } from '@/types/domain'
@@ -42,21 +43,28 @@ type NoteState = { status: 'loading' } | { status: 'ready'; note: Note | null }
 interface NoteSectionProps {
   interview: Interview
   onInterviewUpdated: (interview: Interview) => void
+  /** Notifica la existencia de la nota (carga inicial y tras generar) — lo usa NoteScriptSections para la disposición (SPEC-025). */
+  onNoteChange?: (note: Note | null) => void
 }
 
 /**
  * Sección Nota del detalle de entrevista (SPEC-017): generación del resumen
- * con Claude según el note-template elegido (main process), lectura/edición
- * manual (Riesgo #6: control humano), consulta de la transcripción en Sheet y
- * exportación a Markdown vía save dialog del SO. Patrón ScriptSection
- * (SPEC-014): estado local sin hook aparte; prerrequisitos (transcripción,
- * note-template y clave de Anthropic) deshabilitan la generación con
- * Tooltip/Alert; regenerar y descartar cambios piden confirmación con
- * AlertDialog; los errores del LLM son un Alert destructive persistente.
+ * con Claude según el note-template elegido (main process), lectura de la nota
+ * renderizada como Markdown (MarkdownView) y edición manual con editor WYSIWYG
+ * (MarkdownEditor, SPEC-025; Riesgo #6: control humano), consulta de la
+ * transcripción en Sheet y exportación a Markdown vía save dialog del SO.
+ * Patrón ScriptSection (SPEC-014): estado local sin hook aparte;
+ * prerrequisitos (transcripción, note-template y clave de Anthropic)
+ * deshabilitan la generación con Tooltip/Alert; regenerar y descartar cambios
+ * piden confirmación con AlertDialog; los errores del LLM son un Alert
+ * destructive persistente. El editor solo emite onChange en ediciones reales,
+ * así el dirty-check compara contra el string persistido sin falsos positivos
+ * por normalización.
  */
 export function NoteSection({
   interview,
-  onInterviewUpdated
+  onInterviewUpdated,
+  onNoteChange
 }: NoteSectionProps): React.ReactElement {
   const [keyStatus, setKeyStatus] = useState<KeyStatus>('loading')
   const [noteState, setNoteState] = useState<NoteState>({ status: 'loading' })
@@ -81,8 +89,13 @@ export function NoteSection({
 
   useEffect(() => {
     void window.api.db.getNoteByInterview(interview.id).then((result) => {
-      setNoteState({ status: 'ready', note: result.ok ? result.data : null })
+      const note = result.ok ? result.data : null
+      setNoteState({ status: 'ready', note })
+      onNoteChange?.(note)
     })
+    // onNoteChange es un callback estable del padre (useCallback); solo el
+    // cambio de entrevista debe relanzar la carga.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interview.id])
 
   const hasTranscript = interview.transcriptPath !== null
@@ -115,6 +128,7 @@ export function NoteSection({
       const result = await window.api.llm.generateNote(interview.id, effectiveTemplateId)
       if (result.ok) {
         setNoteState({ status: 'ready', note: result.data.note })
+        onNoteChange?.(result.data.note)
         onInterviewUpdated(result.data.interview)
         toast('Nota generada')
       } else {
@@ -322,29 +336,17 @@ export function NoteSection({
             </Alert>
           )}
           {templateSelect !== null && hasTranscript && <div>{templateSelect}</div>}
-          <div className="rounded-lg border p-4 text-sm">
-            {note.contentMarkdown.split('\n').map((line, index) =>
-              line.startsWith('## ') ? (
-                <h4 key={index} className="mt-4 text-base font-semibold first:mt-0">
-                  {line.slice(3)}
-                </h4>
-              ) : (
-                <p key={index} className="whitespace-pre-wrap">
-                  {line === '' ? ' ' : line}
-                </p>
-              )
-            )}
-          </div>
+          <MarkdownView markdown={note.contentMarkdown} testId="note-markdown-view" />
         </div>
       )}
 
       {note !== null && mode === 'edit' && (
         <div className="flex flex-col gap-4">
-          <Textarea
-            rows={16}
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            aria-label="Nota"
+          <MarkdownEditor
+            initialMarkdown={note.contentMarkdown}
+            onChange={setDraft}
+            ariaLabel="Nota"
+            testId="note-markdown-editor"
           />
           <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t bg-background py-3">
             <Button disabled={saving} onClick={() => void handleSave()}>

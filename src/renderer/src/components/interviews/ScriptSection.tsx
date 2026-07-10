@@ -15,8 +15,9 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { MarkdownEditor } from '@/components/markdown/MarkdownEditor'
+import { MarkdownView } from '@/components/markdown/MarkdownView'
 import type { Interview } from '@/types/domain'
 
 type KeyStatus = 'loading' | 'ok' | 'missing'
@@ -28,11 +29,14 @@ interface ScriptSectionProps {
 
 /**
  * Sección Guión del detalle de entrevista (SPEC-014): generación con Claude
- * (main process), visualización pre-wrap del guión + lista de objetivos, y
- * edición manual (Riesgo #6: control humano). Estado local, sin hook aparte
- * (único consumidor). Prerrequisitos de generación (template asignado y clave
- * de Anthropic) deshabilitan el botón con Tooltip/Alert; regenerar y descartar
- * cambios piden confirmación con AlertDialog.
+ * (main process), visualización del guión renderizado como Markdown
+ * (MarkdownView) + lista de objetivos, y edición manual con editor WYSIWYG
+ * (MarkdownEditor, SPEC-025; Riesgo #6: control humano). Estado local, sin
+ * hook aparte (único consumidor). Prerrequisitos de generación (template
+ * asignado y clave de Anthropic) deshabilitan el botón con Tooltip/Alert;
+ * regenerar y descartar cambios piden confirmación con AlertDialog. El editor
+ * solo emite onChange en ediciones reales, así el dirty-check compara contra
+ * el string persistido sin falsos positivos por normalización.
  */
 export function ScriptSection({
   interview,
@@ -200,9 +204,7 @@ export function ScriptSection({
 
       {mode === 'read' && hasScript && (
         <div className="flex flex-col gap-4">
-          <div className="rounded-lg border p-4 text-sm whitespace-pre-wrap">
-            {interview.scriptMarkdown}
-          </div>
+          <MarkdownView markdown={interview.scriptMarkdown ?? ''} testId="script-markdown-view" />
           <div className="flex flex-col gap-2">
             <h4 className="text-base font-semibold">Objetivos</h4>
             {interview.objectives.length > 0 ? (
@@ -226,11 +228,11 @@ export function ScriptSection({
 
       {mode === 'edit' && (
         <div className="flex flex-col gap-4">
-          <Textarea
-            rows={14}
-            value={scriptDraft}
-            onChange={(event) => setScriptDraft(event.target.value)}
-            aria-label="Guión"
+          <MarkdownEditor
+            initialMarkdown={interview.scriptMarkdown ?? ''}
+            onChange={setScriptDraft}
+            ariaLabel="Guión"
+            testId="script-markdown-editor"
           />
           <div className="flex flex-col gap-2">
             <h4 className="text-base font-semibold">Objetivos</h4>
