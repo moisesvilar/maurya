@@ -1,6 +1,6 @@
 # Checklist de implementación — Maurya (MVP)
 
-> Seguimiento de las tareas del MVP. Derivado de [prd.md](prd.md) (34 RF) y su roadmap (H0-H7).
+> Seguimiento de las tareas del MVP. Derivado de [prd.md](prd.md) (35 RF) y su roadmap (H0-H7).
 > Organizado por hito de implementación. Cada ítem enlaza al requisito funcional del PRD.
 > Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[!]` bloqueado.
 
@@ -122,6 +122,14 @@ Depende de H6. MVP listo para usuarios de validación.
 
 ---
 
+## Post-MVP · Configuración avanzada de IA
+
+Añadido por decisión humana 2026-07-10 (docs/drafts/prompt-externalizar-prompts-claude.md). Depende de H7.
+
+- [x] 🟡 **Prompts de IA personalizables** desde Ajustes: pestaña «Prompts personalizados», persona/enfoque editable con restablecer a default, reglas estructurales bloqueadas (RF-CFG-001) — SPEC-025, unit 429/429 PASS a la primera (22 ACs; editor Markdown WYSIWYG TipTap; asistente byte-estable en sesión)
+
+---
+
 ## Validación de producto (transversal, en paralelo)
 
 Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al desarrollo.
@@ -145,7 +153,8 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H5 · Asistencia | 8 | 8 |
 | H6 · Resumen | 5 | 5 |
 | H7 · Pulido | 7 | 6 |
+| Post-MVP · Config. IA | 1 | 1 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **51** |
+| **Total** | **57** | **52** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.

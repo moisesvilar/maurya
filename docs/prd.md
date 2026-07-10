@@ -154,14 +154,20 @@ La visión de **Maurya** es una aplicación de escritorio que acompaña al entre
 | RF-NOTE-004 | Consulta y edición del resumen | El usuario puede leer y editar el resumen y consultar la transcripción | Control humano; el resumen del LLM debe poder corregirse | Should |
 | RF-NOTE-005 | Exportar resumen/transcripción | Exportar a Markdown/otro formato para compartir fuera de la app | Compartir aprendizajes con el equipo | Could |
 
+### 3.8 Configuración avanzada de IA (CFG)
+
+| Código | Nombre | Descripción | Rationale | Criticidad |
+|--------|--------|-------------|-----------|------------|
+| RF-CFG-001 | Prompts de IA personalizables | El usuario puede consultar y editar desde Ajustes el bloque de persona/enfoque de los tres system prompts de IA (guión y objetivos, nota de resumen, asistente en vivo), con restablecimiento al default. Las reglas estructurales que sostienen los structured outputs (campos del JSON, límites de caracteres, partes dinámicas) permanecen bloqueadas | `[Decisión de usuario 2026-07-10]` (docs/drafts/prompt-externalizar-prompts-claude.md); control humano sobre el comportamiento de la IA sin recompilar la app | Should |
+
 **Resumen de distribución:**
 
 | Criticidad | Cantidad | % del total |
 |-----------|----------|-------------|
-| Must | 21 | 62% |
-| Should | 10 | 29% |
+| Must | 21 | 60% |
+| Should | 11 | 31% |
 | Could | 3 | 9% |
-| **Total** | **34** | **100%** |
+| **Total** | **35** | **100%** |
 
 ---
 
