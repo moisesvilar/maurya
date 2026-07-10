@@ -24,9 +24,12 @@ export function computeCostUsd(inputTokens: number, outputTokens: number): numbe
 /**
  * Redondeo HACIA ARRIBA a 2 decimales. Usado SOLO en la comparación con el
  * límite configurado: el asistente se pausa antes de excederlo (UX Design).
+ * SPEC-021-iter-1: toFixed(6) neutraliza el residuo IEEE-754 de value*100
+ * (p. ej. 1.1*100 === 110.00000000000001, ~1e-13) sin absorber terceras
+ * decimales reales (≥1e-3) — un importe ya exacto a 2 decimales no cambia.
  */
 export function roundUpUsd(value: number): number {
-  return Math.ceil(value * 100) / 100
+  return Math.ceil(Number((value * 100).toFixed(6))) / 100
 }
 
 /**
