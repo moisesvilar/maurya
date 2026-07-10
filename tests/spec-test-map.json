@@ -1016,7 +1016,7 @@
       "AC-17": "tests/unit/ai-cost/aiCost.test.ts::aiCost::records the usage delta on the interview and never throws on failure, logging to console instead (fallo real de disco durante una generación: MANUAL)",
       "AC-18": "tests/unit/persistence/repository.aiCost.test.ts::repository (coste de IA SPEC-021)::aiCostSettings::normalizes a corrupt or unreadable persisted setting to \"no limit\" without crashing"
     },
-    "notes": "Breakage presupuestado repuesto: mockApi (+getAiCostSettings con default seguro/+setAiCostSettings/+assistant.resume), toEqual del summary y del transcript de assistantService.test.ts con usage a ceros, SettingsPage AC-13 con 3 botones Guardar (los 2 de claves deshabilitados), asserts exactos de la fila muted de CaptureDetailPage → regex (el segmento de coste añade un separador final). Decisión del plan asumida por los tests: 'Sin datos de coste' como texto muted (mandan los ACs sobre el wireframe, Riesgo 1).",
+    "notes": "Breakage presupuestado repuesto: mockApi (+getAiCostSettings con default seguro/+setAiCostSettings/+assistant.resume), toEqual del summary y del transcript de assistantService.test.ts con usage a ceros, SettingsPage AC-13 con 3 botones Guardar (los 2 de claves deshabilitados), asserts exactos de la fila muted de CaptureDetailPage → regex (el segmento de coste añade un separador final). Decisión del plan asumida por los tests: 'Sin datos de coste' como texto muted (mandan los ACs sobre el wireframe, Riesgo 1). SPEC-023 amplió extractUsage a 4 campos (componentes de caché): el test de AC-16 de aiCost.test.ts se repuso con la forma nueva (incluye el caso null del SDK), sin debilitar lo que garantizaba; computeCostUsd/recordInterviewUsage retrocompatibles → resto de la suite intacta.",
     "created_at": "2026-07-10",
     "updated_at": "2026-07-10"
   },
@@ -1073,5 +1073,49 @@
     "created_at": "2026-07-10",
     "updated_at": "2026-07-10",
     "iteration_spec_file": "specs/SPEC-022-iter-1-degradacion-sin-diarizacion.md"
+  },
+  "SPEC-023": {
+    "spec_file": "specs/SPEC-023-optimizacion-latencia-asistente.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec (10): caché del prefijo ×3 (AC-01 bloque fijo con cache_control ephemeral y solo la ventana fuera, AC-02 prefijo byte a byte idéntico entre llamadas, AC-03 guión/nota sin cambios), salida acotada ×3 (AC-04 maxLength en el schema + brevedad en el prompt, AC-05 la sugerencia conserva la estructura visible del panel, AC-06 max_tokens 1024→512), coste con caché ×2 (AC-07 tarifas reales 1,25×/0,1× e inputTokens = suma de los 3 componentes, AC-08 sin campos de caché → cálculo retrocompatible), validación de latencia ×2 (AC-09 mediana re-medida < 5 s registrada en MEMORY.md — MANUAL instrumentado, AC-10 mediana ≥ 5 s → escalar el cambio de modelo al humano).",
+    "unit": [
+      {
+        "file": "tests/unit/latency/assistantService.latency.test.ts",
+        "test_count": 5,
+        "description": "assistantService en Node (arnés SPEC-016): system como ARRAY de bloques con cache_control {type:'ephemeral'} SOLO en el último — instrucciones en el 1º; objetivos numerados 0-based SIN estado [cubierto|pendiente] + guión en el 2º; la ventana de conversación fuera del prefijo y presente solo en el user (AC-01); dos análisis de la misma sesión → system BYTE A BYTE idéntico (JSON.stringify) aunque objectivesMet y la conversación cambien, con el estado dinámico compacto en el user ('## Objetivos ya cubiertos (índices)' con 'ninguno'→'0') y las secciones variables históricas intactas (Conversación reciente/Tu sugerencia anterior/Tarea) (AC-02); sin objetivos ni guión → un único bloque cacheado y sección de índices omitida (refuerzo AC-01/02); schema enviado con maxLength 200/140 y el prompt instruyendo LOS MISMOS topes ('UNA sola frase corta (máximo 140 caracteres)') (AC-04); y max_tokens === 512 (AC-06)."
+      },
+      {
+        "file": "tests/unit/latency/aiCost.cache.test.ts",
+        "test_count": 4,
+        "description": "aiCost en Node con store real: constantes CACHE_WRITE 6.25/CACHE_READ 0.5 y computeCostUsd con 4 tarifas, retrocompatible con 2 argumentos (idéntico a los defaults 0) (AC-07/AC-08); recordInterviewUsage pliega los componentes en inputTokens (suma de los 3) y tarifica el caché con SUS tarifas — assert explícito de que el coste ≠ tarificar el total plegado a $5/MTok (AC-07); sin campos de caché el registro es byte-idéntico al histórico (AC-08); y la DESVIACIÓN DECLARADA del implementador: estimatedCostUsd explícito calculado por componentes (camino recording:stop, AiUsage ya plegado) se respeta sin recomputar (AC-07)."
+      },
+      {
+        "file": "tests/unit/latency/generation.nocache.test.ts",
+        "test_count": 1,
+        "description": "llmService + noteService en Node (SDK mockeado, store real): las llamadas de guión y nota quedan SIN cambios — system como string, ningún cache_control en los params serializados y max_tokens histórico 16000 en ambas (AC-03)."
+      }
+    ],
+    "repurposed_tests_note": "El test de extractUsage de SPEC-021 (tests/unit/ai-cost/aiCost.test.ts::aiCost::extracts the token usage from the response and degrades to 0 tokens when the usage block is missing or malformed) se repuso con la forma de 4 campos incluyendo el caso null del SDK — cubre la mitad de extracción de AC-07/AC-08. AC-05 (estructura visible del panel) queda garantizado por las suites existentes de SPEC-016 (AssistantPanel AC-05: badge+pregunta+razón; AC-08: chips de alarma) — la optimización no toca el renderer.",
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "AC-09": "Re-medición instrumentada del cierre: protocolo del baseline documentado en docs/MEMORY.md (2026-07-10) — app dev con --remote-debugging-port, listeners CDP sobre assistant:update, guion de ~10 frases con say por altavoces, ≥3 ciclos analyzing→active, mediana de los deltas. Criterio: mediana < 5 s + cache_read_input_tokens > 0 en la 2ª+ llamada; registrar los números en MEMORY.md. No automatizable en unit (latencia real de APIs y audio).",
+      "AC-10": "Decisión de escalado: si la mediana re-medida no baja de 5 s, el cambio de modelo del asistente se ESCALA al humano (contradice la elección de modelo de CLAUDE.md) — es una regla de proceso para el orquestador, no un comportamiento de código testeable.",
+      "cache-real": "El acierto real del caché (mínimo cacheable ~1024 tokens de prefijo en Opus; con guiones cortos puede no aplicar — degradación silenciosa, riesgo 2 del plan) solo se observa contra la API real durante la re-medición de AC-09."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/latency/assistantService.latency.test.ts::assistantService (latencia SPEC-023)::sends the fixed prefix (instructions + script/objectives) as system blocks with ephemeral cache_control only on the last block, keeping the transcript window out + tests/unit/latency/assistantService.latency.test.ts::assistantService (latencia SPEC-023)::omits the covered-objectives section and caches the single instructions block when the interview has no objectives nor script",
+      "AC-02": "tests/unit/latency/assistantService.latency.test.ts::assistantService (latencia SPEC-023)::keeps the cached prefix byte-identical across two analyses while only the variable user message changes",
+      "AC-03": "tests/unit/latency/generation.nocache.test.ts::script and note generation (no-cache SPEC-023)::keeps the script and note calls unchanged: string system, no cache_control anywhere and their historic max_tokens",
+      "AC-04": "tests/unit/latency/assistantService.latency.test.ts::assistantService (latencia SPEC-023)::declares maxLength 200/140 in the structured output schema sent and instructs the same brevity limits in the prompt",
+      "AC-05": "GARANTIZADO por las suites existentes de SPEC-016 (la optimización no toca el renderer): tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::the suggestion::shows exactly the action badge, the suggested question and the one-line reason — nothing else + ::shows the alarm chips with their Spanish labels when alarms are detected",
+      "AC-06": "tests/unit/latency/assistantService.latency.test.ts::assistantService (latencia SPEC-023)::sends max_tokens 512 for the assistant analysis calls",
+      "AC-07": "tests/unit/latency/aiCost.cache.test.ts::aiCost (prompt caching SPEC-023)::computes the cost with the four rates and stays byte-compatible with the historic 2-argument calls + tests/unit/latency/aiCost.cache.test.ts::aiCost (prompt caching SPEC-023)::folds the cache components into inputTokens and prices them with their own rates when recording + tests/unit/latency/aiCost.cache.test.ts::aiCost (prompt caching SPEC-023)::respects an explicit estimatedCostUsd computed by components instead of recomputing from folded tokens (desviación declarada) + tests/unit/ai-cost/aiCost.test.ts::aiCost::extracts the token usage from the response and degrades to 0 tokens when the usage block is missing or malformed (extracción de los 4 campos)",
+      "AC-08": "tests/unit/latency/aiCost.cache.test.ts::aiCost (prompt caching SPEC-023)::keeps the historic recording untouched when the response carries no cache fields + tests/unit/latency/aiCost.cache.test.ts::aiCost (prompt caching SPEC-023)::computes the cost with the four rates and stays byte-compatible with the historic 2-argument calls (retrocompatibilidad de 2 args) + tests/unit/ai-cost/aiCost.test.ts::aiCost::extracts the token usage from the response and degrades to 0 tokens when the usage block is missing or malformed (campos de caché null/ausentes → 0)",
+      "AC-09": "MANUAL: re-medición instrumentada con el protocolo del baseline (docs/MEMORY.md 2026-07-10) — mediana de ≥3 ciclos analyzing→active < 5 s, verificando cache_read_input_tokens > 0; registro en MEMORY.md. No reproducible en unit (latencia real de Claude/Deepgram/audio).",
+      "AC-10": "MANUAL/proceso: si la mediana ≥ 5 s, la decisión de cambiar el modelo se escala al humano (regla para el orquestador; contradiría CLAUDE.md tomarla aquí). Sin comportamiento de código que testear."
+    },
+    "notes": "Breakage presupuestado verificado y repuesto: SOLO el test de extractUsage de tests/unit/ai-cost/aiCost.test.ts (toEqual exacto de 2 campos → 4 campos con caso null; rotura de runtime, no de tipos — tsc ya salía limpio). El resto de la suite de SPEC-021 pasa sin cambios (coste de sesión recomputado desde componentes, computeCostUsd retrocompatible, user string con conversación intacta — verificado contra assistantService.aiCost.test.ts y assistantService.degraded.test.ts).",
+    "created_at": "2026-07-10",
+    "updated_at": "2026-07-10"
   }
 }

@@ -62,18 +62,49 @@ describe('aiCost', () => {
     expect(roundUpUsd(0)).toBe(0)
   })
 
-  // SPEC-021 · AC-16 (extracción defensiva del bloque usage)
+  // SPEC-021 · AC-16 (extracción defensiva del bloque usage). SPEC-023: la
+  // forma gana los dos componentes de caché, defensivos igual que el resto
+  // (0 si faltan, no son number o son null — el SDK los tipa `number | null`).
   it('extracts the token usage from the response and degrades to 0 tokens when the usage block is missing or malformed', () => {
-    expect(extractUsage(sdkMessage({ input_tokens: 1200, output_tokens: 340 }))).toEqual({
+    expect(
+      extractUsage(
+        sdkMessage({
+          input_tokens: 1200,
+          output_tokens: 340,
+          cache_creation_input_tokens: 900,
+          cache_read_input_tokens: 4000
+        })
+      )
+    ).toEqual({
       inputTokens: 1200,
-      outputTokens: 340
+      outputTokens: 340,
+      cacheCreationInputTokens: 900,
+      cacheReadInputTokens: 4000
     })
     // Sin bloque de uso (caso anómalo del SDK) → 0 tokens sin lanzar
-    expect(extractUsage(sdkMessage(undefined))).toEqual({ inputTokens: 0, outputTokens: 0 })
-    // Bloque malformado → cada campo degrada por separado
-    expect(extractUsage(sdkMessage({ input_tokens: 'x', output_tokens: 7 }))).toEqual({
+    expect(extractUsage(sdkMessage(undefined))).toEqual({
       inputTokens: 0,
-      outputTokens: 7
+      outputTokens: 0,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0
+    })
+    // Bloque malformado → cada campo degrada por separado; los campos de
+    // caché `null` del SDK (respuesta sin caché) degradan a 0 igual que los
+    // ausentes
+    expect(
+      extractUsage(
+        sdkMessage({
+          input_tokens: 'x',
+          output_tokens: 7,
+          cache_creation_input_tokens: null,
+          cache_read_input_tokens: null
+        })
+      )
+    ).toEqual({
+      inputTokens: 0,
+      outputTokens: 7,
+      cacheCreationInputTokens: 0,
+      cacheReadInputTokens: 0
     })
   })
 
