@@ -96,10 +96,17 @@ function emitStatus(target: Session, status: TranscriptionStatus, error?: Captur
   if (!target.sender.isDestroyed()) {
     // La marca de modo degradado (SPEC-022) viaja SOLO cuando aplica (spread
     // condicional): el shape del evento de las sesiones normales no cambia.
+    // SPEC-022-iter-1: exige además everOpened — el flag degraded se activa
+    // ANTES de saber si la conexión de fallback abre; si nunca abrió, la
+    // rendición no debe marcar modo degradado (el Alert afirmaría que "la
+    // transcripción sigue funcionando" cuando no hay transcripción). La
+    // conjunción expresa "el intento sin diarización llegó a abrir": si una
+    // conexión CON diarización hubiera abierto antes, el fallback ni se
+    // dispara (!everOpened en retryOrGiveUp), así que no hay falsos positivos.
     const event: TranscriptionStatusEvent = {
       status,
       ...(error !== undefined ? { error } : {}),
-      ...(target.degraded ? { degraded: true } : {})
+      ...(target.degraded && target.everOpened ? { degraded: true } : {})
     }
     target.sender.send('transcription:status', event)
   }
