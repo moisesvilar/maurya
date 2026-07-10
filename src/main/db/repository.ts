@@ -16,6 +16,7 @@ import type {
   InterviewTemplate,
   Note,
   NoteTemplate,
+  ObjectiveResult,
   UpdateCompanyPatch,
   UpdateContactPatch,
   UpdateDiscoveryPatch,
@@ -438,6 +439,15 @@ export function updateInterview(id: string, patch: UpdateInterviewPatch): Interv
       interview.scriptMarkdown = patch.scriptMarkdown
     }
     if (patch.objectives !== undefined) {
+      // Invariante SPEC-025: cualquier cambio en la lista de objetivos
+      // (texto, orden, altas o bajas) invalida la evaluación persistida —
+      // los resultados están alineados por índice y dejarían de corresponder.
+      const changed =
+        patch.objectives.length !== interview.objectives.length ||
+        patch.objectives.some((objective, index) => objective !== interview.objectives[index])
+      if (changed && interview.objectiveResults != null) {
+        interview.objectiveResults = null
+      }
       interview.objectives = patch.objectives
     }
     if (patch.wavPath !== undefined) {
@@ -710,6 +720,25 @@ export function setAiCostSettings(settings: AiCostSettings): AiCostSettings {
  * el listado de capturas. No se expone por IPC — solo lo usa main vía
  * `recordInterviewUsage` (el renderer jamás puede escribir el acumulado).
  */
+/**
+ * Persiste la evaluación post-grabación de los objetivos (SPEC-025), alineada
+ * por índice con `objectives` (el servicio valida la longitud ANTES de llamar
+ * aquí; un desalineamiento es error de programación y se rechaza). NO toca
+ * `updatedAt` (patrón addInterviewAiUsage: no es una edición del usuario). No
+ * se expone por IPC como escritura de patch — solo lo usa main desde el
+ * servicio de evaluación.
+ */
+export function setInterviewObjectiveResults(id: string, results: ObjectiveResult[]): Interview {
+  return mutate((draft) => {
+    const interview = findOrThrow(draft.interviews, id, 'entrevista')
+    if (results.length !== interview.objectives.length) {
+      throw validationError('La evaluación no se corresponde con los objetivos de la entrevista')
+    }
+    interview.objectiveResults = results
+    return interview
+  })
+}
+
 export function addInterviewAiUsage(id: string, delta: AiUsage): Interview {
   return mutate((draft) => {
     const interview = findOrThrow(draft.interviews, id, 'entrevista')

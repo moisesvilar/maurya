@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { FileText, Loader2, Pencil, Plus, RefreshCw, Sparkles, Target, Trash2 } from 'lucide-react'
+import { FileText, Loader2, Pencil, Plus, RefreshCw, Sparkles, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -198,29 +198,11 @@ export function ScriptSection({
         </div>
       )}
 
+      {/* SPEC-025: el modo lectura muestra solo el guión; los objetivos viven
+          en la sección "Objetivos" superior del detalle (la edición sigue aquí) */}
       {mode === 'read' && hasScript && (
-        <div className="flex flex-col gap-4">
-          <div className="rounded-lg border p-4 text-sm whitespace-pre-wrap">
-            {interview.scriptMarkdown}
-          </div>
-          <div className="flex flex-col gap-2">
-            <h4 className="text-base font-semibold">Objetivos</h4>
-            {interview.objectives.length > 0 ? (
-              <ul className="flex flex-col gap-1.5">
-                {interview.objectives.map((objective, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm">
-                    <Target
-                      className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                    <span>{objective}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">Sin objetivos</p>
-            )}
-          </div>
+        <div className="rounded-lg border p-4 text-sm whitespace-pre-wrap">
+          {interview.scriptMarkdown}
         </div>
       )}
 
