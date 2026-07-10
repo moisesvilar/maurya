@@ -10,6 +10,7 @@ import type {
 } from '../renderer/src/types/domain'
 import type { LlmError, LlmErrorKind, LlmStatus } from '../renderer/src/types/llm'
 import { getDecryptedSecret } from './secretsService'
+import { extractUsage, recordInterviewUsage } from './aiCost'
 import * as repository from './db/repository'
 
 /**
@@ -440,6 +441,11 @@ async function doGenerate(interviewId: string): Promise<Interview> {
     )
   }
   const generated = parseGeneratedScript(textBlock.text)
+
+  // Medición del coste (SPEC-021): solo tras parseo válido (una llamada que
+  // falla no cambia el acumulado) y ANTES de persistir, para que la Interview
+  // devuelta ya incluya el aiUsage actualizado. Best-effort: jamás lanza.
+  recordInterviewUsage(interview.id, extractUsage(response))
 
   // Persistir SOLO tras parseo válido (AC: ante error la entrevista no cambia)
   return repository.updateInterview(interview.id, {

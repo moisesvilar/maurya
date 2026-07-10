@@ -71,6 +71,10 @@ export function registerDbIpcHandlers(): void {
   // Búsqueda global (SPEC-018): resultados agrupados con contexto resuelto.
   handleDb('db:search', searchGlobal)
 
+  // Ajustes de coste de IA (SPEC-021): singleton get/set con envelope DbResult.
+  handleDb('db:ai-cost-settings:get', repository.getAiCostSettings)
+  handleDb('db:ai-cost-settings:set', repository.setAiCostSettings)
+
   handleDb('db:note:create', repository.createNote)
   handleDb('db:note:get-by-interview', repository.getNoteByInterview)
   handleDb('db:note:update', repository.updateNote)

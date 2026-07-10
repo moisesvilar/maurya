@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync } from 'fs'
 import { join } from 'path'
 import { writeFileAtomicSync } from '../atomicFile'
 import type {
+  AiCostSettings,
   Company,
   Contact,
   DbError,
@@ -25,6 +26,12 @@ export interface DbData {
   interviews: Interview[]
   noteTemplates: NoteTemplate[]
   notes: Note[]
+  /**
+   * Ajustes de coste de IA (SPEC-021): singleton opcional, sin bump de
+   * schemaVersion (ausente = sin límite; isDbData lo tolera y persist lo
+   * conserva). La lectura se normaliza defensivamente en el repositorio.
+   */
+  aiCostSettings?: AiCostSettings
 }
 
 /** v2 (SPEC-020): Interview gana discoveryId obligatorio y companyId nullable. */

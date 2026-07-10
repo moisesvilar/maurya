@@ -2,6 +2,7 @@ import React from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { AiCostCard } from '@/components/settings/AiCostCard'
 import { ApiKeyRow } from '@/components/settings/ApiKeyRow'
 import { NoteTemplatesTab } from '@/components/settings/NoteTemplatesTab'
 import { useSecrets } from '@/hooks/useSecrets'
@@ -74,6 +75,8 @@ export function SettingsPage(): React.ReactElement {
               onSave={(value) => save('anthropic', value)}
               onRemove={() => remove('anthropic')}
             />
+            {/* Límite de coste de IA por entrevista (SPEC-021), bajo las claves */}
+            <AiCostCard />
           </section>
         </TabsContent>
         <TabsContent value="note-templates" className="pt-4">

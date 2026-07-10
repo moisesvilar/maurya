@@ -74,7 +74,11 @@ const db: DbApi = {
   deleteNote: (id) => ipcRenderer.invoke('db:note:delete', id),
 
   // Búsqueda global (SPEC-018): resultados agrupados por tipo desde main.
-  search: (query) => ipcRenderer.invoke('db:search', query)
+  search: (query) => ipcRenderer.invoke('db:search', query),
+
+  // Ajustes de coste de IA (SPEC-021): límite por entrevista del asistente.
+  getAiCostSettings: () => ipcRenderer.invoke('db:ai-cost-settings:get'),
+  setAiCostSettings: (settings) => ipcRenderer.invoke('db:ai-cost-settings:set', settings)
 }
 
 /**
@@ -123,7 +127,9 @@ const assistant: AssistantApi = {
       ipcRenderer.removeListener('assistant:update', listener)
     }
   },
-  sendFeedback: (vote) => ipcRenderer.invoke('assistant:feedback', vote)
+  sendFeedback: (vote) => ipcRenderer.invoke('assistant:feedback', vote),
+  // Reanudar tras pausa por límite de coste (SPEC-021)
+  resume: () => ipcRenderer.invoke('assistant:resume')
 }
 
 const api: MauryaApi & {

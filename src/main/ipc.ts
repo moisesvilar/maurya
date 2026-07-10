@@ -40,7 +40,13 @@ import {
   readTranscriptLines,
   toNoteExportError
 } from './noteService'
-import { sendAssistantFeedback, startAssistant, stopAssistant } from './assistantService'
+import {
+  resumeAssistantLimit,
+  sendAssistantFeedback,
+  startAssistant,
+  stopAssistant
+} from './assistantService'
+import { recordInterviewUsage } from './aiCost'
 import type { AssistantVote } from '../renderer/src/types/assistant'
 
 /**
@@ -210,6 +216,13 @@ export function registerIpcHandlers(): void {
     // aunque el renderer ya no esté montado (auto-guardado al navegar)
     let interview: Interview | null = null
     if (activeInterviewId !== null) {
+      // Volcado del uso del asistente (SPEC-021) ANTES de updateInterview:
+      // la Interview devuelta ya incluye el aiUsage con el gasto de la sesión.
+      // Best-effort (recordInterviewUsage jamás lanza): un fallo de medición
+      // nunca afecta a wavPath/transcriptPath ni a la parada.
+      if (assistantSummary !== null && assistantSummary.usage.calls > 0) {
+        recordInterviewUsage(activeInterviewId, assistantSummary.usage)
+      }
       try {
         interview = updateInterview(activeInterviewId, {
           wavPath: result.filePath,
@@ -255,5 +268,10 @@ export function registerIpcHandlers(): void {
   // Valoración 👍/👎 de la sugerencia vigente del asistente (SPEC-016)
   ipcMain.handle('assistant:feedback', (_event, vote: AssistantVote) => {
     sendAssistantFeedback(vote)
+  })
+
+  // Reanudar el asistente pausado por límite de coste (SPEC-021)
+  ipcMain.handle('assistant:resume', () => {
+    resumeAssistantLimit()
   })
 }

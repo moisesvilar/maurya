@@ -1,3 +1,4 @@
+import type { AiUsage } from './domain'
 import type { LlmError } from './llm'
 
 /**
@@ -13,8 +14,12 @@ export type AssistantAction = 'dig_deeper' | 'continue'
 /** Señales de alarma The Mom Test: cumplidos, genéricos y futuros hipotéticos. */
 export type AssistantAlarm = 'compliment' | 'generic' | 'hypothetical'
 
-/** Estado del asistente que viaja en cada evento `assistant:update`. */
-export type AssistantState = 'idle' | 'analyzing' | 'active' | 'no-key' | 'error'
+/**
+ * Estado del asistente que viaja en cada evento `assistant:update`.
+ * 'paused' (SPEC-021): pausado por límite de coste — sin llamadas al LLM hasta
+ * "Reanudar"; la grabación y la transcripción no se ven afectadas.
+ */
+export type AssistantState = 'idle' | 'analyzing' | 'active' | 'no-key' | 'error' | 'paused'
 
 /** La sugerencia en su tamaño justo: acción + pregunta + porqué + alarmas. */
 export interface AssistantSuggestion {
@@ -35,6 +40,10 @@ export interface AssistantUpdateEvent {
   suggestion?: AssistantSuggestion
   objectivesMet: number[]
   error?: LlmError
+  /** Acumulado de uso de la SESIÓN (SPEC-021); viaja tras el primer análisis. */
+  usage?: AiUsage
+  /** Límite configurado que provocó la pausa (SPEC-021); acompaña a 'paused'. */
+  pauseLimitUsd?: number
 }
 
 /** Valoración 👍/👎 de la sugerencia vigente (mutable hasta la siguiente). */
@@ -48,10 +57,14 @@ export type AssistantVote = 'up' | 'down'
 export interface AssistantSessionSummary {
   suggestionCount: number
   feedback: { up: number; down: number }
+  /** Uso de IA de la sesión (SPEC-021); ceros si no hubo análisis. */
+  usage: AiUsage
 }
 
 /** API expuesta por el preload en `window.api.assistant`. */
 export interface AssistantApi {
   onUpdate: (callback: (event: AssistantUpdateEvent) => void) => () => void
   sendFeedback: (vote: AssistantVote) => Promise<void>
+  /** Reanuda el asistente pausado por límite de coste (SPEC-021). */
+  resume: () => Promise<void>
 }

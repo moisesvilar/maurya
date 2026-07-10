@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AssignCompanySheet } from '@/components/captures/AssignCompanySheet'
+import { AiCostInline } from '@/components/interviews/AiCostInline'
 import { NoteSection } from '@/components/interviews/NoteSection'
 import { ScriptSection } from '@/components/interviews/ScriptSection'
 import { RecordingSection } from '@/components/recording/RecordingSection'
@@ -138,7 +139,8 @@ export function CaptureDetailPage(): React.ReactElement {
               </div>
               <p className="text-sm text-muted-foreground">
                 {state.discovery?.name ?? ''} · {state.company?.name ?? 'Sin empresa'} ·{' '}
-                {state.contact?.name ?? 'Sin contacto'} · {templateLabel(state.interview)}
+                {state.contact?.name ?? 'Sin contacto'} · {templateLabel(state.interview)} ·{' '}
+                <AiCostInline aiUsage={state.interview.aiUsage} />
               </p>
             </div>
             {state.interview.companyId === null && (

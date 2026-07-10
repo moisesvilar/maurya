@@ -8,8 +8,10 @@ import type {
   AssistantUpdateEvent,
   AssistantVote
 } from '../renderer/src/types/assistant'
+import type { AiUsage } from '../renderer/src/types/domain'
 import type { LlmError } from '../renderer/src/types/llm'
 import { getAnthropicKey, mapSdkError, toLlmError, LlmOperationError } from './llmService'
+import { computeCostUsd, extractUsage, roundUpUsd } from './aiCost'
 import { setFinalLineListener } from './transcriptionService'
 import * as repository from './db/repository'
 
@@ -85,6 +87,14 @@ interface AssistantSession {
   /** Voto de la sugerencia vigente (mutable hasta la siguiente sugerencia). */
   currentVote: AssistantVote | null
   feedback: { up: number; down: number }
+  /** Uso de IA acumulado de la SESIÓN (SPEC-021): en memoria, volcado al parar. */
+  usage: AiUsage
+  /** Coste persistido de la entrevista al arrancar (base de la comparación con el límite). */
+  persistedBaseUsd: number
+  /** Pausado por límite de coste: sin llamadas al LLM hasta "Reanudar". */
+  pausedByLimit: boolean
+  /** "Reanudar" pulsado: el límite ya no vuelve a pausar en esta sesión (AC). */
+  limitOverridden: boolean
 }
 
 let session: AssistantSession | null = null
@@ -120,6 +130,7 @@ export function startAssistant(sender: WebContents, interviewId: string): void {
 
   let objectives: string[] = []
   let scriptExcerpt: string | null = null
+  let persistedBaseUsd = 0
   try {
     const interview = repository.getInterview(interviewId)
     objectives = interview.objectives
@@ -127,6 +138,8 @@ export function startAssistant(sender: WebContents, interviewId: string): void {
       interview.scriptMarkdown !== null && interview.scriptMarkdown.trim() !== ''
         ? interview.scriptMarkdown.slice(0, SCRIPT_EXCERPT_CHARS)
         : null
+    // SPEC-021: el límite compara persistido + sesión; sin dato → base 0
+    persistedBaseUsd = interview.aiUsage?.estimatedCostUsd ?? 0
   } catch {
     // Entrevista ilegible: el asistente funciona igualmente sin ese contexto
   }
@@ -145,7 +158,11 @@ export function startAssistant(sender: WebContents, interviewId: string): void {
     objectivesMet: new Set<number>(),
     suggestionCount: 0,
     currentVote: null,
-    feedback: { up: 0, down: 0 }
+    feedback: { up: 0, down: 0 },
+    usage: { calls: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 },
+    persistedBaseUsd,
+    pausedByLimit: false,
+    limitOverridden: false
   }
   session = target
   setFinalLineListener((line) => {
@@ -169,9 +186,24 @@ function handleFinalLine(target: AssistantSession, line: TranscriptLine): void {
 }
 
 /**
+ * Límite de coste configurado (SPEC-021), leído en cada evaluación. Con
+ * try/catch obligatorio: un store no inicializado o ilegible se comporta como
+ * "sin límite" — el asistente conserva su invariante de degradabilidad.
+ */
+function readLimitUsd(): number | null {
+  try {
+    return repository.getAiCostSettings().limitUsd
+  } catch {
+    return null
+  }
+}
+
+/**
  * Evalúa los disparadores del análisis (control de coste): guard in-flight,
  * material nuevo mínimo (`minLines`: 3 por línea, 1 desde el respaldo) e
  * intervalo mínimo entre llamadas. Sin material nuevo → sin llamada.
+ * El gate de límite de coste (SPEC-021) va DESPUÉS de los disparadores de
+ * SPEC-016 (que no se modifican) y justo antes de lanzar el análisis.
  */
 function maybeAnalyze(target: AssistantSession, minLines: number): void {
   if (target.inFlight) {
@@ -183,6 +215,29 @@ function maybeAnalyze(target: AssistantSession, minLines: number): void {
   if (Date.now() - target.lastCallAtMs < MIN_INTERVAL_MS) {
     return
   }
+  // Límite de coste (SPEC-021): persistido + sesión, redondeado hacia arriba
+  // para pausar ANTES de excederlo. "Reanudar" lo desactiva para la sesión.
+  if (!target.limitOverridden) {
+    const limitUsd = readLimitUsd()
+    if (
+      limitUsd !== null &&
+      roundUpUsd(target.persistedBaseUsd + target.usage.estimatedCostUsd) >= limitUsd
+    ) {
+      if (!target.pausedByLimit) {
+        target.pausedByLimit = true
+        const event: AssistantUpdateEvent = {
+          state: 'paused',
+          objectivesMet: sortedObjectivesMet(target),
+          pauseLimitUsd: limitUsd
+        }
+        if (target.usage.calls > 0) {
+          event.usage = { ...target.usage }
+        }
+        emitUpdate(target, event)
+      }
+      return
+    }
+  }
   void runAnalysis(target)
 }
 
@@ -192,24 +247,42 @@ async function runAnalysis(target: AssistantSession): Promise<void> {
   // falla: ante error se "reintenta en la siguiente ventana", no en cascada.
   target.lastCallAtMs = Date.now()
   const linesAtCall = target.newLinesSinceLastCall
-  // 'analyzing' viaja sin sugerencia: el hook conserva la anterior visible
-  emitUpdate(target, { state: 'analyzing', objectivesMet: sortedObjectivesMet(target) })
+  // 'analyzing' viaja sin sugerencia: el hook conserva la anterior visible.
+  // El usage acompaña solo con ≥1 análisis para que la línea no parpadee.
+  const analyzingEvent: AssistantUpdateEvent = {
+    state: 'analyzing',
+    objectivesMet: sortedObjectivesMet(target)
+  }
+  if (target.usage.calls > 0) {
+    analyzingEvent.usage = { ...target.usage }
+  }
+  emitUpdate(target, analyzingEvent)
   try {
-    const suggestion = await requestSuggestion(target)
+    const outcome = await requestSuggestion(target)
     if (session !== target) {
       return // respuesta tardía tras stop: se descarta
     }
     target.newLinesSinceLastCall -= linesAtCall
-    target.suggestion = suggestion.suggestion
+    target.suggestion = outcome.suggestion
     target.suggestionCount += 1
     target.currentVote = null
-    for (const index of suggestion.objectivesMet) {
+    for (const index of outcome.objectivesMet) {
       target.objectivesMet.add(index)
     }
+    // Medición de la sesión (SPEC-021): SOLO en el camino de éxito completo
+    // (una llamada que falla no cambia el acumulado, AC)
+    target.usage.calls += 1
+    target.usage.inputTokens += outcome.tokens.inputTokens
+    target.usage.outputTokens += outcome.tokens.outputTokens
+    target.usage.estimatedCostUsd = computeCostUsd(
+      target.usage.inputTokens,
+      target.usage.outputTokens
+    )
     emitUpdate(target, {
       state: 'active',
-      suggestion: suggestion.suggestion,
-      objectivesMet: sortedObjectivesMet(target)
+      suggestion: outcome.suggestion,
+      objectivesMet: sortedObjectivesMet(target),
+      usage: { ...target.usage }
     })
   } catch (error) {
     if (session !== target) {
@@ -224,6 +297,9 @@ async function runAnalysis(target: AssistantSession): Promise<void> {
     }
     if (target.suggestion !== null) {
       event.suggestion = target.suggestion
+    }
+    if (target.usage.calls > 0) {
+      event.usage = { ...target.usage }
     }
     emitUpdate(target, event)
   } finally {
@@ -299,6 +375,11 @@ interface AnalysisOutcome {
   objectivesMet: number[]
 }
 
+/** Outcome del análisis + tokens de la respuesta (SPEC-021). */
+interface AnalysisResult extends AnalysisOutcome {
+  tokens: { inputTokens: number; outputTokens: number }
+}
+
 const FORMAT_ERROR_MESSAGE = 'La respuesta de la IA no tiene el formato esperado.'
 
 /** Valida la forma del JSON devuelto; alarmas e índices fuera de rango se filtran. */
@@ -347,7 +428,7 @@ function parseAnalysis(raw: string, objectiveCount: number): AnalysisOutcome {
   }
 }
 
-async function requestSuggestion(target: AssistantSession): Promise<AnalysisOutcome> {
+async function requestSuggestion(target: AssistantSession): Promise<AnalysisResult> {
   const client = new Anthropic({ apiKey: target.apiKey })
   let response: Anthropic.Message
   try {
@@ -375,7 +456,10 @@ async function requestSuggestion(target: AssistantSession): Promise<AnalysisOutc
   if (textBlock === undefined) {
     throw new LlmOperationError('format', 'La respuesta de la IA no contiene texto.')
   }
-  return parseAnalysis(textBlock.text, target.objectives.length)
+  // Los tokens solo acompañan a un análisis parseado con éxito (SPEC-021):
+  // parseAnalysis lanza antes de devolverlos si el formato no valida
+  const outcome = parseAnalysis(textBlock.text, target.objectives.length)
+  return { ...outcome, tokens: extractUsage(response) }
 }
 
 // ---------------------------------------------------------------------------
@@ -403,6 +487,33 @@ export function sendAssistantFeedback(vote: AssistantVote): void {
 }
 
 /**
+ * Reanuda el asistente pausado por límite de coste (SPEC-021): desactiva la
+ * comprobación del límite para el RESTO de la sesión (no vuelve a pausar, AC)
+ * y reintenta el análisis respetando los disparadores de SPEC-016. Sin sesión
+ * es un no-op silencioso.
+ */
+export function resumeAssistantLimit(): void {
+  if (session === null) {
+    return
+  }
+  const target = session
+  target.limitOverridden = true
+  target.pausedByLimit = false
+  const event: AssistantUpdateEvent = {
+    state: target.suggestion !== null ? 'active' : 'idle',
+    objectivesMet: sortedObjectivesMet(target)
+  }
+  if (target.suggestion !== null) {
+    event.suggestion = target.suggestion
+  }
+  if (target.usage.calls > 0) {
+    event.usage = { ...target.usage }
+  }
+  emitUpdate(target, event)
+  maybeAnalyze(target, 1)
+}
+
+/**
  * Desactiva el asistente y devuelve el registro de la sesión para persistirlo
  * en el transcript.json. SÍNCRONO: llamar desde `recording:stop` ANTES de
  * persistTranscript (y en el camino de error, descartando el resultado).
@@ -420,5 +531,9 @@ export function stopAssistant(): AssistantSessionSummary | null {
     clearInterval(target.fallbackTimer)
     target.fallbackTimer = null
   }
-  return { suggestionCount: target.suggestionCount, feedback: { ...target.feedback } }
+  return {
+    suggestionCount: target.suggestionCount,
+    feedback: { ...target.feedback },
+    usage: { ...target.usage }
+  }
 }

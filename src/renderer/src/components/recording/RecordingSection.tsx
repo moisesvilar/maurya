@@ -77,7 +77,10 @@ export function RecordingSection({
     objectivesMet,
     error: assistantError,
     vote: assistantVote,
+    usage: assistantUsage,
+    pauseLimitUsd: assistantPauseLimitUsd,
     sendFeedback,
+    resume: resumeAssistant,
     reset: resetAssistant
   } = useAssistant()
 
@@ -264,7 +267,10 @@ export function RecordingSection({
             suggestion={assistantSuggestion}
             error={assistantError}
             vote={assistantVote}
+            usage={assistantUsage}
+            pauseLimitUsd={assistantPauseLimitUsd}
             onVote={sendFeedback}
+            onResume={resumeAssistant}
           />
           {interview.objectives.length > 0 && (
             <ObjectivesPanel objectives={interview.objectives} objectivesMet={objectivesMet} />

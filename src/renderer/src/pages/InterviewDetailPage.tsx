@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AiCostInline } from '@/components/interviews/AiCostInline'
 import { NoteSection } from '@/components/interviews/NoteSection'
 import { ScriptSection } from '@/components/interviews/ScriptSection'
 import { RecordingSection } from '@/components/recording/RecordingSection'
@@ -137,7 +138,7 @@ export function InterviewDetailPage(): React.ReactElement {
             </div>
             <p className="text-sm text-muted-foreground">
               {state.company.name} · {contactLabel(state.interview)} ·{' '}
-              {templateLabel(state.interview)}
+              {templateLabel(state.interview)} · <AiCostInline aiUsage={state.interview.aiUsage} />
             </p>
           </div>
 

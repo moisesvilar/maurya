@@ -1,5 +1,7 @@
 import { randomUUID } from 'crypto'
 import type {
+  AiCostSettings,
+  AiUsage,
   Company,
   Contact,
   CreateCompanyInput,
@@ -662,5 +664,67 @@ export function deleteNote(id: string): null {
     findOrThrow(draft.notes, id, 'nota')
     draft.notes = draft.notes.filter((note) => note.id !== id)
     return null
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Coste de IA (SPEC-021)
+// ---------------------------------------------------------------------------
+
+/**
+ * Ajustes de coste de IA con normalización defensiva (AC: un ajuste corrupto o
+ * ilegible se comporta como "sin límite" sin crashear): si el singleton no es
+ * un objeto o `limitUsd` no es null ni un número finito > 0 → { limitUsd: null }.
+ */
+export function getAiCostSettings(): AiCostSettings {
+  return read((store) => {
+    const raw: unknown = store.aiCostSettings
+    if (typeof raw !== 'object' || raw === null) {
+      return { limitUsd: null }
+    }
+    const limitUsd = (raw as Record<string, unknown>).limitUsd
+    if (
+      limitUsd === null ||
+      (typeof limitUsd === 'number' && Number.isFinite(limitUsd) && limitUsd > 0)
+    ) {
+      return { limitUsd }
+    }
+    return { limitUsd: null }
+  })
+}
+
+export function setAiCostSettings(settings: AiCostSettings): AiCostSettings {
+  const limitUsd = settings.limitUsd
+  if (limitUsd !== null && (!Number.isFinite(limitUsd) || limitUsd <= 0)) {
+    throw validationError('Introduce un importe positivo o deja el campo vacío')
+  }
+  return mutate((draft) => {
+    draft.aiCostSettings = { limitUsd }
+    return { limitUsd }
+  })
+}
+
+/**
+ * Suma un delta al acumulado `aiUsage` de la entrevista (SPEC-021). NO toca
+ * `updatedAt`: la medición no es una edición del usuario y no debe reordenar
+ * el listado de capturas. No se expone por IPC — solo lo usa main vía
+ * `recordInterviewUsage` (el renderer jamás puede escribir el acumulado).
+ */
+export function addInterviewAiUsage(id: string, delta: AiUsage): Interview {
+  return mutate((draft) => {
+    const interview = findOrThrow(draft.interviews, id, 'entrevista')
+    const base: AiUsage = interview.aiUsage ?? {
+      calls: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      estimatedCostUsd: 0
+    }
+    interview.aiUsage = {
+      calls: base.calls + delta.calls,
+      inputTokens: base.inputTokens + delta.inputTokens,
+      outputTokens: base.outputTokens + delta.outputTokens,
+      estimatedCostUsd: base.estimatedCostUsd + delta.estimatedCostUsd
+    }
+    return interview
   })
 }

@@ -66,6 +66,26 @@ export interface InterviewTemplate {
 
 export type InterviewStatus = 'draft' | 'prepared' | 'recorded' | 'summarized'
 
+/**
+ * Acumulado de uso de IA de una entrevista (SPEC-021): llamadas al LLM,
+ * tokens de entrada/salida y coste estimado en USD según la tarifa del modelo.
+ */
+export interface AiUsage {
+  calls: number
+  inputTokens: number
+  outputTokens: number
+  estimatedCostUsd: number
+}
+
+/**
+ * Ajustes de coste de IA (SPEC-021), singleton en db.json. `limitUsd` es el
+ * límite de gasto estimado por entrevista para el asistente en vivo; null =
+ * sin límite (el guión y la nota nunca se bloquean).
+ */
+export interface AiCostSettings {
+  limitUsd: number | null
+}
+
 export interface Interview {
   id: string
   /**
@@ -90,6 +110,12 @@ export interface Interview {
   wavPath: string | null
   /** Vinculación con el transcript del spike (H4). */
   transcriptPath: string | null
+  /**
+   * Acumulado de uso de IA (SPEC-021). Opcional y sin bump de schemaVersion:
+   * ausente = sin datos de coste (entrevistas anteriores a la spec). Solo lo
+   * escribe main vía `addInterviewAiUsage`; nunca es escribible por patch.
+   */
+  aiUsage?: AiUsage | null
   createdAt: string
   updatedAt: string
 }
@@ -306,4 +332,8 @@ export interface DbApi {
 
   /** Búsqueda global por nombre/título (SPEC-018): resultados agrupados por tipo. */
   search: (query: string) => Promise<DbResult<SearchResults>>
+
+  /** Ajustes de coste de IA (SPEC-021): límite por entrevista del asistente. */
+  getAiCostSettings: () => Promise<DbResult<AiCostSettings>>
+  setAiCostSettings: (settings: AiCostSettings) => Promise<DbResult<AiCostSettings>>
 }

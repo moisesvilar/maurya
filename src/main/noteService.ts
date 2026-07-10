@@ -11,6 +11,7 @@ import type {
   NoteExportTarget
 } from '../renderer/src/types/notes'
 import { LlmOperationError, getAnthropicKey, mapSdkError } from './llmService'
+import { extractUsage, recordInterviewUsage } from './aiCost'
 import * as repository from './db/repository'
 
 /**
@@ -334,6 +335,11 @@ async function doGenerate(
       'La respuesta de la IA no cubre todas las secciones del note-template. Vuelve a intentarlo.'
     )
   }
+
+  // Medición del coste (SPEC-021): solo tras parseo y validación completos
+  // (una llamada que falla no cambia el acumulado) y ANTES de persistir, para
+  // que la Interview devuelta ya incluya el aiUsage. Best-effort: jamás lanza.
+  recordInterviewUsage(interview.id, extractUsage(response))
 
   // Los títulos del template son la fuente de verdad; el contenido, de la IA
   const contentMarkdown = template.sections
