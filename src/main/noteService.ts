@@ -13,6 +13,7 @@ import type {
 import { LlmOperationError, getAnthropicKey, mapSdkError } from './llmService'
 import { extractUsage, recordInterviewUsage } from './aiCost'
 import * as repository from './db/repository'
+import { resolvePromptPersona } from './prompts'
 
 /**
  * Servicio de la nota de resumen de la entrevista (SPEC-017). Vive SOLO en
@@ -129,9 +130,10 @@ function buildSystemPrompt(template: NoteTemplate): string {
     template.context.trim() !== ''
       ? `\nContexto del note-template (manda sobre el enfoque de la síntesis):\n${template.context.trim()}`
       : ''
+  // SPEC-026: el bloque de persona/enfoque se resuelve en cada uso
+  // (override de Ajustes → default); las reglas de abajo quedan bloqueadas.
   return [
-    'Eres un sintetizador experto de entrevistas de discovery de producto: conviertes la transcripción de una conversación en una nota de resumen fiel, accionable y anclada a lo que se dijo realmente.' +
-      context,
+    resolvePromptPersona('note') + context,
     'Tu tarea: sintetizar la conversación proporcionada siguiendo las secciones del note-template, en su orden.',
     'Reglas:',
     '- Escribe TODO en español.',

@@ -38,6 +38,16 @@ export interface NoteGenerationResult {
   note: Note
 }
 
+/**
+ * Evento push main → renderer de la evaluación automática de objetivos tras la
+ * grabación (SPEC-025, canal `llm:objective-evaluation`). La evaluación manual
+ * no emite eventos: su resultado viaja en la respuesta del invoke.
+ */
+export type ObjectiveEvaluationEvent =
+  | { interviewId: string; status: 'evaluating' }
+  | { interviewId: string; status: 'done'; interview: Interview }
+  | { interviewId: string; status: 'error'; error: LlmError }
+
 /** API expuesta por el preload en `window.api.llm`. */
 export interface LlmApi {
   getStatus: () => Promise<LlmResult<LlmStatus>>
@@ -47,4 +57,8 @@ export interface LlmApi {
     interviewId: string,
     noteTemplateId: string
   ) => Promise<LlmResult<NoteGenerationResult>>
+  /** Evalúa el cumplimiento de los objetivos contra el transcript (SPEC-025). */
+  evaluateObjectives: (interviewId: string) => Promise<LlmResult<Interview>>
+  /** Suscripción a la evaluación automática post-grabación (SPEC-025). */
+  onObjectiveEvaluation: (callback: (event: ObjectiveEvaluationEvent) => void) => () => void
 }

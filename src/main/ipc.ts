@@ -41,11 +41,16 @@ import {
   toNoteExportError
 } from './noteService'
 import {
+  peekAssistantObjectivesMet,
   resumeAssistantLimit,
   sendAssistantFeedback,
   startAssistant,
   stopAssistant
 } from './assistantService'
+import {
+  evaluateInterviewObjectives,
+  maybeEvaluateAfterRecording
+} from './objectiveEvaluationService'
 import { recordInterviewUsage } from './aiCost'
 import type { AssistantVote } from '../renderer/src/types/assistant'
 
@@ -120,6 +125,11 @@ export function registerIpcHandlers(): void {
   handleLlm('llm:generate-note', (interviewId: string, noteTemplateId: string) =>
     generateInterviewNote(interviewId, noteTemplateId)
   )
+  // Evaluación manual de objetivos (SPEC-025): mismo envelope LlmResult. Sin
+  // pista de seguimiento en vivo (no hay sesión del asistente en este camino).
+  handleLlm('llm:evaluate-objectives', (interviewId: string) =>
+    evaluateInterviewObjectives(interviewId)
+  )
 
   /**
    * Exportación a Markdown (SPEC-017): handler ad-hoc (no handleLlm) porque el
@@ -188,6 +198,9 @@ export function registerIpcHandlers(): void {
   })
 
   ipcMain.handle('recording:stop', async (): Promise<StopResult> => {
+    // Pista del seguimiento en vivo para la evaluación de objetivos
+    // (SPEC-025): se captura ANTES de stopAssistant, que destruye la sesión.
+    const objectivesMetHint = peekAssistantObjectivesMet()
     // El asistente se desactiva SÍNCRONO y primero (SPEC-016): ni el flush de
     // Deepgram ni la parada del WAV pueden disparar más análisis; una
     // respuesta aún en vuelo se descarta en el servicio.
@@ -232,6 +245,12 @@ export function registerIpcHandlers(): void {
       } catch {
         // Entrevista borrada durante la grabación: los archivos se conservan
         interview = null
+      }
+      // Evaluación de objetivos post-grabación (SPEC-025): fire-and-forget
+      // TRAS asociar la grabación — la parada nunca espera al LLM y ningún
+      // fallo de la evaluación afecta al guardado (guards en el servicio).
+      if (interview !== null) {
+        maybeEvaluateAfterRecording(interview.id, objectivesMetHint)
       }
       activeInterviewId = null
     }

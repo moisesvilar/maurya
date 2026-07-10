@@ -165,9 +165,7 @@ function renderDetail(): RenderResult {
 async function startRecording(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   await user.click(await screen.findByRole('button', { name: 'Iniciar grabación' }))
   const consent = await screen.findByRole('alertdialog')
-  expect(
-    within(consent).getByRole('heading', { name: 'Aviso de grabación' })
-  ).toBeInTheDocument()
+  expect(within(consent).getByRole('heading', { name: 'Aviso de grabación' })).toBeInTheDocument()
   await user.click(within(consent).getByRole('button', { name: 'Entendido, iniciar grabación' }))
   await screen.findByRole('button', { name: 'Detener' })
 }
@@ -492,14 +490,13 @@ describe('RecordingSection', () => {
       await startRecording(user)
 
       // Coexistencia: cronómetro de grabación + guión legible en la misma página.
-      // SPEC-016 añadió el panel de objetivos EN VIVO durante la grabación →
-      // hay DOS h4 "Objetivos" (panel del asistente + sección Guión): getAllBy
+      // SPEC-025: los objetivos viven en la sección superior única (h3) — ya no
+      // hay ningún h4 "Objetivos" (ni panel del asistente ni bloque del Guión)
       expect(screen.getByText('00:00')).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: 'Guión' })).toBeInTheDocument()
       expect(screen.getByText(/Pregunta clave para la llamada/)).toBeInTheDocument()
-      expect(
-        screen.getAllByRole('heading', { name: 'Objetivos', level: 4 }).length
-      ).toBeGreaterThanOrEqual(1)
+      expect(screen.getByRole('heading', { name: 'Objetivos', level: 3 })).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Objetivos', level: 4 })).not.toBeInTheDocument()
     })
   })
 })

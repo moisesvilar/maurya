@@ -11,11 +11,14 @@ import type {
   CreateInterviewTemplateInput,
   CreateNoteInput,
   CreateNoteTemplateInput,
+  CustomPromptId,
+  CustomPromptOverride,
   Discovery,
   Interview,
   InterviewTemplate,
   Note,
   NoteTemplate,
+  ObjectiveResult,
   UpdateCompanyPatch,
   UpdateContactPatch,
   UpdateDiscoveryPatch,
@@ -24,6 +27,7 @@ import type {
   UpdateNotePatch,
   UpdateNoteTemplatePatch
 } from '../../renderer/src/types/domain'
+import { CUSTOM_PROMPT_IDS } from '../../renderer/src/types/domain'
 import type {
   AssignCompanyInput,
   AssignCompanyResult,
@@ -438,6 +442,15 @@ export function updateInterview(id: string, patch: UpdateInterviewPatch): Interv
       interview.scriptMarkdown = patch.scriptMarkdown
     }
     if (patch.objectives !== undefined) {
+      // Invariante SPEC-025: cualquier cambio en la lista de objetivos
+      // (texto, orden, altas o bajas) invalida la evaluación persistida —
+      // los resultados están alineados por índice y dejarían de corresponder.
+      const changed =
+        patch.objectives.length !== interview.objectives.length ||
+        patch.objectives.some((objective, index) => objective !== interview.objectives[index])
+      if (changed && interview.objectiveResults != null) {
+        interview.objectiveResults = null
+      }
       interview.objectives = patch.objectives
     }
     if (patch.wavPath !== undefined) {
@@ -621,6 +634,54 @@ export function deleteNoteTemplate(id: string): null {
 }
 
 // ---------------------------------------------------------------------------
+// CustomPromptOverride (SPEC-026)
+// ---------------------------------------------------------------------------
+
+/** El catálogo es fijo: cualquier id fuera de él es un dato inválido del bridge. */
+function assertCustomPromptId(id: string): void {
+  if (!CUSTOM_PROMPT_IDS.includes(id as CustomPromptId)) {
+    throw validationError(`No existe un prompt personalizable con id ${id}`)
+  }
+}
+
+export function listCustomPromptOverrides(): CustomPromptOverride[] {
+  return read((store) => store.customPrompts ?? [])
+}
+
+export function getCustomPromptOverride(id: CustomPromptId): CustomPromptOverride | null {
+  return read((store) => (store.customPrompts ?? []).find((override) => override.id === id) ?? null)
+}
+
+export function saveCustomPromptOverride(id: CustomPromptId, body: string): CustomPromptOverride {
+  assertCustomPromptId(id)
+  if (typeof body !== 'string' || body.trim() === '') {
+    throw validationError('El prompt no puede quedar vacío')
+  }
+  return mutate((draft) => {
+    const overrides = draft.customPrompts ?? []
+    const existing = overrides.find((override) => override.id === id)
+    if (existing !== undefined) {
+      existing.body = body
+      existing.updatedAt = touched(existing.updatedAt)
+      draft.customPrompts = overrides
+      return existing
+    }
+    const override: CustomPromptOverride = { id, body, updatedAt: nowIso() }
+    draft.customPrompts = [...overrides, override]
+    return override
+  })
+}
+
+/** Idempotente: restablecer un prompt ya en default es un no-op correcto. */
+export function resetCustomPromptOverride(id: CustomPromptId): null {
+  assertCustomPromptId(id)
+  return mutate((draft) => {
+    draft.customPrompts = (draft.customPrompts ?? []).filter((override) => override.id !== id)
+    return null
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Note
 // ---------------------------------------------------------------------------
 
@@ -710,6 +771,25 @@ export function setAiCostSettings(settings: AiCostSettings): AiCostSettings {
  * el listado de capturas. No se expone por IPC — solo lo usa main vía
  * `recordInterviewUsage` (el renderer jamás puede escribir el acumulado).
  */
+/**
+ * Persiste la evaluación post-grabación de los objetivos (SPEC-025), alineada
+ * por índice con `objectives` (el servicio valida la longitud ANTES de llamar
+ * aquí; un desalineamiento es error de programación y se rechaza). NO toca
+ * `updatedAt` (patrón addInterviewAiUsage: no es una edición del usuario). No
+ * se expone por IPC como escritura de patch — solo lo usa main desde el
+ * servicio de evaluación.
+ */
+export function setInterviewObjectiveResults(id: string, results: ObjectiveResult[]): Interview {
+  return mutate((draft) => {
+    const interview = findOrThrow(draft.interviews, id, 'entrevista')
+    if (results.length !== interview.objectives.length) {
+      throw validationError('La evaluación no se corresponde con los objetivos de la entrevista')
+    }
+    interview.objectiveResults = results
+    return interview
+  })
+}
+
 export function addInterviewAiUsage(id: string, delta: AiUsage): Interview {
   return mutate((draft) => {
     const interview = findOrThrow(draft.interviews, id, 'entrevista')

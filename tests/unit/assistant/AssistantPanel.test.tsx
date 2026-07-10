@@ -6,7 +6,7 @@
  * (AlertDialog modal) — todo arranque de grabación lo atraviesa confirmando
  * "Entendido, iniciar grabación" (ver startRecording).
  */
-import { act, render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
+import { act, render, screen, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -149,9 +149,7 @@ function renderDetail(): RenderResult {
 async function startRecording(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   await user.click(await screen.findByRole('button', { name: 'Iniciar grabación' }))
   const consent = await screen.findByRole('alertdialog')
-  expect(
-    within(consent).getByRole('heading', { name: 'Aviso de grabación' })
-  ).toBeInTheDocument()
+  expect(within(consent).getByRole('heading', { name: 'Aviso de grabación' })).toBeInTheDocument()
   await user.click(within(consent).getByRole('button', { name: 'Entendido, iniciar grabación' }))
   await screen.findByRole('button', { name: 'Detener' })
 }
@@ -346,34 +344,22 @@ describe('AssistantPanel', () => {
   })
 
   describe('live objectives', () => {
-    // SPEC-016 · AC-09 (UI)
-    it('shows the objectives panel with pending/covered states from objectivesMet', async () => {
+    // SPEC-016 · AC-09/AC-10 (UI) derogados por SPEC-025: el seguimiento en
+    // vivo se pinta en la sección "Objetivos" superior del detalle (tests en
+    // tests/unit/objectives/ObjectivesSection.test.tsx).
+    // SPEC-025 · AC-06
+    it('does not render an objectives panel under the assistant while recording', async () => {
       const user = userEvent.setup()
       setInterview(interview({ objectives: ['Objetivo cero', 'Objetivo uno'] }))
       renderDetail()
       await startRecording(user)
 
-      expect(screen.getByRole('heading', { name: 'Objetivos', level: 4 })).toBeInTheDocument()
-
-      act(() => {
-        mockApi.emitAssistantUpdate({
-          state: 'active',
-          suggestion: suggestion(),
-          objectivesMet: [1]
-        })
-      })
-
-      await waitFor(() => expect(screen.getByText('Objetivo uno')).toHaveClass('line-through'))
-      expect(screen.getByText('Objetivo cero')).not.toHaveClass('line-through')
-    })
-
-    // SPEC-016 · AC-10
-    it('does not show the objectives panel when the interview has no objectives', async () => {
-      const user = userEvent.setup()
-      renderDetail()
-      await startRecording(user)
-
+      // El panel del asistente está activo…
+      expect(screen.getByText(INITIAL_TEXT)).toBeInTheDocument()
+      // …pero ya no existe ningún h4 "Objetivos" bajo él: solo la sección
+      // superior (h3) muestra los objetivos durante la grabación
       expect(screen.queryByRole('heading', { name: 'Objetivos', level: 4 })).not.toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Objetivos', level: 3 })).toBeInTheDocument()
     })
   })
 

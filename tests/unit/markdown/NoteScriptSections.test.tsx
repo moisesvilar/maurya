@@ -208,9 +208,11 @@ describe('NoteScriptSections', () => {
       expect(await within(panel).findByText('Pregunta adaptada a Acme')).toBeInTheDocument()
       expect(within(panel).getByRole('button', { name: 'Editar' })).toBeInTheDocument()
       expect(within(panel).getByRole('button', { name: 'Regenerar' })).toBeInTheDocument()
+      // Sin bloque de objetivos dentro del Guión: viven en ObjectivesSection
+      // a nivel de página (SPEC-025), fuera de este componente
       expect(
-        within(panel).getByRole('heading', { name: 'Objetivos', level: 4 })
-      ).toBeInTheDocument()
+        within(panel).queryByRole('heading', { name: 'Objetivos', level: 4 })
+      ).not.toBeInTheDocument()
     })
 
     // SPEC-027 · AC-07

@@ -6,6 +6,7 @@ import type {
   AiCostSettings,
   Company,
   Contact,
+  CustomPromptOverride,
   DbError,
   DbStatus,
   Discovery,
@@ -32,6 +33,12 @@ export interface DbData {
    * conserva). La lectura se normaliza defensivamente en el repositorio.
    */
   aiCostSettings?: AiCostSettings
+  /**
+   * Overrides de prompts de IA (SPEC-026): colección opcional, sin bump de
+   * schemaVersion (ausente = todos los prompts en default; isDbData lo tolera
+   * y persist lo conserva). La lectura se normaliza en el repositorio.
+   */
+  customPrompts?: CustomPromptOverride[]
 }
 
 /** v2 (SPEC-020): Interview gana discoveryId obligatorio y companyId nullable. */

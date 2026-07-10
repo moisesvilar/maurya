@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AiCostInline } from '@/components/interviews/AiCostInline'
 import { NoteScriptSections } from '@/components/interviews/NoteScriptSections'
+import { ObjectivesSection } from '@/components/interviews/ObjectivesSection'
 import { RecordingSection } from '@/components/recording/RecordingSection'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
 import { useContacts } from '@/hooks/useContacts'
@@ -23,10 +24,11 @@ type InterviewDetailState =
  * Layout 2 detalle, la top bar sigue marcando "Discoveries" por prefijo):
  * back button "Volver" al detalle de la empresa, h1 con el título + Badge de
  * estado, fila muted de referencias (empresa · contacto · template, con
- * fallbacks "Sin contacto"/"Sin template"), la sección Grabación
- * (RecordingSection, SPEC-015: captura mic+sistema con transcripción en vivo,
- * ENTRE la cabecera y el resto para que durante la llamada el estado de
- * grabación quede arriba) y, debajo, las secciones Nota y Guión compuestas por
+ * fallbacks "Sin contacto"/"Sin template"), la sección Objetivos destacada
+ * (ObjectivesSection, SPEC-025: indicador de progreso principal, entre la
+ * cabecera y la Grabación), la sección Grabación (RecordingSection, SPEC-015:
+ * captura mic+sistema con transcripción en vivo, arriba para que durante la
+ * llamada el estado quede visible) y, debajo, las secciones Nota y Guión compuestas por
  * NoteScriptSections (SPEC-027): apiladas mientras falte una de las dos y en
  * pestañas "Notas"/"Guión" cuando coexisten. Resuelve entrevista y empresa con
  * Promise.all(getInterview, getCompany); un id inexistente o un error del
@@ -137,6 +139,13 @@ export function InterviewDetailPage(): React.ReactElement {
               {templateLabel(state.interview)} · <AiCostInline aiUsage={state.interview.aiUsage} />
             </p>
           </div>
+
+          {/* SPEC-025: los objetivos van arriba del todo, entre la cabecera y
+              la Grabación — son el indicador de progreso principal */}
+          <ObjectivesSection
+            interview={state.interview}
+            onInterviewUpdated={handleInterviewUpdated}
+          />
 
           <RecordingSection
             interview={state.interview}

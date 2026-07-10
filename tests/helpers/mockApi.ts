@@ -7,7 +7,7 @@ import { vi } from 'vitest'
 import type { AssistantApi, AssistantUpdateEvent } from '@/types/assistant'
 import type { MauryaApi, TranscriptResultEvent, TranscriptionStatusEvent } from '@/types/audio'
 import type { DbApi } from '@/types/domain'
-import type { LlmApi } from '@/types/llm'
+import type { LlmApi, ObjectiveEvaluationEvent } from '@/types/llm'
 import type { NotesApi } from '@/types/notes'
 import type { SecretsApi } from '@/types/secrets'
 
@@ -25,18 +25,31 @@ export type BridgeApi = MauryaApi & {
 }
 
 /**
- * Mock tipado de api.llm (SPEC-014/017). getStatus resuelve por defecto SIN
- * clave de Anthropic (estado conservador); generateScript/generateNote se
- * configuran por test.
+ * Mock tipado de api.llm (SPEC-014/017/025). getStatus resuelve por defecto
+ * SIN clave de Anthropic (estado conservador); generateScript/generateNote/
+ * evaluateObjectives se configuran por test. onObjectiveEvaluation registra
+ * el callback para inyectar eventos con emitObjectiveEvaluation (SPEC-025).
  */
-function createMockLlmApi(): LlmApi {
+function createMockLlmApi(
+  objectiveEvaluationCallbacks: Array<(event: ObjectiveEvaluationEvent) => void>
+): LlmApi {
   return {
     getStatus: vi.fn<LlmApi['getStatus']>().mockResolvedValue({
       ok: true,
       data: { hasAnthropicKey: false }
     }),
     generateScript: vi.fn<LlmApi['generateScript']>(),
-    generateNote: vi.fn<LlmApi['generateNote']>()
+    generateNote: vi.fn<LlmApi['generateNote']>(),
+    evaluateObjectives: vi.fn<LlmApi['evaluateObjectives']>(),
+    onObjectiveEvaluation: vi.fn<LlmApi['onObjectiveEvaluation']>((callback) => {
+      objectiveEvaluationCallbacks.push(callback)
+      return () => {
+        const index = objectiveEvaluationCallbacks.indexOf(callback)
+        if (index >= 0) {
+          objectiveEvaluationCallbacks.splice(index, 1)
+        }
+      }
+    })
   }
 }
 
@@ -85,6 +98,8 @@ export interface MockApiHandle {
   emitTranscriptionResult: (event: TranscriptResultEvent) => void
   /** Simula un evento del asistente proactivo emitido por main (SPEC-016). */
   emitAssistantUpdate: (event: AssistantUpdateEvent) => void
+  /** Simula un evento de la evaluación automática de objetivos (SPEC-025). */
+  emitObjectiveEvaluation: (event: ObjectiveEvaluationEvent) => void
 }
 
 /**
@@ -162,7 +177,16 @@ function createMockDbApi(): DbApi {
     getAiCostSettings: vi
       .fn<DbApi['getAiCostSettings']>()
       .mockResolvedValue({ ok: true, data: { limitUsd: null } }),
-    setAiCostSettings: vi.fn<DbApi['setAiCostSettings']>()
+    setAiCostSettings: vi.fn<DbApi['setAiCostSettings']>(),
+
+    // SPEC-026: prompts de IA personalizables (default de solo-lectura seguro:
+    // catálogo vacío; save/reset se configuran por test)
+    listCustomPrompts: vi.fn<DbApi['listCustomPrompts']>().mockResolvedValue({
+      ok: true,
+      data: []
+    }),
+    saveCustomPrompt: vi.fn<DbApi['saveCustomPrompt']>(),
+    resetCustomPrompt: vi.fn<DbApi['resetCustomPrompt']>()
   }
 }
 
@@ -172,11 +196,12 @@ export function createMockApi(): MockApiHandle {
   const statusCallbacks: Array<(event: TranscriptionStatusEvent) => void> = []
   const resultCallbacks: Array<(event: TranscriptResultEvent) => void> = []
   const assistantCallbacks: Array<(event: AssistantUpdateEvent) => void> = []
+  const objectiveEvaluationCallbacks: Array<(event: ObjectiveEvaluationEvent) => void> = []
 
   const api: BridgeApi = {
     db: createMockDbApi(),
     secrets: createMockSecretsApi(),
-    llm: createMockLlmApi(),
+    llm: createMockLlmApi(objectiveEvaluationCallbacks),
     notes: createMockNotesApi(),
     assistant: {
       onUpdate: vi.fn<AssistantApi['onUpdate']>((callback) => {
@@ -277,6 +302,9 @@ export function createMockApi(): MockApiHandle {
     },
     emitAssistantUpdate: (event: AssistantUpdateEvent): void => {
       assistantCallbacks.slice().forEach((callback) => callback(event))
+    },
+    emitObjectiveEvaluation: (event: ObjectiveEvaluationEvent): void => {
+      objectiveEvaluationCallbacks.slice().forEach((callback) => callback(event))
     }
   }
 }

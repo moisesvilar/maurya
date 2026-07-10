@@ -4,6 +4,7 @@ import { toDbError } from './errors'
 import { getStatus, initStore } from './store'
 import * as repository from './repository'
 import { searchGlobal } from './search'
+import { listCustomPrompts, resetCustomPrompt, saveCustomPrompt } from '../prompts'
 
 /**
  * Registra un canal db:* que SIEMPRE resuelve con el envelope DbResult: la
@@ -74,6 +75,11 @@ export function registerDbIpcHandlers(): void {
   // Ajustes de coste de IA (SPEC-021): singleton get/set con envelope DbResult.
   handleDb('db:ai-cost-settings:get', repository.getAiCostSettings)
   handleDb('db:ai-cost-settings:set', repository.setAiCostSettings)
+
+  // Prompts de IA personalizables (SPEC-026): catálogo fijo, override→default.
+  handleDb('db:custom-prompt:list', listCustomPrompts)
+  handleDb('db:custom-prompt:save', saveCustomPrompt)
+  handleDb('db:custom-prompt:reset', resetCustomPrompt)
 
   handleDb('db:note:create', repository.createNote)
   handleDb('db:note:get-by-interview', repository.getNoteByInterview)

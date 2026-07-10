@@ -86,6 +86,16 @@ export interface AiCostSettings {
   limitUsd: number | null
 }
 
+/**
+ * Evaluación de cumplimiento de UN objetivo (SPEC-025), generada por el LLM
+ * tras la grabación. `reason` es el motivo corto (≤50 palabras) de por qué el
+ * objetivo se cumplió o no.
+ */
+export interface ObjectiveResult {
+  met: boolean
+  reason: string
+}
+
 export interface Interview {
   id: string
   /**
@@ -116,6 +126,14 @@ export interface Interview {
    * escribe main vía `addInterviewAiUsage`; nunca es escribible por patch.
    */
   aiUsage?: AiUsage | null
+  /**
+   * Evaluación post-grabación de los objetivos (SPEC-025), alineada por índice
+   * con `objectives`. Opcional y sin bump de schemaVersion (patrón aiUsage):
+   * ausente = sin evaluación. Solo la escribe main vía
+   * `setInterviewObjectiveResults`; nunca es escribible por patch, y cualquier
+   * cambio en `objectives` la descarta (invariante del repositorio).
+   */
+  objectiveResults?: ObjectiveResult[] | null
   createdAt: string
   updatedAt: string
 }
@@ -142,6 +160,41 @@ export interface Note {
   contentMarkdown: string
   createdAt: string
   updatedAt: string
+}
+
+// ---------------------------------------------------------------------------
+// Prompts de IA personalizables (SPEC-026)
+// ---------------------------------------------------------------------------
+
+/** Catálogo fijo de prompts personalizables; el orden es el del listado en Ajustes. */
+export const CUSTOM_PROMPT_IDS = ['script', 'note', 'assistant'] as const
+
+/** 'script' = guión y objetivos · 'note' = nota de resumen · 'assistant' = asistente en vivo. */
+export type CustomPromptId = (typeof CUSTOM_PROMPT_IDS)[number]
+
+/**
+ * Override persistido en db.json (SPEC-026). Solo cubre el bloque de
+ * persona/enfoque del system prompt; las reglas estructurales viven bloqueadas
+ * en main. `body` es Markdown plano: la fuente de verdad de lo que se envía.
+ * Los prompts NO son secretos: nunca van a secrets.json.
+ */
+export interface CustomPromptOverride {
+  id: CustomPromptId
+  body: string
+  updatedAt: string
+}
+
+/** Vista compuesta que consume Ajustes: default + reglas fijas + override vigente. */
+export interface CustomPrompt {
+  id: CustomPromptId
+  /** Texto por defecto del bloque persona/enfoque (módulo de defaults de main). */
+  defaultBody: string
+  /** Partes bloqueadas del system prompt, en solo lectura para la UI. */
+  lockedRules: string
+  /** Texto personalizado del usuario; null = se usa el default. */
+  overrideBody: string | null
+  /** Timestamp del override; null si no hay. */
+  updatedAt: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -336,4 +389,9 @@ export interface DbApi {
   /** Ajustes de coste de IA (SPEC-021): límite por entrevista del asistente. */
   getAiCostSettings: () => Promise<DbResult<AiCostSettings>>
   setAiCostSettings: (settings: AiCostSettings) => Promise<DbResult<AiCostSettings>>
+
+  /** Prompts de IA personalizables (SPEC-026): catálogo fijo con override→default. */
+  listCustomPrompts: () => Promise<DbResult<CustomPrompt[]>>
+  saveCustomPrompt: (id: CustomPromptId, body: string) => Promise<DbResult<CustomPrompt>>
+  resetCustomPrompt: (id: CustomPromptId) => Promise<DbResult<CustomPrompt>>
 }

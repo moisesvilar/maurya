@@ -12,7 +12,7 @@ import type {
 } from '../renderer/src/types/audio'
 import type { DbApi } from '../renderer/src/types/domain'
 import type { SecretsApi } from '../renderer/src/types/secrets'
-import type { LlmApi } from '../renderer/src/types/llm'
+import type { LlmApi, ObjectiveEvaluationEvent } from '../renderer/src/types/llm'
 import type { NotesApi } from '../renderer/src/types/notes'
 import type { AssistantApi, AssistantUpdateEvent } from '../renderer/src/types/assistant'
 
@@ -78,7 +78,12 @@ const db: DbApi = {
 
   // Ajustes de coste de IA (SPEC-021): límite por entrevista del asistente.
   getAiCostSettings: () => ipcRenderer.invoke('db:ai-cost-settings:get'),
-  setAiCostSettings: (settings) => ipcRenderer.invoke('db:ai-cost-settings:set', settings)
+  setAiCostSettings: (settings) => ipcRenderer.invoke('db:ai-cost-settings:set', settings),
+
+  // Prompts de IA personalizables (SPEC-026): catálogo fijo, override→default.
+  listCustomPrompts: () => ipcRenderer.invoke('db:custom-prompt:list'),
+  saveCustomPrompt: (id, body) => ipcRenderer.invoke('db:custom-prompt:save', id, body),
+  resetCustomPrompt: (id) => ipcRenderer.invoke('db:custom-prompt:reset', id)
 }
 
 /**
@@ -101,7 +106,17 @@ const llm: LlmApi = {
   getStatus: () => ipcRenderer.invoke('llm:get-status'),
   generateScript: (interviewId) => ipcRenderer.invoke('llm:generate-script', interviewId),
   generateNote: (interviewId, noteTemplateId) =>
-    ipcRenderer.invoke('llm:generate-note', interviewId, noteTemplateId)
+    ipcRenderer.invoke('llm:generate-note', interviewId, noteTemplateId),
+  // Evaluación de objetivos (SPEC-025): canal manual + eventos del camino automático
+  evaluateObjectives: (interviewId) => ipcRenderer.invoke('llm:evaluate-objectives', interviewId),
+  onObjectiveEvaluation: (callback: (event: ObjectiveEvaluationEvent) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, payload: ObjectiveEvaluationEvent): void =>
+      callback(payload)
+    ipcRenderer.on('llm:objective-evaluation', listener)
+    return (): void => {
+      ipcRenderer.removeListener('llm:objective-evaluation', listener)
+    }
+  }
 }
 
 /**

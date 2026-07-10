@@ -1,6 +1,6 @@
 # Checklist de implementación — Maurya (MVP)
 
-> Seguimiento de las tareas del MVP. Derivado de [prd.md](prd.md) (34 RF) y su roadmap (H0-H7).
+> Seguimiento de las tareas del MVP. Derivado de [prd.md](prd.md) (35 RF) y su roadmap (H0-H7).
 > Organizado por hito de implementación. Cada ítem enlaza al requisito funcional del PRD.
 > Estado: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[!]` bloqueado.
 
@@ -124,9 +124,18 @@ Depende de H6. MVP listo para usuarios de validación.
 
 ## H8 · Mejoras post-MVP
 
-Peticiones humanas directas posteriores al cierre del flujo end-to-end.
+Requisitos directos del humano, posteriores al cierre del flujo end-to-end.
 
-- [x] 🟡 **Editor markdown WYSIWYG + pestañas Notas/Guión** en el detalle de entrevista: visualización enriquecida, edición sin sintaxis, y reorganización anti-scroll (pestañas "Notas"/"Guión" cuando coexisten, nota primero) (RF-GUION-005, RF-NOTE-004) — SPEC-027, unit 428/428 PASS (30/30 ACs; TipTap v3 + @tiptap/markdown); verificación manual de escritura libre pendiente de humano. **H8 completo**
+- [x] 🟡 **Objetivos destacados** en el detalle de entrevista (sección propia entre cabecera y Grabación) + **evaluación de cumplimiento post-grabación** con LLM (icono verde por objetivo cumplido + motivo ≤50 palabras) — petición humana 2026-07-10; evoluciona RF-GUION-004/005 y RF-ASIS-005 — SPEC-025, unit 433/433 PASS (28 tests propios, 26/26 ACs); calidad real de la evaluación pendiente de humo con la clave del humano
+- [x] 🟡 **Editor markdown WYSIWYG + pestañas Notas/Guión** en el detalle de entrevista: visualización enriquecida, edición sin sintaxis, y reorganización anti-scroll (pestañas "Notas"/"Guión" cuando coexisten, nota primero) (RF-GUION-005, RF-NOTE-004) — SPEC-027 (renumerada de SPEC-025 al conciliar), unit 428/428 PASS en rama (30/30 ACs; TipTap v3 + @tiptap/markdown, convergido con el editor de SPEC-026); verificación manual de escritura libre pendiente de humano. **H8 completo (2/2)**
+
+---
+
+## Post-MVP · Configuración avanzada de IA
+
+Añadido por decisión humana 2026-07-10 (docs/drafts/prompt-externalizar-prompts-claude.md). Depende de H7.
+
+- [x] 🟡 **Prompts de IA personalizables** desde Ajustes: pestaña «Prompts personalizados», persona/enfoque editable con restablecer a default, reglas estructurales bloqueadas (RF-CFG-001) — SPEC-026, unit 429/429 PASS a la primera (22 ACs; editor Markdown WYSIWYG TipTap; asistente byte-estable en sesión)
 
 ---
 
@@ -153,8 +162,9 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H5 · Asistencia | 8 | 8 |
 | H6 · Resumen | 5 | 5 |
 | H7 · Pulido | 7 | 6 |
-| H8 · Post-MVP | 1 | 1 |
+| H8 · Post-MVP | 2 | 2 |
+| Post-MVP · Config. IA | 1 | 1 |
 | Validación | 4 | 0 |
-| **Total** | **57** | **52** |
+| **Total** | **59** | **54** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.

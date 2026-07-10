@@ -225,8 +225,10 @@ describe('ScriptSection', () => {
   })
 
   describe('reading', () => {
-    // SPEC-014 · AC-07 (render adaptado por SPEC-027) + SPEC-027 · AC-10
-    it('renders the script as rich markdown (real headings, no raw syntax) and the Objetivos list below', async () => {
+    // SPEC-014 · AC-07 (render adaptado por SPEC-027 · AC-10, sin bloque de
+    // objetivos por SPEC-025 · AC-03: el modo lectura muestra SOLO el guión y
+    // los objetivos viven en la sección superior ObjectivesSection, h3)
+    it('renders the script as rich markdown (real headings, no raw syntax) without an objectives block inside Guión', async () => {
       setInterview(WITH_SCRIPT)
       renderDetail()
 
@@ -236,9 +238,10 @@ describe('ScriptSection', () => {
       expect(within(view).getByText('Pregunta adaptada a Acme')).toBeInTheDocument()
       // Sin sintaxis markdown en crudo
       expect(view.textContent).not.toContain('#')
-      expect(screen.getByRole('heading', { name: 'Objetivos', level: 4 })).toBeInTheDocument()
-      const items = screen.getAllByRole('listitem')
-      expect(items.map((item) => item.textContent)).toEqual(['Objetivo A', 'Objetivo B'])
+      // Sin bloque de objetivos dentro del Guión (SPEC-025); la sección
+      // superior los muestra con su propio heading h3
+      expect(screen.queryByRole('heading', { name: 'Objetivos', level: 4 })).not.toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Objetivos', level: 3 })).toBeInTheDocument()
     })
 
     // SPEC-014 · AC-08
