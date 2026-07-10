@@ -122,6 +122,14 @@ Depende de H6. MVP listo para usuarios de validación.
 
 ---
 
+## H8 · Mejoras post-MVP
+
+Peticiones humanas directas posteriores al cierre del flujo end-to-end.
+
+- [ ] 🟡 **Editor markdown WYSIWYG + pestañas Notas/Guión** en el detalle de entrevista: visualización enriquecida, edición sin sintaxis, y reorganización anti-scroll (pestañas "Notas"/"Guión" cuando coexisten, nota primero) (RF-GUION-005, RF-NOTE-004) — SPEC-025
+
+---
+
 ## Validación de producto (transversal, en paralelo)
 
 Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al desarrollo.
@@ -145,7 +153,8 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H5 · Asistencia | 8 | 8 |
 | H6 · Resumen | 5 | 5 |
 | H7 · Pulido | 7 | 6 |
+| H8 · Post-MVP | 1 | 0 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **51** |
+| **Total** | **57** | **51** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
