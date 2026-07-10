@@ -122,6 +122,14 @@ Depende de H6. MVP listo para usuarios de validación.
 
 ---
 
+## H8 · Mejoras post-MVP
+
+Requisitos directos del humano, posteriores al cierre del flujo end-to-end.
+
+- [ ] 🟡 **Objetivos destacados** en el detalle de entrevista (sección propia entre cabecera y Grabación) + **evaluación de cumplimiento post-grabación** con LLM (icono verde por objetivo cumplido + motivo ≤50 palabras) — petición humana 2026-07-10; evoluciona RF-GUION-004/005 y RF-ASIS-005 — SPEC-025
+
+---
+
 ## Validación de producto (transversal, en paralelo)
 
 Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al desarrollo.
@@ -145,7 +153,8 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H5 · Asistencia | 8 | 8 |
 | H6 · Resumen | 5 | 5 |
 | H7 · Pulido | 7 | 6 |
+| H8 · Post-MVP | 1 | 0 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **51** |
+| **Total** | **57** | **51** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
