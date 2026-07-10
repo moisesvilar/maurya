@@ -117,7 +117,7 @@ Depende de H6. MVP listo para usuarios de validación.
 - [x] 🔴 Medición y control de **coste de IA por entrevista** (NFR §4.5) — SPEC-021 + iter-1, unit 374/374 PASS (aiUsage por entrevista, límite configurable que pausa el asistente, coste visible en vivo y en detalle)
 - [x] 🔴 **Aviso de consentimiento de grabación** al usuario (NFR §4.6, Riesgo #8) — SPEC-019, unit 10/10 ACs PASS (suite generada en la vuelta de SPEC-020)
 - [ ] 🔴 **Tests de usabilidad** de la asistencia en directo (Riesgo #2)
-- [ ] 🟡 Degradación elegante si falla la diarización (Riesgo #9)
+- [x] 🟡 Degradación elegante si falla la diarización (Riesgo #9) — SPEC-022 + iter-1, unit 14 tests PASS (fallback único sin diarize en el handshake, Alert de modo degradado, asistente/nota ya toleraban speaker null)
 - [ ] 🔴 Empaquetado/instalador macOS y hardening final
 
 ---
