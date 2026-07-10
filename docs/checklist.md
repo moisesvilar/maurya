@@ -118,7 +118,7 @@ Depende de H6. MVP listo para usuarios de validación.
 - [x] 🔴 **Aviso de consentimiento de grabación** al usuario (NFR §4.6, Riesgo #8) — SPEC-019, unit 10/10 ACs PASS (suite generada en la vuelta de SPEC-020)
 - [ ] 🔴 **Tests de usabilidad** de la asistencia en directo (Riesgo #2)
 - [x] 🟡 Degradación elegante si falla la diarización (Riesgo #9) — SPEC-022 + iter-1, unit 14 tests PASS (fallback único sin diarize en el handshake, Alert de modo degradado, asistente/nota ya toleraban speaker null)
-- [ ] 🔴 Empaquetado/instalador macOS y hardening final
+- [x] 🔴 Empaquetado/instalador macOS y hardening final — SPEC-024 + iter-1, suite PASS + bundle verificado: Maurya-1.0.0.dmg/.zip arm64 con sello ad-hoc real vía afterPack (codesign --verify --deep --strict OK, entitlements audio-input/allow-jit embebidos, TCC descriptions + categoría en Info.plist), humo de arranque OK. Camino a Developer ID/notarización documentado en electron-builder.yml sin activar
 
 ---
 
@@ -144,8 +144,8 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H4 · Transcripción | 6 | 6 |
 | H5 · Asistencia | 8 | 8 |
 | H6 · Resumen | 5 | 5 |
-| H7 · Pulido | 7 | 5 |
+| H7 · Pulido | 7 | 6 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **50** |
+| **Total** | **56** | **51** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
