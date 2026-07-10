@@ -145,7 +145,7 @@ export interface Note {
 }
 
 // ---------------------------------------------------------------------------
-// Prompts de IA personalizables (SPEC-025)
+// Prompts de IA personalizables (SPEC-026)
 // ---------------------------------------------------------------------------
 
 /** Catálogo fijo de prompts personalizables; el orden es el del listado en Ajustes. */
@@ -155,7 +155,7 @@ export const CUSTOM_PROMPT_IDS = ['script', 'note', 'assistant'] as const
 export type CustomPromptId = (typeof CUSTOM_PROMPT_IDS)[number]
 
 /**
- * Override persistido en db.json (SPEC-025). Solo cubre el bloque de
+ * Override persistido en db.json (SPEC-026). Solo cubre el bloque de
  * persona/enfoque del system prompt; las reglas estructurales viven bloqueadas
  * en main. `body` es Markdown plano: la fuente de verdad de lo que se envía.
  * Los prompts NO son secretos: nunca van a secrets.json.
@@ -372,7 +372,7 @@ export interface DbApi {
   getAiCostSettings: () => Promise<DbResult<AiCostSettings>>
   setAiCostSettings: (settings: AiCostSettings) => Promise<DbResult<AiCostSettings>>
 
-  /** Prompts de IA personalizables (SPEC-025): catálogo fijo con override→default. */
+  /** Prompts de IA personalizables (SPEC-026): catálogo fijo con override→default. */
   listCustomPrompts: () => Promise<DbResult<CustomPrompt[]>>
   saveCustomPrompt: (id: CustomPromptId, body: string) => Promise<DbResult<CustomPrompt>>
   resetCustomPrompt: (id: CustomPromptId) => Promise<DbResult<CustomPrompt>>

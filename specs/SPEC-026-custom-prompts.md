@@ -1,4 +1,4 @@
-# SPEC-025 — Prompts de IA personalizables desde Ajustes
+# SPEC-026 — Prompts de IA personalizables desde Ajustes
 
 > Traza a: RF-CFG-001 (PRD §3.8). Origen: decisión humana 2026-07-10
 > (docs/drafts/prompt-externalizar-prompts-claude.md).

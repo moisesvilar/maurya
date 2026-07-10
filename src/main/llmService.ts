@@ -188,7 +188,7 @@ function buildSystemPrompt(template: InterviewTemplate, hasCompany: boolean): st
   const task = hasCompany
     ? 'Tu tarea: adaptar el template de entrevista proporcionado a la empresa y al contacto concretos, y definir los objetivos de la entrevista.'
     : 'Tu tarea: adaptar el template de entrevista proporcionado al contexto del discovery, y definir los objetivos de la entrevista.'
-  // SPEC-025: el bloque de persona/enfoque se resuelve en cada uso
+  // SPEC-026: el bloque de persona/enfoque se resuelve en cada uso
   // (override de Ajustes → default); las reglas de abajo quedan bloqueadas.
   return [
     resolvePromptPersona('script') + phase,

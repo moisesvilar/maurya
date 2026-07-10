@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import type { CustomPrompt, CustomPromptId } from '@/types/domain'
 
-/** Estado del catálogo de prompts personalizables (SPEC-025). */
+/** Estado del catálogo de prompts personalizables (SPEC-026). */
 export type CustomPromptsState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
@@ -22,7 +22,7 @@ export interface UseCustomPromptsResult {
 }
 
 /**
- * Catálogo fijo de prompts de IA personalizables (SPEC-025). Persistencia
+ * Catálogo fijo de prompts de IA personalizables (SPEC-026). Persistencia
  * exclusiva vía `api.db.*CustomPrompt` (patrón useNoteTemplates): las promesas
  * nunca se rechazan, los fallos viajan como `{ ok: false, error }` y se mapean
  * a error state (listar) o Toast destructive (guardar/restablecer).

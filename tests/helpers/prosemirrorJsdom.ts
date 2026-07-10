@@ -1,5 +1,5 @@
 /**
- * Polyfills mínimos para montar TipTap/ProseMirror bajo jsdom (SPEC-025).
+ * Polyfills mínimos para montar TipTap/ProseMirror bajo jsdom (SPEC-026).
  * jsdom no implementa la geometría de Range (`getClientRects` /
  * `getBoundingClientRect`) ni `document.elementFromPoint`, que EditorView usa
  * al posicionar el cursor. Sin ellos, el editor lanza al montar. Idempotente:

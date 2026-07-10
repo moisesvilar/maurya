@@ -13,7 +13,7 @@ import {
 import { CUSTOM_PROMPT_DEFAULTS } from './defaults'
 
 /**
- * Prompts de IA personalizables (SPEC-025): composición de la vista que
+ * Prompts de IA personalizables (SPEC-026): composición de la vista que
  * consume Ajustes (default + reglas bloqueadas + override) y resolución del
  * bloque de persona en cada uso (override guardado → default del módulo).
  */

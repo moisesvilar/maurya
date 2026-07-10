@@ -126,7 +126,7 @@ Depende de H6. MVP listo para usuarios de validación.
 
 Añadido por decisión humana 2026-07-10 (docs/drafts/prompt-externalizar-prompts-claude.md). Depende de H7.
 
-- [x] 🟡 **Prompts de IA personalizables** desde Ajustes: pestaña «Prompts personalizados», persona/enfoque editable con restablecer a default, reglas estructurales bloqueadas (RF-CFG-001) — SPEC-025, unit 429/429 PASS a la primera (22 ACs; editor Markdown WYSIWYG TipTap; asistente byte-estable en sesión)
+- [x] 🟡 **Prompts de IA personalizables** desde Ajustes: pestaña «Prompts personalizados», persona/enfoque editable con restablecer a default, reglas estructurales bloqueadas (RF-CFG-001) — SPEC-026, unit 429/429 PASS a la primera (22 ACs; editor Markdown WYSIWYG TipTap; asistente byte-estable en sesión)
 
 ---
 

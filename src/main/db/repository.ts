@@ -624,7 +624,7 @@ export function deleteNoteTemplate(id: string): null {
 }
 
 // ---------------------------------------------------------------------------
-// CustomPromptOverride (SPEC-025)
+// CustomPromptOverride (SPEC-026)
 // ---------------------------------------------------------------------------
 
 /** El catálogo es fijo: cualquier id fuera de él es un dato inválido del bridge. */

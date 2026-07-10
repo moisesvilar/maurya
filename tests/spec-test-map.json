@@ -1167,8 +1167,8 @@
     "updated_at": "2026-07-10",
     "iteration_spec_file": "specs/SPEC-024-iter-1-empaquetado-hardening-final.md"
   },
-  "SPEC-025": {
-    "spec_file": "specs/SPEC-025-custom-prompts.md",
+  "SPEC-026": {
+    "spec_file": "specs/SPEC-026-custom-prompts.md",
     "ac_numbering_note": "ACs numerados por orden de aparición en la spec (22): listado ×5 (AC-01 lista de 3 prompts con nombre/descripción/Badge, AC-02 Badge Default sin override, AC-03 Badge Personalizado con override, AC-04 skeletons, AC-05 error state con Reintentar), edición ×8 (AC-06 Sheet con editor WYSIWYG + botonera + reglas fijas solo lectura, AC-07 formato de botonera reflejado al instante, AC-08 guardar persiste Markdown + cierra + Toast + Badge Personalizado, AC-09 round-trip fiel del formato guardado, AC-10 vacío → error inline sin persistir, AC-11 fallo de guardado → Toast destructive con Sheet abierto, AC-12 descartar cambios con AlertDialog, AC-13 cierre directo sin cambios), restablecer ×3 (AC-14 AlertDialog con consecuencia, AC-15 confirmación → Badge Default + Toast, AC-16 botón disabled con Tooltip), runtime ×6 (AC-17 override script en system con reglas intactas, AC-18 ídem nota, AC-19 systemBlocks del asistente con override y límites intactos, AC-20 sin override → default del módulo, AC-21 sesión en curso byte-estable y override en la siguiente, AC-22 reset → default en el siguiente uso).",
     "unit": [
       {
@@ -1188,7 +1188,7 @@
       }
     ],
     "e2e": [],
-    "e2e_note": "e2e/Playwright no aplica en este proyecto (app Electron local sin public link, decisión humana 2026-07-03); todos los ACs de SPEC-025 son automatizables como unit.",
+    "e2e_note": "e2e/Playwright no aplica en este proyecto (app Electron local sin public link, decisión humana 2026-07-03); todos los ACs de SPEC-026 son automatizables como unit.",
     "manual_verification": "Recomendada (no bloqueante): experiencia real de edición WYSIWYG (caret, teclado, look del editor) en la app empaquetada — jsdom no reproduce la interacción de teclado de ProseMirror.",
     "acceptance_criteria_coverage": {
       "AC-01": "tests/unit/custom-prompts/CustomPromptsTab.test.tsx::CustomPromptsTab::listing the catalog::renders the three prompts with name, description and a status badge each",
@@ -1214,7 +1214,7 @@
       "AC-21": "tests/unit/custom-prompts/customPromptsResolution.test.ts::customPromptsResolution::live assistant (assistantService)::keeps the running session systemBlocks byte-stable when the override changes and applies it on the next session",
       "AC-22": "tests/unit/custom-prompts/customPromptsResolution.test.ts::customPromptsResolution::script generation (llmService)::returns to the default persona on the next generation after resetting the override"
     },
-    "notes": "Infra de tests tocada con justificación: tests/helpers/mockApi.ts extendido con listCustomPrompts/saveCustomPrompt/resetCustomPrompt (DbApi creció en SPEC-025 y el helper tipado dejaba de compilar para TODA la suite) y nuevo tests/helpers/prosemirrorJsdom.ts (polyfills de Range/elementFromPoint que ProseMirror necesita bajo jsdom). El editor TipTap se monta real (sin mockearlo); riesgo conocido: si una versión futura de TipTap exige más APIs de DOM, ampliar el polyfill, no mockear el editor.",
+    "notes": "Infra de tests tocada con justificación: tests/helpers/mockApi.ts extendido con listCustomPrompts/saveCustomPrompt/resetCustomPrompt (DbApi creció en SPEC-026 y el helper tipado dejaba de compilar para TODA la suite) y nuevo tests/helpers/prosemirrorJsdom.ts (polyfills de Range/elementFromPoint que ProseMirror necesita bajo jsdom). El editor TipTap se monta real (sin mockearlo); riesgo conocido: si una versión futura de TipTap exige más APIs de DOM, ampliar el polyfill, no mockear el editor.",
     "created_at": "2026-07-10",
     "updated_at": "2026-07-10"
   }

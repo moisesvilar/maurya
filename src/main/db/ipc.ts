@@ -76,7 +76,7 @@ export function registerDbIpcHandlers(): void {
   handleDb('db:ai-cost-settings:get', repository.getAiCostSettings)
   handleDb('db:ai-cost-settings:set', repository.setAiCostSettings)
 
-  // Prompts de IA personalizables (SPEC-025): catálogo fijo, override→default.
+  // Prompts de IA personalizables (SPEC-026): catálogo fijo, override→default.
   handleDb('db:custom-prompt:list', listCustomPrompts)
   handleDb('db:custom-prompt:save', saveCustomPrompt)
   handleDb('db:custom-prompt:reset', resetCustomPrompt)

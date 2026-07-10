@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * SPEC-025: resolución de prompts personalizados en runtime (AC-17..AC-22).
+ * SPEC-026: resolución de prompts personalizados en runtime (AC-17..AC-22).
  * SDK de Anthropic mockeado (clases de error espejo, patrón SPEC-014/016/017)
  * y store/repository REALES sobre un directorio temporal. Para el asistente,
  * transcriptionService se mockea capturando el finalLineListener (la frontera
@@ -227,7 +227,7 @@ afterEach(() => {
 
 describe('customPromptsResolution', () => {
   describe('script generation (llmService)', () => {
-    // SPEC-025 · AC-17
+    // SPEC-026 · AC-17
     it('uses the saved script override as persona block keeping the locked rules intact in the system prompt', async () => {
       const interviewId = seedScriptInterview()
       repository.saveCustomPromptOverride('script', 'Persona personalizada del guión.')
@@ -246,7 +246,7 @@ describe('customPromptsResolution', () => {
       expect(system).toContain('Responde únicamente con el JSON pedido.')
     })
 
-    // SPEC-025 · AC-20
+    // SPEC-026 · AC-20
     it('builds the system prompt from the module defaults when no override is saved', async () => {
       const interviewId = seedScriptInterview()
       harness.create.mockResolvedValue(sdkResponse(SCRIPT_JSON))
@@ -260,7 +260,7 @@ describe('customPromptsResolution', () => {
       expect(resolvePromptPersona('assistant')).toBe(CUSTOM_PROMPT_DEFAULTS.assistant.persona)
     })
 
-    // SPEC-025 · AC-22
+    // SPEC-026 · AC-22
     it('returns to the default persona on the next generation after resetting the override', async () => {
       const interviewId = seedScriptInterview()
       repository.saveCustomPromptOverride('script', 'Persona personalizada del guión.')
@@ -279,7 +279,7 @@ describe('customPromptsResolution', () => {
   })
 
   describe('note generation (noteService)', () => {
-    // SPEC-025 · AC-18
+    // SPEC-026 · AC-18
     it('uses the saved note override as persona block keeping the locked rules intact in the system prompt', async () => {
       const { interviewId, template } = seedNoteInterview()
       repository.saveCustomPromptOverride('note', 'Persona personalizada de la nota.')
@@ -300,7 +300,7 @@ describe('customPromptsResolution', () => {
   })
 
   describe('live assistant (assistantService)', () => {
-    // SPEC-025 · AC-19
+    // SPEC-026 · AC-19
     it('builds the session systemBlocks with the saved assistant override keeping rules and char limits intact', async () => {
       const interviewId = seedAssistantInterview()
       repository.saveCustomPromptOverride('assistant', 'Persona personalizada del copiloto.')
@@ -329,7 +329,7 @@ describe('customPromptsResolution', () => {
       expect(blocks.at(-1)?.cache_control).toEqual({ type: 'ephemeral' })
     })
 
-    // SPEC-025 · AC-21
+    // SPEC-026 · AC-21
     it('keeps the running session systemBlocks byte-stable when the override changes and applies it on the next session', async () => {
       const interviewId = seedAssistantInterview()
       harness.create.mockResolvedValue(sdkResponse(ANALYSIS_JSON))

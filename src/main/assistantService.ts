@@ -56,7 +56,7 @@ const MAX_TOKENS = 512
 
 // Topes de longitud de la salida (SPEC-023): DEBEN ser los mismos números en
 // el schema y en el texto del prompt (contradicción prompt↔schema = riesgo).
-// SPEC-025: viven en prompts/defaults.ts para que las reglas bloqueadas que
+// SPEC-026: viven en prompts/defaults.ts para que las reglas bloqueadas que
 // muestra Ajustes nunca divergan de las que se envían.
 
 /** Schema de structured outputs: la respuesta del análisis es SIEMPRE este JSON. */
@@ -188,7 +188,7 @@ export function startAssistant(sender: WebContents, interviewId: string): void {
     pausedByLimit: false,
     limitOverridden: false,
     // SPEC-023: el prefijo cacheado se construye AQUÍ y no se recalcula.
-    // SPEC-025: el override del prompt se lee SOLO al arrancar la sesión; un
+    // SPEC-026: el override del prompt se lee SOLO al arrancar la sesión; un
     // cambio en Ajustes a mitad aplica a la siguiente sesión (byte-estable).
     systemBlocks: buildSystemBlocks(objectives, scriptExcerpt, resolvePromptPersona('assistant')),
     tokenTotals: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 }
@@ -350,7 +350,7 @@ async function runAnalysis(target: AssistantSession): Promise<void> {
 // ---------------------------------------------------------------------------
 
 function buildSystemPrompt(persona: string): string {
-  // SPEC-025: `persona` llega resuelta UNA vez en startAssistant (override de
+  // SPEC-026: `persona` llega resuelta UNA vez en startAssistant (override de
   // Ajustes → default) para que el prefijo cacheado sea byte-estable en sesión.
   return [
     persona,

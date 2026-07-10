@@ -130,7 +130,7 @@ function buildSystemPrompt(template: NoteTemplate): string {
     template.context.trim() !== ''
       ? `\nContexto del note-template (manda sobre el enfoque de la síntesis):\n${template.context.trim()}`
       : ''
-  // SPEC-025: el bloque de persona/enfoque se resuelve en cada uso
+  // SPEC-026: el bloque de persona/enfoque se resuelve en cada uso
   // (override de Ajustes → default); las reglas de abajo quedan bloqueadas.
   return [
     resolvePromptPersona('note') + context,

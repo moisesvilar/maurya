@@ -35,7 +35,7 @@ const PROMPT_LABELS: Record<CustomPromptId, { name: string; description: string 
 }
 
 /**
- * Pestaña "Prompts personalizados" de Ajustes (SPEC-025): catálogo fijo de 3
+ * Pestaña "Prompts personalizados" de Ajustes (SPEC-026): catálogo fijo de 3
  * prompts (List, no Table: 1-2 datos por ítem, sin sorting) con Badge de
  * estado Default/Personalizado, edición en Sheet con editor Markdown WYSIWYG
  * y restablecer al default con AlertDialog. Sin empty state: el catálogo

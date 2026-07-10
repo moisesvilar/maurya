@@ -131,7 +131,7 @@ function CustomPromptForm({
 }
 
 /**
- * Sheet de edición de un prompt personalizable (SPEC-025): editor Markdown
+ * Sheet de edición de un prompt personalizable (SPEC-026): editor Markdown
  * WYSIWYG del bloque de persona + reglas fijas en solo lectura. Cerrar con
  * cambios sin guardar (Cancelar, X, Escape o click fuera) pasa por el
  * AlertDialog "Descartar cambios"; sin cambios, cierra directamente.

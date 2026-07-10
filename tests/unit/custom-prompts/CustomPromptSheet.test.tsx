@@ -1,5 +1,5 @@
 /**
- * SPEC-025: Prompts de IA personalizables — edición en Sheet con editor
+ * SPEC-026: Prompts de IA personalizables — edición en Sheet con editor
  * Markdown WYSIWYG (AC-06..AC-13). Frontera de mocking: api.db del bridge;
  * el editor TipTap se monta REAL sobre jsdom (polyfills de geometría de
  * ProseMirror en tests/helpers/prosemirrorJsdom.ts).
@@ -76,7 +76,7 @@ beforeEach(() => {
 
 describe('CustomPromptSheet', () => {
   describe('opening the editor', () => {
-    // SPEC-025 · AC-06
+    // SPEC-026 · AC-06
     it('opens the Sheet with the WYSIWYG editor showing the current text, the toolbar and the read-only locked rules', async () => {
       const user = userEvent.setup()
       renderSettings()
@@ -103,7 +103,7 @@ describe('CustomPromptSheet', () => {
       expect(within(lockedRules).queryByRole('textbox')).not.toBeInTheDocument()
     })
 
-    // SPEC-025 · AC-09
+    // SPEC-026 · AC-09
     it('renders a saved override with its exact formatting when reopening the editor (Markdown round-trip)', async () => {
       const user = userEvent.setup()
       setPrompts([
@@ -127,7 +127,7 @@ describe('CustomPromptSheet', () => {
   })
 
   describe('formatting from the toolbar', () => {
-    // SPEC-025 · AC-07
+    // SPEC-026 · AC-07
     it('applies toolbar formatting and reflects it immediately in the editor view', async () => {
       const user = userEvent.setup()
       renderSettings()
@@ -149,7 +149,7 @@ describe('CustomPromptSheet', () => {
   })
 
   describe('saving', () => {
-    // SPEC-025 · AC-08
+    // SPEC-026 · AC-08
     it('saves the modified text as Markdown, closes the Sheet, shows the "Prompt guardado" toast and switches the badge to "Personalizado"', async () => {
       const user = userEvent.setup()
       vi.mocked(mockApi.api.db.saveCustomPrompt).mockResolvedValue({
@@ -181,7 +181,7 @@ describe('CustomPromptSheet', () => {
       expect(await within(scriptRow).findByText('Personalizado')).toBeInTheDocument()
     })
 
-    // SPEC-025 · AC-10 — GIVEN "editor vacío o solo espacios": se materializa
+    // SPEC-026 · AC-10 — GIVEN "editor vacío o solo espacios": se materializa
     // con un override de solo espacios (la vía de teclado para vaciar un
     // contenteditable de ProseMirror no es fiable en jsdom).
     it('shows the inline error "El prompt no puede quedar vacío" and does not persist when saving an empty editor', async () => {
@@ -199,7 +199,7 @@ describe('CustomPromptSheet', () => {
       expect(screen.getByTestId('custom-prompt-sheet')).toBeInTheDocument()
     })
 
-    // SPEC-025 · AC-11
+    // SPEC-026 · AC-11
     it('keeps the Sheet open with the text intact and shows a destructive toast when saving fails', async () => {
       const user = userEvent.setup()
       vi.mocked(mockApi.api.db.saveCustomPrompt).mockResolvedValue({
@@ -225,7 +225,7 @@ describe('CustomPromptSheet', () => {
   })
 
   describe('closing', () => {
-    // SPEC-025 · AC-12
+    // SPEC-026 · AC-12
     it('asks to discard unsaved changes with the "Descartar cambios" AlertDialog and closes without persisting on confirm', async () => {
       const user = userEvent.setup()
       renderSettings()
@@ -248,7 +248,7 @@ describe('CustomPromptSheet', () => {
       expect(vi.mocked(mockApi.api.db.saveCustomPrompt)).not.toHaveBeenCalled()
     })
 
-    // SPEC-025 · AC-13
+    // SPEC-026 · AC-13
     it('closes the Sheet directly without confirmation when there are no unsaved changes', async () => {
       const user = userEvent.setup()
       renderSettings()

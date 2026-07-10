@@ -1,5 +1,5 @@
 /**
- * SPEC-025: Prompts de IA personalizables — listado y restablecer
+ * SPEC-026: Prompts de IA personalizables — listado y restablecer
  * (AC-01..AC-05, AC-14..AC-16). Frontera de mocking: api.db del bridge.
  * Montado con SettingsPage real en MemoryRouter (patrón NoteTemplatesTab):
  * la pestaña "Prompts personalizados" se abre vía ?tab=custom-prompts.
@@ -73,7 +73,7 @@ beforeEach(() => {
 
 describe('CustomPromptsTab', () => {
   describe('listing the catalog', () => {
-    // SPEC-025 · AC-01
+    // SPEC-026 · AC-01
     it('renders the three prompts with name, description and a status badge each', async () => {
       renderSettings()
 
@@ -103,7 +103,7 @@ describe('CustomPromptsTab', () => {
       }
     })
 
-    // SPEC-025 · AC-02
+    // SPEC-026 · AC-02
     it('shows the "Default" badge when a prompt has no saved override', async () => {
       renderSettings()
 
@@ -112,7 +112,7 @@ describe('CustomPromptsTab', () => {
       expect(screen.queryByText('Personalizado')).not.toBeInTheDocument()
     })
 
-    // SPEC-025 · AC-03
+    // SPEC-026 · AC-03
     it('shows the "Personalizado" badge when a prompt has a saved override', async () => {
       setPrompts([
         promptView('script', {
@@ -129,7 +129,7 @@ describe('CustomPromptsTab', () => {
       expect(screen.getAllByText('Default')).toHaveLength(2)
     })
 
-    // SPEC-025 · AC-04
+    // SPEC-026 · AC-04
     it('shows skeletons while the prompt catalog is loading', async () => {
       vi.mocked(mockApi.api.db.listCustomPrompts).mockReturnValue(
         new Promise<never>(() => undefined)
@@ -143,7 +143,7 @@ describe('CustomPromptsTab', () => {
       expect(screen.queryByTestId('custom-prompts-list')).not.toBeInTheDocument()
     })
 
-    // SPEC-025 · AC-05
+    // SPEC-026 · AC-05
     it('shows the error state with the message and a "Reintentar" button that reloads the catalog', async () => {
       const user = userEvent.setup()
       vi.mocked(mockApi.api.db.listCustomPrompts)
@@ -163,7 +163,7 @@ describe('CustomPromptsTab', () => {
   })
 
   describe('resetting a prompt to default', () => {
-    // SPEC-025 · AC-14
+    // SPEC-026 · AC-14
     it('opens the "Restablecer prompt" AlertDialog naming the prompt and its consequence', async () => {
       const user = userEvent.setup()
       setPrompts([
@@ -193,7 +193,7 @@ describe('CustomPromptsTab', () => {
       expect(vi.mocked(mockApi.api.db.resetCustomPrompt)).not.toHaveBeenCalled()
     })
 
-    // SPEC-025 · AC-15
+    // SPEC-026 · AC-15
     it('resets the prompt, switches the badge to "Default" and shows the "Prompt restablecido" toast after confirming', async () => {
       const user = userEvent.setup()
       setPrompts([
@@ -222,7 +222,7 @@ describe('CustomPromptsTab', () => {
       expect(toasts.length).toBeGreaterThanOrEqual(1)
     })
 
-    // SPEC-025 · AC-16 (1 solo hover de tooltip por render — lección Radix)
+    // SPEC-026 · AC-16 (1 solo hover de tooltip por render — lección Radix)
     it('disables the "Restablecer prompt" button with an explanatory tooltip when the prompt is at default', async () => {
       const user = userEvent.setup()
       renderSettings()

@@ -22,7 +22,7 @@ interface PromptMarkdownEditorProps {
 
 /**
  * Serializa el documento a Markdown plano: la fuente de verdad de lo que se
- * persiste y se envía como bloque de persona (SPEC-025). El storage de
+ * persiste y se envía como bloque de persona (SPEC-026). El storage de
  * tiptap-markdown no está tipado en @tiptap/core, de ahí el cast localizado.
  */
 function toMarkdown(editor: Editor): string {
@@ -72,7 +72,7 @@ const TOOLBAR_ACTIONS: ToolbarAction[] = [
 ]
 
 /**
- * Editor Markdown WYSIWYG del bloque de persona/enfoque (SPEC-025): el texto
+ * Editor Markdown WYSIWYG del bloque de persona/enfoque (SPEC-026): el texto
  * se muestra renderizado y se edita sobre la vista formateada; la botonera
  * aplica el formato y refleja el estado activo bajo el cursor. Round-trip
  * fiel string → vista → string vía tiptap-markdown.

@@ -1,7 +1,7 @@
 import type { CustomPromptId } from '../../renderer/src/types/domain'
 
 /**
- * Defaults de los prompts de IA personalizables (SPEC-025).
+ * Defaults de los prompts de IA personalizables (SPEC-026).
  *
  * Cada system prompt se compone como: bloque de persona/enfoque (editable por
  * el usuario desde Ajustes, con resolución override→default) + partes

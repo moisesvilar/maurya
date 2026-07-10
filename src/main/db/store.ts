@@ -34,7 +34,7 @@ export interface DbData {
    */
   aiCostSettings?: AiCostSettings
   /**
-   * Overrides de prompts de IA (SPEC-025): colección opcional, sin bump de
+   * Overrides de prompts de IA (SPEC-026): colección opcional, sin bump de
    * schemaVersion (ausente = todos los prompts en default; isDbData lo tolera
    * y persist lo conserva). La lectura se normaliza en el repositorio.
    */
