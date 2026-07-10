@@ -4,10 +4,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AiCostCard } from '@/components/settings/AiCostCard'
 import { ApiKeyRow } from '@/components/settings/ApiKeyRow'
+import { CustomPromptsTab } from '@/components/settings/CustomPromptsTab'
 import { NoteTemplatesTab } from '@/components/settings/NoteTemplatesTab'
 import { useSecrets } from '@/hooks/useSecrets'
 
-type SettingsTab = 'api-keys' | 'note-templates'
+type SettingsTab = 'api-keys' | 'note-templates' | 'custom-prompts'
 
 /**
  * Página de Ajustes (SPEC-007 + SPEC-008) — Layout 4 (Settings) con Tabs:
@@ -25,8 +26,9 @@ export function SettingsPage(): React.ReactElement {
   const [searchParams, setSearchParams] = useSearchParams()
   const { status, save, remove } = useSecrets()
 
+  const tabParam = searchParams.get('tab')
   const tab: SettingsTab =
-    searchParams.get('tab') === 'note-templates' ? 'note-templates' : 'api-keys'
+    tabParam === 'note-templates' || tabParam === 'custom-prompts' ? tabParam : 'api-keys'
 
   const handleTabChange = (value: string): void => {
     setSearchParams({ tab: value }, { replace: true })
@@ -41,6 +43,7 @@ export function SettingsPage(): React.ReactElement {
         <TabsList>
           <TabsTrigger value="api-keys">Claves de IA</TabsTrigger>
           <TabsTrigger value="note-templates">Plantillas de notas</TabsTrigger>
+          <TabsTrigger value="custom-prompts">Prompts personalizados</TabsTrigger>
         </TabsList>
         <TabsContent value="api-keys" className="pt-4">
           <section className="flex flex-col gap-6">
@@ -81,6 +84,9 @@ export function SettingsPage(): React.ReactElement {
         </TabsContent>
         <TabsContent value="note-templates" className="pt-4">
           <NoteTemplatesTab />
+        </TabsContent>
+        <TabsContent value="custom-prompts" className="pt-4">
+          <CustomPromptsTab />
         </TabsContent>
       </Tabs>
     </div>

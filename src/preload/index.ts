@@ -78,7 +78,12 @@ const db: DbApi = {
 
   // Ajustes de coste de IA (SPEC-021): límite por entrevista del asistente.
   getAiCostSettings: () => ipcRenderer.invoke('db:ai-cost-settings:get'),
-  setAiCostSettings: (settings) => ipcRenderer.invoke('db:ai-cost-settings:set', settings)
+  setAiCostSettings: (settings) => ipcRenderer.invoke('db:ai-cost-settings:set', settings),
+
+  // Prompts de IA personalizables (SPEC-025): catálogo fijo, override→default.
+  listCustomPrompts: () => ipcRenderer.invoke('db:custom-prompt:list'),
+  saveCustomPrompt: (id, body) => ipcRenderer.invoke('db:custom-prompt:save', id, body),
+  resetCustomPrompt: (id) => ipcRenderer.invoke('db:custom-prompt:reset', id)
 }
 
 /**

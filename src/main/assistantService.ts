@@ -14,6 +14,8 @@ import { getAnthropicKey, mapSdkError, toLlmError, LlmOperationError } from './l
 import { computeCostUsd, extractUsage, roundUpUsd } from './aiCost'
 import { setFinalLineListener } from './transcriptionService'
 import * as repository from './db/repository'
+import { resolvePromptPersona } from './prompts'
+import { REASON_MAX_CHARS, SUGGESTED_QUESTION_MAX_CHARS } from './prompts/defaults'
 
 /**
  * Asistente proactivo en tiempo real (SPEC-016). Vive SOLO en main (patrón
@@ -54,8 +56,8 @@ const MAX_TOKENS = 512
 
 // Topes de longitud de la salida (SPEC-023): DEBEN ser los mismos números en
 // el schema y en el texto del prompt (contradicción prompt↔schema = riesgo).
-const SUGGESTED_QUESTION_MAX_CHARS = 200
-const REASON_MAX_CHARS = 140
+// SPEC-025: viven en prompts/defaults.ts para que las reglas bloqueadas que
+// muestra Ajustes nunca divergan de las que se envían.
 
 /** Schema de structured outputs: la respuesta del análisis es SIEMPRE este JSON. */
 const OUTPUT_SCHEMA = {
@@ -185,8 +187,10 @@ export function startAssistant(sender: WebContents, interviewId: string): void {
     persistedBaseUsd,
     pausedByLimit: false,
     limitOverridden: false,
-    // SPEC-023: el prefijo cacheado se construye AQUÍ y no se recalcula
-    systemBlocks: buildSystemBlocks(objectives, scriptExcerpt),
+    // SPEC-023: el prefijo cacheado se construye AQUÍ y no se recalcula.
+    // SPEC-025: el override del prompt se lee SOLO al arrancar la sesión; un
+    // cambio en Ajustes a mitad aplica a la siguiente sesión (byte-estable).
+    systemBlocks: buildSystemBlocks(objectives, scriptExcerpt, resolvePromptPersona('assistant')),
     tokenTotals: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 }
   }
   session = target
@@ -345,9 +349,11 @@ async function runAnalysis(target: AssistantSession): Promise<void> {
 // Prompt
 // ---------------------------------------------------------------------------
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(persona: string): string {
+  // SPEC-025: `persona` llega resuelta UNA vez en startAssistant (override de
+  // Ajustes → default) para que el prefijo cacheado sea byte-estable en sesión.
   return [
-    'Eres el copiloto en tiempo real de un entrevistador de discovery de producto, anclado a The Mom Test (Rob Fitzpatrick) y Running Lean (Ash Maurya): hechos pasados y comportamiento concreto, nunca hipótesis halagadoras.',
+    persona,
     // SPEC-023: los objetivos y el guión viven en este prefijo fijo; en cada
     // mensaje solo llega la parte variable (ventana + índices cubiertos)
     'Más abajo tienes, si existen, los objetivos y el guión de la entrevista. En cada mensaje recibirás la ventana reciente de la conversación (transcrita en vivo, puede contener errores) y los índices de los objetivos ya cubiertos. Tu tarea: decidir la siguiente jugada del entrevistador.',
@@ -374,9 +380,10 @@ function buildSystemPrompt(): string {
  */
 function buildSystemBlocks(
   objectives: string[],
-  scriptExcerpt: string | null
+  scriptExcerpt: string | null,
+  persona: string
 ): Anthropic.TextBlockParam[] {
-  const blocks: Anthropic.TextBlockParam[] = [{ type: 'text', text: buildSystemPrompt() }]
+  const blocks: Anthropic.TextBlockParam[] = [{ type: 'text', text: buildSystemPrompt(persona) }]
   const contextSections: string[] = []
   if (objectives.length > 0) {
     const objectiveLines = objectives.map((objective, index) => `${index}. ${objective}`)

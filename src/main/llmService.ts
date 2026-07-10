@@ -12,6 +12,7 @@ import type { LlmError, LlmErrorKind, LlmStatus } from '../renderer/src/types/ll
 import { getDecryptedSecret } from './secretsService'
 import { extractUsage, recordInterviewUsage } from './aiCost'
 import * as repository from './db/repository'
+import { resolvePromptPersona } from './prompts'
 
 /**
  * Servicio de generación de guión y objetivos con Claude (SPEC-014). Vive SOLO
@@ -187,9 +188,10 @@ function buildSystemPrompt(template: InterviewTemplate, hasCompany: boolean): st
   const task = hasCompany
     ? 'Tu tarea: adaptar el template de entrevista proporcionado a la empresa y al contacto concretos, y definir los objetivos de la entrevista.'
     : 'Tu tarea: adaptar el template de entrevista proporcionado al contexto del discovery, y definir los objetivos de la entrevista.'
+  // SPEC-025: el bloque de persona/enfoque se resuelve en cada uso
+  // (override de Ajustes → default); las reglas de abajo quedan bloqueadas.
   return [
-    'Eres un preparador experto de entrevistas de discovery de producto, anclado a los principios de The Mom Test (Rob Fitzpatrick) y Running Lean (Ash Maurya): preguntas sobre hechos pasados y comportamiento concreto, nunca hipótesis halagadoras; escuchar más que hablar; validar problemas antes que soluciones.' +
-      phase,
+    resolvePromptPersona('script') + phase,
     task,
     'Reglas:',
     '- Escribe TODO en español.',
