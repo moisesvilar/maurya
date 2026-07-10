@@ -46,9 +46,9 @@
 
 ### Registro de la sesión de validación final
 
-- Fecha: _pendiente_
-- Transcripción en vivo: _pendiente_
-- Latencia (mediana / p95 / máx): _pendiente_
-- Diarización (calidad percibida): _pendiente_
-- Sesión 15 min: _pendiente_
-- **Veredicto final: _pendiente_**
+- Fecha: 2026-07-10
+- Validación: **uso en entrevistas reales** (el humano usó el pipeline completo en entrevistas de discovery reales, no en sesión sintética de 15 min). Declaración literal: "El spike es un GO como una casa, ya lo usé en entrevistas reales."
+- Transcripción en vivo: funcionando en condiciones reales (implícito en el uso declarado).
+- Latencia (mediana / p95 / máx): sin números registrados — la medición cuantitativa queda para el ítem H7 de optimización de latencia; el juicio cualitativo del humano es "utilizable".
+- Diarización (calidad percibida): sin observaciones negativas reportadas.
+- **Veredicto final: GO — firmado por el humano (2026-07-10).**

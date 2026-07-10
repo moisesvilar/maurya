@@ -20,7 +20,7 @@ Mayor riesgo técnico; bloquea H4/H5. Va primero a propósito.
 - [x] 🔴 Integración de **STT streaming con Deepgram** transcribiendo en vivo con baja latencia (RF-AUDIO-003) — SPEC-002, unit 24/24 PASS; verificación con voz real pendiente de humano
 - [x] 🔴 Medir **latencia extremo a extremo** audio→texto y validar que es utilizable en directo (NFR §4.1, Riesgo #3) — SPEC-003, unit 32/32 PASS; veredicto "utilizable" pendiente de sesión real del humano
 - [x] 🟡 Probar **diarización** (entrevistador vs. interlocutor) de Deepgram (RF-AUDIO-004) — SPEC-004, unit 40/40 PASS; calidad con voces reales pendiente de humano
-- [ ] 🔴 **Decisión go/no-go** técnico documentada antes de continuar
+- [x] 🔴 **Decisión go/no-go** técnico documentada antes de continuar — GO firmado por el humano 2026-07-10 tras uso en entrevistas reales (docs/spike-audio-go-no-go.md). **H0 completo**
 
 ---
 
