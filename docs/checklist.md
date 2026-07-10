@@ -122,6 +122,14 @@ Depende de H6. MVP listo para usuarios de validación.
 
 ---
 
+## H8 · Mejoras post-MVP
+
+Requisitos directos del humano, posteriores al cierre del flujo end-to-end.
+
+- [x] 🟡 **Objetivos destacados** en el detalle de entrevista (sección propia entre cabecera y Grabación) + **evaluación de cumplimiento post-grabación** con LLM (icono verde por objetivo cumplido + motivo ≤50 palabras) — petición humana 2026-07-10; evoluciona RF-GUION-004/005 y RF-ASIS-005 — SPEC-025, unit 433/433 PASS (28 tests propios, 26/26 ACs); calidad real de la evaluación pendiente de humo con la clave del humano
+
+---
+
 ## Post-MVP · Configuración avanzada de IA
 
 Añadido por decisión humana 2026-07-10 (docs/drafts/prompt-externalizar-prompts-claude.md). Depende de H7.
@@ -153,8 +161,9 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H5 · Asistencia | 8 | 8 |
 | H6 · Resumen | 5 | 5 |
 | H7 · Pulido | 7 | 6 |
+| H8 · Post-MVP | 1 | 1 |
 | Post-MVP · Config. IA | 1 | 1 |
 | Validación | 4 | 0 |
-| **Total** | **57** | **52** |
+| **Total** | **58** | **53** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.

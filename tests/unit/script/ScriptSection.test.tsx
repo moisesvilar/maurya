@@ -220,16 +220,18 @@ describe('ScriptSection', () => {
   })
 
   describe('reading', () => {
-    // SPEC-014 · AC-07
-    it('renders the script preserving line breaks (pre-wrap) and the Objetivos list below', async () => {
+    // SPEC-014 · AC-07, actualizado por SPEC-025 · AC-03: la parte "y debajo la
+    // sección Objetivos" está derogada — el modo lectura muestra SOLO el guión
+    // y los objetivos viven en la sección superior (h3, no h4 dentro del Guión)
+    it('renders the script preserving line breaks (pre-wrap) without an objectives block inside Guión', async () => {
       setInterview(WITH_SCRIPT)
       renderDetail()
 
       const script = await screen.findByText(/Guión adaptado/)
       expect(script).toHaveClass('whitespace-pre-wrap')
-      expect(screen.getByRole('heading', { name: 'Objetivos', level: 4 })).toBeInTheDocument()
-      const items = screen.getAllByRole('listitem')
-      expect(items.map((item) => item.textContent)).toEqual(['Objetivo A', 'Objetivo B'])
+      expect(screen.queryByRole('heading', { name: 'Objetivos', level: 4 })).not.toBeInTheDocument()
+      // Los objetivos siguen visibles, pero en la sección superior (SPEC-025)
+      expect(screen.getByRole('heading', { name: 'Objetivos', level: 3 })).toBeInTheDocument()
     })
 
     // SPEC-014 · AC-08

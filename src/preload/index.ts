@@ -12,7 +12,7 @@ import type {
 } from '../renderer/src/types/audio'
 import type { DbApi } from '../renderer/src/types/domain'
 import type { SecretsApi } from '../renderer/src/types/secrets'
-import type { LlmApi } from '../renderer/src/types/llm'
+import type { LlmApi, ObjectiveEvaluationEvent } from '../renderer/src/types/llm'
 import type { NotesApi } from '../renderer/src/types/notes'
 import type { AssistantApi, AssistantUpdateEvent } from '../renderer/src/types/assistant'
 
@@ -106,7 +106,17 @@ const llm: LlmApi = {
   getStatus: () => ipcRenderer.invoke('llm:get-status'),
   generateScript: (interviewId) => ipcRenderer.invoke('llm:generate-script', interviewId),
   generateNote: (interviewId, noteTemplateId) =>
-    ipcRenderer.invoke('llm:generate-note', interviewId, noteTemplateId)
+    ipcRenderer.invoke('llm:generate-note', interviewId, noteTemplateId),
+  // Evaluación de objetivos (SPEC-025): canal manual + eventos del camino automático
+  evaluateObjectives: (interviewId) => ipcRenderer.invoke('llm:evaluate-objectives', interviewId),
+  onObjectiveEvaluation: (callback: (event: ObjectiveEvaluationEvent) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, payload: ObjectiveEvaluationEvent): void =>
+      callback(payload)
+    ipcRenderer.on('llm:objective-evaluation', listener)
+    return (): void => {
+      ipcRenderer.removeListener('llm:objective-evaluation', listener)
+    }
+  }
 }
 
 /**

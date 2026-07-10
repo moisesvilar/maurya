@@ -18,7 +18,6 @@ import { DegradedTranscriptionAlert } from '@/components/recording/DegradedTrans
 import { LatencyRow } from '@/components/recording/LatencyRow'
 import { MicSelect } from '@/components/recording/MicSelect'
 import { NoKeyAlert } from '@/components/recording/NoKeyAlert'
-import { ObjectivesPanel } from '@/components/recording/ObjectivesPanel'
 import { PermissionBadges } from '@/components/recording/PermissionBadges'
 import { TranscriptArea } from '@/components/recording/TranscriptArea'
 import { TranscriptionStatusBadge } from '@/components/recording/transcriptionStatusBadge'
@@ -76,7 +75,6 @@ export function RecordingSection({
   const {
     state: assistantState,
     suggestion: assistantSuggestion,
-    objectivesMet,
     error: assistantError,
     vote: assistantVote,
     usage: assistantUsage,
@@ -277,9 +275,8 @@ export function RecordingSection({
             onVote={sendFeedback}
             onResume={resumeAssistant}
           />
-          {interview.objectives.length > 0 && (
-            <ObjectivesPanel objectives={interview.objectives} objectivesMet={objectivesMet} />
-          )}
+          {/* SPEC-025: el seguimiento en vivo de objetivos se pinta en la
+              sección "Objetivos" superior del detalle, no aquí */}
           <div className="space-y-3">
             <LevelMeter label="Micrófono" value={levels.microphone} />
             <LevelMeter label="Sistema" value={levels.system} />

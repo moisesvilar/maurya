@@ -599,6 +599,15 @@ export function resumeAssistantLimit(): void {
 }
 
 /**
+ * Índices de objetivos cubiertos por el seguimiento en vivo de la sesión
+ * activa (SPEC-025): pista no vinculante para la evaluación post-grabación.
+ * Llamar ANTES de stopAssistant (que destruye la sesión). Sin sesión → [].
+ */
+export function peekAssistantObjectivesMet(): number[] {
+  return session !== null ? sortedObjectivesMet(session) : []
+}
+
+/**
  * Desactiva el asistente y devuelve el registro de la sesión para persistirlo
  * en el transcript.json. SÍNCRONO: llamar desde `recording:stop` ANTES de
  * persistTranscript (y en el camino de error, descartando el resultado).

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AiCostInline } from '@/components/interviews/AiCostInline'
 import { NoteSection } from '@/components/interviews/NoteSection'
+import { ObjectivesSection } from '@/components/interviews/ObjectivesSection'
 import { ScriptSection } from '@/components/interviews/ScriptSection'
 import { RecordingSection } from '@/components/recording/RecordingSection'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
@@ -141,6 +142,13 @@ export function InterviewDetailPage(): React.ReactElement {
               {templateLabel(state.interview)} · <AiCostInline aiUsage={state.interview.aiUsage} />
             </p>
           </div>
+
+          {/* SPEC-025: los objetivos van arriba del todo, entre la cabecera y
+              la Grabación — son el indicador de progreso principal */}
+          <ObjectivesSection
+            interview={state.interview}
+            onInterviewUpdated={handleInterviewUpdated}
+          />
 
           <RecordingSection
             interview={state.interview}
