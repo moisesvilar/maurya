@@ -144,21 +144,27 @@ function buildSystemPrompt(template: NoteTemplate): string {
 
 function buildUserPrompt(
   interview: Interview,
-  company: Company,
+  company: Company | null,
   contact: Contact | null,
   template: NoteTemplate,
   lines: TranscriptLine[]
 ): string {
   const sections: string[] = []
 
-  const companyLines = [`Nombre: ${company.name}`]
-  if (company.website !== null) {
-    companyLines.push(`Web: ${company.website}`)
+  // SPEC-020: la captura puede no tener empresa asignada todavía; la nota se
+  // genera igual, declarándolo honestamente en el contexto.
+  if (company !== null) {
+    const companyLines = [`Nombre: ${company.name}`]
+    if (company.website !== null) {
+      companyLines.push(`Web: ${company.website}`)
+    }
+    if (company.linkedinUrl !== null) {
+      companyLines.push(`LinkedIn: ${company.linkedinUrl}`)
+    }
+    sections.push(`## Empresa\n${companyLines.join('\n')}`)
+  } else {
+    sections.push('## Empresa\nSin empresa asignada.')
   }
-  if (company.linkedinUrl !== null) {
-    companyLines.push(`LinkedIn: ${company.linkedinUrl}`)
-  }
-  sections.push(`## Empresa\n${companyLines.join('\n')}`)
 
   if (contact !== null) {
     const contactLines = [`Nombre: ${contact.name}`]
@@ -281,7 +287,8 @@ async function doGenerate(
     throw new LlmOperationError('no-transcript', 'No se pudo leer la transcripción')
   }
 
-  const company = repository.getCompany(interview.companyId)
+  // SPEC-020: empresa nullable en capturas capture-first; el prompt degrada.
+  const company = interview.companyId !== null ? repository.getCompany(interview.companyId) : null
   const contact = interview.contactId !== null ? repository.getContact(interview.contactId) : null
 
   const client = new Anthropic({ apiKey })

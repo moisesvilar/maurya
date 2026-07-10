@@ -22,6 +22,11 @@ import type {
   UpdateNotePatch,
   UpdateNoteTemplatePatch
 } from '../../renderer/src/types/domain'
+import type {
+  AssignCompanyInput,
+  AssignCompanyResult,
+  CaptureListItem
+} from '../../renderer/src/types/captures'
 import { notFoundError, referenceError, validationError } from './errors'
 import { mutate, read, type DbData } from './store'
 
@@ -78,7 +83,7 @@ function deleteCompaniesCascade(draft: DbData, companyIds: Set<string>): void {
   draft.contacts = draft.contacts.filter((contact) => !companyIds.has(contact.companyId))
   const interviewIds = new Set(
     draft.interviews
-      .filter((interview) => companyIds.has(interview.companyId))
+      .filter((interview) => interview.companyId !== null && companyIds.has(interview.companyId))
       .map((interview) => interview.id)
   )
   deleteInterviewsCascade(draft, interviewIds)
@@ -129,6 +134,15 @@ export function updateDiscovery(id: string, patch: UpdateDiscoveryPatch): Discov
 export function deleteDiscovery(id: string): null {
   return mutate((draft) => {
     findOrThrow(draft.discoveries, id, 'discovery')
+    // SPEC-020: las capturas del discovery (con o sin empresa) caen en cascada;
+    // las de empresa caerían igual por deleteCompaniesCascade, pero borrarlas
+    // por discoveryId cubre también las que aún no tienen empresa asignada.
+    const interviewIds = new Set(
+      draft.interviews
+        .filter((interview) => interview.discoveryId === id)
+        .map((interview) => interview.id)
+    )
+    deleteInterviewsCascade(draft, interviewIds)
     const companyIds = new Set(
       draft.companies.filter((company) => company.discoveryId === id).map((company) => company.id)
     )
@@ -335,9 +349,24 @@ export function deleteInterviewTemplate(id: string): null {
 export function createInterview(input: CreateInterviewInput): Interview {
   assertName(input.title, 'entrevista (título)')
   return mutate((draft) => {
-    assertReference(draft.companies, input.companyId, 'empresa')
+    assertReference(draft.discoveries, input.discoveryId, 'discovery')
+    const companyId = input.companyId ?? null
+    if (companyId !== null) {
+      const company = findOrThrow(draft.companies, companyId, 'empresa')
+      // Invariante SPEC-020: la empresa asignada debe pertenecer al discovery.
+      if (company.discoveryId !== input.discoveryId) {
+        throw referenceError('La empresa no pertenece al discovery indicado')
+      }
+    }
     if (input.contactId !== undefined && input.contactId !== null) {
-      assertReference(draft.contacts, input.contactId, 'contacto')
+      // Invariante SPEC-020: contacto exige empresa y debe pertenecer a ella.
+      if (companyId === null) {
+        throw referenceError('No se puede asignar un contacto sin empresa')
+      }
+      const contact = findOrThrow(draft.contacts, input.contactId, 'contacto')
+      if (contact.companyId !== companyId) {
+        throw referenceError('El contacto no pertenece a la empresa indicada')
+      }
     }
     if (input.templateId !== undefined && input.templateId !== null) {
       assertReference(draft.interviewTemplates, input.templateId, 'template de entrevista')
@@ -345,7 +374,8 @@ export function createInterview(input: CreateInterviewInput): Interview {
     const now = nowIso()
     const interview: Interview = {
       id: randomUUID(),
-      companyId: input.companyId,
+      discoveryId: input.discoveryId,
+      companyId,
       contactId: input.contactId ?? null,
       templateId: input.templateId ?? null,
       title: input.title,
@@ -377,7 +407,15 @@ export function updateInterview(id: string, patch: UpdateInterviewPatch): Interv
   return mutate((draft) => {
     const interview = findOrThrow(draft.interviews, id, 'entrevista')
     if (patch.contactId !== undefined && patch.contactId !== null) {
-      assertReference(draft.contacts, patch.contactId, 'contacto')
+      // Invariante SPEC-020: contacto exige empresa y debe pertenecer a ella
+      // (la asignación de empresa va SOLO por assignInterviewCompany).
+      if (interview.companyId === null) {
+        throw referenceError('No se puede asignar un contacto a una captura sin empresa')
+      }
+      const contact = findOrThrow(draft.contacts, patch.contactId, 'contacto')
+      if (contact.companyId !== interview.companyId) {
+        throw referenceError('El contacto no pertenece a la empresa de la entrevista')
+      }
     }
     if (patch.templateId !== undefined && patch.templateId !== null) {
       assertReference(draft.interviewTemplates, patch.templateId, 'template de entrevista')
@@ -408,6 +446,109 @@ export function updateInterview(id: string, patch: UpdateInterviewPatch): Interv
     }
     interview.updatedAt = touched(interview.updatedAt)
     return interview
+  })
+}
+
+/**
+ * Listado global de capturas (SPEC-020): TODAS las entrevistas, con los
+ * nombres de sus referencias resueltos con Maps O(1) en un único read y en
+ * orden `updatedAt` desc. Referencias no resueltas → null (defensivo: un dato
+ * inconsistente nunca rompe el listado).
+ */
+export function listAllInterviews(): CaptureListItem[] {
+  return read((store) => {
+    const discoveryNames = new Map(store.discoveries.map((item) => [item.id, item.name]))
+    const companyNames = new Map(store.companies.map((item) => [item.id, item.name]))
+    const contactNames = new Map(store.contacts.map((item) => [item.id, item.name]))
+    const templateNames = new Map(store.interviewTemplates.map((item) => [item.id, item.name]))
+    return [...store.interviews]
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .map((interview): CaptureListItem => ({
+        interview,
+        discoveryName: discoveryNames.get(interview.discoveryId) ?? '',
+        companyName:
+          interview.companyId !== null ? (companyNames.get(interview.companyId) ?? null) : null,
+        contactName:
+          interview.contactId !== null ? (contactNames.get(interview.contactId) ?? null) : null,
+        templateName:
+          interview.templateId !== null ? (templateNames.get(interview.templateId) ?? null) : null
+      }))
+  })
+}
+
+/**
+ * Asignación diferida de empresa y contacto (SPEC-020): resuelve-o-crea la
+ * empresa (nueva → en el discovery de la captura) y el contacto (nuevo → en
+ * esa empresa) y actualiza la entrevista, todo en UN SOLO mutate — atómico por
+ * diseño del store: si cualquier validación lanza, cero escrituras ("sin
+ * estado a medias" del AC).
+ */
+export function assignInterviewCompany(
+  interviewId: string,
+  input: AssignCompanyInput
+): AssignCompanyResult {
+  // Validaciones de forma (antes de tocar el draft, aunque mutate ya lo aísla)
+  if ((input.companyId !== undefined) === (input.newCompany !== undefined)) {
+    throw validationError('Indica una empresa existente o una empresa nueva (exactamente una)')
+  }
+  if (input.contactId !== undefined && input.contactId !== null && input.newContact !== undefined) {
+    throw validationError('Indica un contacto existente o un contacto nuevo, no ambos')
+  }
+  if (input.newCompany !== undefined) {
+    assertName(input.newCompany.name, 'empresa')
+  }
+  if (input.newContact !== undefined) {
+    assertName(input.newContact.name, 'contacto')
+  }
+  return mutate((draft) => {
+    const interview = findOrThrow(draft.interviews, interviewId, 'entrevista')
+    const now = nowIso()
+
+    let company: Company
+    if (input.newCompany !== undefined) {
+      assertReference(draft.discoveries, interview.discoveryId, 'discovery')
+      company = {
+        id: randomUUID(),
+        discoveryId: interview.discoveryId,
+        name: input.newCompany.name,
+        website: input.newCompany.website ?? null,
+        linkedinUrl: input.newCompany.linkedinUrl ?? null,
+        createdAt: now,
+        updatedAt: now
+      }
+      draft.companies.push(company)
+    } else {
+      company = findOrThrow(draft.companies, input.companyId ?? '', 'empresa')
+      // Invariante SPEC-020: la empresa debe pertenecer al discovery de la captura.
+      if (company.discoveryId !== interview.discoveryId) {
+        throw referenceError('La empresa no pertenece al discovery de la captura')
+      }
+    }
+
+    let contact: Contact | null = null
+    if (input.newContact !== undefined) {
+      contact = {
+        id: randomUUID(),
+        companyId: company.id,
+        name: input.newContact.name,
+        position: input.newContact.position ?? null,
+        linkedinUrl: input.newContact.linkedinUrl ?? null,
+        createdAt: now,
+        updatedAt: now
+      }
+      draft.contacts.push(contact)
+    } else if (input.contactId !== undefined && input.contactId !== null) {
+      contact = findOrThrow(draft.contacts, input.contactId, 'contacto')
+      // Invariante SPEC-020: el contacto debe pertenecer a la empresa elegida.
+      if (contact.companyId !== company.id) {
+        throw referenceError('El contacto no pertenece a la empresa elegida')
+      }
+    }
+
+    interview.companyId = company.id
+    interview.contactId = contact !== null ? contact.id : null
+    interview.updatedAt = touched(interview.updatedAt)
+    return { interview, company, contact }
   })
 }
 

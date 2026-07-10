@@ -138,9 +138,13 @@ export function GlobalSearchDialog({
                     <CommandItem
                       key={`interview-${hit.id}`}
                       value={`interview-${hit.id}`}
+                      // SPEC-020: los hits sin empresa navegan a la ruta
+                      // canónica de captura; con empresa conservan la anidada.
                       onSelect={() =>
                         closeAndNavigate(
-                          `/discoveries/${hit.discoveryId}/companies/${hit.companyId}/interviews/${hit.id}`
+                          hit.companyId === null
+                            ? `/captures/${hit.id}`
+                            : `/discoveries/${hit.discoveryId}/companies/${hit.companyId}/interviews/${hit.id}`
                         )
                       }
                     >
@@ -148,7 +152,7 @@ export function GlobalSearchDialog({
                       <span className="truncate">{hit.title}</span>
                       <span className="ml-auto flex shrink-0 items-center gap-2">
                         <span className="truncate text-xs text-muted-foreground">
-                          {hit.companyName}
+                          {hit.companyName ?? 'Sin empresa'}
                         </span>
                         <Badge variant="secondary">{STATUS_LABELS[hit.status]}</Badge>
                       </span>

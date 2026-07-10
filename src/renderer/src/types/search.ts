@@ -34,13 +34,18 @@ export interface SearchContactHit {
   companyName: string
 }
 
-/** Coincidencia de una entrevista por título, con empresa y estado como contexto. */
+/**
+ * Coincidencia de una entrevista por título, con empresa y estado como
+ * contexto. SPEC-020: `companyId`/`companyName` son null en capturas sin
+ * empresa — su destino de navegación pasa a ser `/captures/:id` y el contexto
+ * mostrado "Sin empresa". `discoveryId` se resuelve desde la propia entrevista.
+ */
 export interface SearchInterviewHit {
   id: string
   title: string
-  companyId: string
+  companyId: string | null
   discoveryId: string
-  companyName: string
+  companyName: string | null
   status: InterviewStatus
 }
 

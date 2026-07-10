@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { PHASE_LABELS } from '@/components/templates/phaseLabels'
+import { templateLabel } from '@/components/interviews/templateLabel'
 import type { InterviewFormValues } from '@/hooks/useInterviews'
 import type { Contact, Interview, InterviewTemplate } from '@/types/domain'
 
@@ -25,13 +25,6 @@ import type { Contact, Interview, InterviewTemplate } from '@/types/domain'
  * null al enviar (patrón NO_PHASE de SPEC-012).
  */
 const NONE = 'none'
-
-/** Etiqueta del template en el Select: nombre + fase entre paréntesis si la tiene. */
-function templateLabel(template: InterviewTemplate): string {
-  return template.phase !== null
-    ? `${template.name} (${PHASE_LABELS[template.phase]})`
-    : template.name
-}
 
 export interface InterviewFormDialogProps {
   open: boolean

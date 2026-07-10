@@ -80,7 +80,7 @@ export function CompanyDetailPage(): React.ReactElement {
     createInterview,
     updateInterview,
     removeInterview
-  } = useInterviews(companyId ?? '')
+  } = useInterviews(discoveryId ?? '', companyId ?? '')
   // UNA sola carga de templates a nivel de página (SPEC-013): alimenta el
   // Select del Dialog y la resolución de nombres de las filas; si el fetch
   // falla, el Select degrada a solo "Sin template" y las filas omiten el

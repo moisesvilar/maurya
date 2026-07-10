@@ -2,6 +2,7 @@ import { readFileSync } from 'fs'
 import Anthropic from '@anthropic-ai/sdk'
 import type {
   Contact,
+  Discovery,
   Interview,
   InterviewTemplate,
   Note,
@@ -175,15 +176,20 @@ const PHASE_LABELS: Record<string, string> = {
   solution: 'de solución'
 }
 
-function buildSystemPrompt(template: InterviewTemplate): string {
+function buildSystemPrompt(template: InterviewTemplate, hasCompany: boolean): string {
   const phase =
     template.phase !== null
       ? ` La entrevista es de fase ${PHASE_LABELS[template.phase] ?? template.phase}.`
       : ''
+  // SPEC-020: sin empresa asignada, la adaptación se ancla al contexto del
+  // discovery (no hay empresa/contacto concretos a los que adaptar).
+  const task = hasCompany
+    ? 'Tu tarea: adaptar el template de entrevista proporcionado a la empresa y al contacto concretos, y definir los objetivos de la entrevista.'
+    : 'Tu tarea: adaptar el template de entrevista proporcionado al contexto del discovery, y definir los objetivos de la entrevista.'
   return [
     'Eres un preparador experto de entrevistas de discovery de producto, anclado a los principios de The Mom Test (Rob Fitzpatrick) y Running Lean (Ash Maurya): preguntas sobre hechos pasados y comportamiento concreto, nunca hipótesis halagadoras; escuchar más que hablar; validar problemas antes que soluciones.' +
       phase,
-    'Tu tarea: adaptar el template de entrevista proporcionado a la empresa y al contacto concretos, y definir los objetivos de la entrevista.',
+    task,
     'Reglas:',
     '- Escribe TODO en español.',
     '- `scriptMarkdown`: el guión completo en markdown, conservando la estructura de bloques del template (títulos, preguntas y guías adaptadas al caso concreto).',
@@ -212,33 +218,40 @@ function serializeTemplate(template: InterviewTemplate): string {
 
 function buildUserPrompt(
   interview: Interview,
-  company: Company,
+  discovery: Discovery,
+  company: Company | null,
   contact: Contact | null,
   template: InterviewTemplate,
   history: HistoricalEntry[]
 ): string {
   const sections: string[] = []
 
-  const companyLines = [`Nombre: ${company.name}`]
-  if (company.website !== null) {
-    companyLines.push(`Web: ${company.website}`)
-  }
-  if (company.linkedinUrl !== null) {
-    companyLines.push(`LinkedIn: ${company.linkedinUrl}`)
-  }
-  sections.push(`## Empresa\n${companyLines.join('\n')}`)
+  // SPEC-020: el discovery viaja siempre; sin empresa es el único contexto
+  // (se omiten las secciones Empresa/Contacto/Histórico).
+  sections.push(`## Discovery\nNombre: ${discovery.name}`)
 
-  if (contact !== null) {
-    const contactLines = [`Nombre: ${contact.name}`]
-    if (contact.position !== null) {
-      contactLines.push(`Cargo: ${contact.position}`)
+  if (company !== null) {
+    const companyLines = [`Nombre: ${company.name}`]
+    if (company.website !== null) {
+      companyLines.push(`Web: ${company.website}`)
     }
-    if (contact.linkedinUrl !== null) {
-      contactLines.push(`LinkedIn: ${contact.linkedinUrl}`)
+    if (company.linkedinUrl !== null) {
+      companyLines.push(`LinkedIn: ${company.linkedinUrl}`)
     }
-    sections.push(`## Contacto\n${contactLines.join('\n')}`)
-  } else {
-    sections.push('## Contacto\nSin contacto asignado todavía.')
+    sections.push(`## Empresa\n${companyLines.join('\n')}`)
+
+    if (contact !== null) {
+      const contactLines = [`Nombre: ${contact.name}`]
+      if (contact.position !== null) {
+        contactLines.push(`Cargo: ${contact.position}`)
+      }
+      if (contact.linkedinUrl !== null) {
+        contactLines.push(`LinkedIn: ${contact.linkedinUrl}`)
+      }
+      sections.push(`## Contacto\n${contactLines.join('\n')}`)
+    } else {
+      sections.push('## Contacto\nSin contacto asignado todavía.')
+    }
   }
 
   sections.push(`## Template de entrevista\n${serializeTemplate(template)}`)
@@ -380,10 +393,15 @@ async function doGenerate(interviewId: string): Promise<Interview> {
     )
   }
 
-  const company = repository.getCompany(interview.companyId)
+  // SPEC-020: sin empresa (capture-first) la generación degrada — solo
+  // plantilla + nombre del discovery, sin contexto histórico. Al regenerar
+  // tras asignar empresa, el branch vuelve solo al camino completo.
+  const discovery = repository.getDiscovery(interview.discoveryId)
+  const company = interview.companyId !== null ? repository.getCompany(interview.companyId) : null
   const contact = interview.contactId !== null ? repository.getContact(interview.contactId) : null
   const template = repository.getInterviewTemplate(interview.templateId)
-  const history = collectHistoricalContext(interview.companyId, interview.id)
+  const history =
+    interview.companyId !== null ? collectHistoricalContext(interview.companyId, interview.id) : []
 
   const client = new Anthropic({ apiKey })
   let response: Anthropic.Message
@@ -393,9 +411,12 @@ async function doGenerate(interviewId: string): Promise<Interview> {
       max_tokens: MAX_TOKENS,
       thinking: { type: 'adaptive' },
       output_config: { format: { type: 'json_schema', schema: OUTPUT_SCHEMA } },
-      system: buildSystemPrompt(template),
+      system: buildSystemPrompt(template, company !== null),
       messages: [
-        { role: 'user', content: buildUserPrompt(interview, company, contact, template, history) }
+        {
+          role: 'user',
+          content: buildUserPrompt(interview, discovery, company, contact, template, history)
+        }
       ]
     })
   } catch (error) {

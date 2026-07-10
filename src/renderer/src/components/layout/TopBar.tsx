@@ -11,7 +11,8 @@ import { GlobalSearchDialog } from '@/components/search/GlobalSearchDialog'
  */
 const SECTION_TITLES: ReadonlyArray<{ prefix: string; title: string }> = [
   { prefix: '/settings', title: 'Ajustes' },
-  { prefix: '/capture', title: 'Captura' },
+  // SPEC-020: la sección pasa a "Capturas" (/captures, cubre /captures/:id).
+  { prefix: '/captures', title: 'Capturas' },
   { prefix: '/discoveries', title: 'Discoveries' },
   { prefix: '/templates', title: 'Plantillas' }
 ]

@@ -40,9 +40,10 @@ function sortByCreatedAtAsc(interviews: Interview[]): Interview[] {
  * viajan como `{ ok: false, error }` y se mapean a error state (listar) o
  * Toast destructive (mutaciones, sin tocar el estado). Orden por `createdAt`
  * asc; la edición no re-ordena (mantiene el orden de alta). Calco del patrón
- * useContacts (SPEC-011).
+ * useContacts (SPEC-011). SPEC-020: la creación exige también el discoveryId
+ * de la empresa (ancla obligatoria de toda entrevista en el schema v2).
  */
-export function useInterviews(companyId: string): UseInterviewsResult {
+export function useInterviews(discoveryId: string, companyId: string): UseInterviewsResult {
   const [state, setState] = useState<InterviewsState>({ status: 'loading' })
 
   // El estado inicial ya es loading, así el efecto de montaje no hace setState
@@ -61,7 +62,7 @@ export function useInterviews(companyId: string): UseInterviewsResult {
   const createInterview = useCallback(
     async (values: InterviewFormValues): Promise<boolean> => {
       // Sin `status`: el repositorio de main fija 'draft' en la creación.
-      const result = await window.api.db.createInterview({ companyId, ...values })
+      const result = await window.api.db.createInterview({ discoveryId, companyId, ...values })
       if (!result.ok) {
         toast.error(result.error.message)
         return false
@@ -74,7 +75,7 @@ export function useInterviews(companyId: string): UseInterviewsResult {
       toast('Entrevista creada')
       return true
     },
-    [companyId]
+    [discoveryId, companyId]
   )
 
   const updateInterview = useCallback(

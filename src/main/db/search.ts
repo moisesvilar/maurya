@@ -111,16 +111,22 @@ export function searchGlobal(query: string): SearchResults {
       if (!matches(interview.title)) {
         continue
       }
-      const company = companiesById.get(interview.companyId)
-      if (company === undefined) {
-        continue
+      // SPEC-020: las capturas sin empresa también son hits (companyId /
+      // companyName null); solo se mantiene la omisión defensiva cuando un
+      // companyId no-null no resuelve (dato inconsistente).
+      let company: Company | undefined
+      if (interview.companyId !== null) {
+        company = companiesById.get(interview.companyId)
+        if (company === undefined) {
+          continue
+        }
       }
       interviews.push({
         id: interview.id,
         title: interview.title,
-        companyId: company.id,
-        discoveryId: company.discoveryId,
-        companyName: company.name,
+        companyId: company?.id ?? null,
+        discoveryId: interview.discoveryId,
+        companyName: company?.name ?? null,
         status: interview.status
       })
     }

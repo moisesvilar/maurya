@@ -11,11 +11,14 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>
 }
 
-/** Secciones del sidebar (SPEC-009): orden e iconos fijados por la spec. */
+/**
+ * Secciones del sidebar (SPEC-009): orden e iconos fijados por la spec.
+ * SPEC-020: "Captura" pasa a "Capturas" (→ /captures), mismo icono y posición.
+ */
 const NAV_ITEMS: NavItem[] = [
   { to: '/discoveries', label: 'Discoveries', icon: FolderSearch },
   { to: '/templates', label: 'Plantillas', icon: FileText },
-  { to: '/capture', label: 'Captura', icon: Mic },
+  { to: '/captures', label: 'Capturas', icon: Mic },
   { to: '/settings', label: 'Ajustes', icon: Settings }
 ]
 

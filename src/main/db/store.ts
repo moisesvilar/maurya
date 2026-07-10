@@ -27,7 +27,8 @@ export interface DbData {
   notes: Note[]
 }
 
-const SCHEMA_VERSION = 1
+/** v2 (SPEC-020): Interview gana discoveryId obligatorio y companyId nullable. */
+const SCHEMA_VERSION = 2
 
 const COLLECTIONS = [
   'discoveries',
@@ -68,6 +69,36 @@ function isDbData(value: unknown): value is DbData {
   return COLLECTIONS.every((collection) => Array.isArray(record[collection]))
 }
 
+/**
+ * Migración v1 → v2 (SPEC-020): backfill de `Interview.discoveryId` desde la
+ * empresa de cada entrevista. Una entrevista v1 cuya empresa no resuelve (dato
+ * inconsistente, hoy inalcanzable desde la UI) se elimina junto con su nota —
+ * decisión documentada en el plan, coherente con la cascada de borrado.
+ * En v1 `companyId` nunca es null; el chequeo defensivo cubre datos anómalos.
+ */
+function migrateV1ToV2(v1: DbData): DbData {
+  const companiesById = new Map<string, Company>(
+    v1.companies.map((company) => [company.id, company])
+  )
+  const interviews: Interview[] = []
+  const droppedInterviewIds = new Set<string>()
+  for (const interview of v1.interviews) {
+    const company =
+      interview.companyId !== null ? companiesById.get(interview.companyId) : undefined
+    if (company === undefined) {
+      droppedInterviewIds.add(interview.id)
+      continue
+    }
+    interviews.push({ ...interview, discoveryId: company.discoveryId })
+  }
+  return {
+    ...v1,
+    schemaVersion: 2,
+    interviews,
+    notes: v1.notes.filter((note) => !droppedInterviewIds.has(note.interviewId))
+  }
+}
+
 /** Escritura atómica (tmp + fsync + rename) para no dejar nunca un db.json a medias. */
 function persist(next: DbData): void {
   writeFileAtomicSync(dbFilePath, JSON.stringify(next, null, 2))
@@ -97,7 +128,14 @@ export function initStore(baseDir?: string): void {
     if (!isDbData(parsed)) {
       throw new Error('estructura de datos inválida')
     }
-    data = parsed
+    // Migración síncrona ANTES del primer mutate (SPEC-020); se persiste
+    // atómica. Si falla, cae en el camino `.corrupt-<ts>` de abajo.
+    if (parsed.schemaVersion === 1) {
+      data = migrateV1ToV2(parsed)
+      persist(data)
+    } else {
+      data = parsed
+    }
   } catch (error) {
     const corruptPath = `${dbFilePath}.corrupt-${Date.now()}`
     try {

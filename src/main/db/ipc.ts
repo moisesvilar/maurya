@@ -58,6 +58,9 @@ export function registerDbIpcHandlers(): void {
   handleDb('db:interview:get', repository.getInterview)
   handleDb('db:interview:update', repository.updateInterview)
   handleDb('db:interview:delete', repository.deleteInterview)
+  // Capture-first (SPEC-020): listado global + asignación compuesta atómica.
+  handleDb('db:interview:list-all', repository.listAllInterviews)
+  handleDb('db:interview:assign-company', repository.assignInterviewCompany)
 
   handleDb('db:note-template:create', repository.createNoteTemplate)
   handleDb('db:note-template:list', repository.listNoteTemplates)

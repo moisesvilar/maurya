@@ -5,6 +5,7 @@
  * Este módulo NO debe depender del DOM: lo importan (type-only) main y preload.
  */
 
+import type { AssignCompanyInput, AssignCompanyResult, CaptureListItem } from './captures'
 import type { SearchResults } from './search'
 
 // ---------------------------------------------------------------------------
@@ -67,7 +68,16 @@ export type InterviewStatus = 'draft' | 'prepared' | 'recorded' | 'summarized'
 
 export interface Interview {
   id: string
-  companyId: string
+  /**
+   * Discovery al que pertenece la captura (SPEC-020): obligatorio y ancla de
+   * la cascada. La empresa deja de ser prerequisito de la entrevista.
+   */
+  discoveryId: string
+  /**
+   * Empresa asignada; null en capturas sin empresa (SPEC-020). Si no es null,
+   * la empresa debe pertenecer a `discoveryId` (invariante del repositorio).
+   */
+  companyId: string | null
   contactId: string | null
   templateId: string | null
   title: string
@@ -159,7 +169,10 @@ export interface UpdateInterviewTemplatePatch {
 }
 
 export interface CreateInterviewInput {
-  companyId: string
+  /** Discovery obligatorio (SPEC-020): ancla mínima de toda captura. */
+  discoveryId: string
+  /** Empresa opcional (SPEC-020): omitida o null en el flujo capture-first. */
+  companyId?: string | null
   title: string
   contactId?: string | null
   templateId?: string | null
@@ -269,6 +282,13 @@ export interface DbApi {
   getInterview: (id: string) => Promise<DbResult<Interview>>
   updateInterview: (id: string, patch: UpdateInterviewPatch) => Promise<DbResult<Interview>>
   deleteInterview: (id: string) => Promise<DbResult<null>>
+  /** Listado global de capturas (SPEC-020): contexto resuelto, updatedAt desc. */
+  listAllInterviews: () => Promise<DbResult<CaptureListItem[]>>
+  /** Asignación diferida de empresa/contacto (SPEC-020): mutación compuesta atómica. */
+  assignInterviewCompany: (
+    interviewId: string,
+    input: AssignCompanyInput
+  ) => Promise<DbResult<AssignCompanyResult>>
 
   createNoteTemplate: (input: CreateNoteTemplateInput) => Promise<DbResult<NoteTemplate>>
   listNoteTemplates: () => Promise<DbResult<NoteTemplate[]>>

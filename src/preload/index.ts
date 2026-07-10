@@ -57,6 +57,10 @@ const db: DbApi = {
   getInterview: (id) => ipcRenderer.invoke('db:interview:get', id),
   updateInterview: (id, patch) => ipcRenderer.invoke('db:interview:update', id, patch),
   deleteInterview: (id) => ipcRenderer.invoke('db:interview:delete', id),
+  // Capture-first (SPEC-020): listado global + asignación compuesta atómica.
+  listAllInterviews: () => ipcRenderer.invoke('db:interview:list-all'),
+  assignInterviewCompany: (interviewId, input) =>
+    ipcRenderer.invoke('db:interview:assign-company', interviewId, input),
 
   createNoteTemplate: (input) => ipcRenderer.invoke('db:note-template:create', input),
   listNoteTemplates: () => ipcRenderer.invoke('db:note-template:list'),
