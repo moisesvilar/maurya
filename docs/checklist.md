@@ -115,7 +115,7 @@ Depende de H6. MVP listo para usuarios de validación.
 - [x] 🟡 **Búsqueda/navegación** entre discoveries, empresas y entrevistas (RF-APP-005) — SPEC-018, unit 290/290 PASS (command palette ⌘K, incluye contactos)
 - [ ] 🔴 Optimización de **latencia** de la asistencia (objetivo < 3-5 s) (NFR §4.1)
 - [ ] 🔴 Medición y control de **coste de IA por entrevista** (NFR §4.5)
-- [ ] 🔴 **Aviso de consentimiento de grabación** al usuario (NFR §4.6, Riesgo #8)
+- [x] 🔴 **Aviso de consentimiento de grabación** al usuario (NFR §4.6, Riesgo #8) — SPEC-019, unit 10/10 ACs PASS (suite generada en la vuelta de SPEC-020)
 - [ ] 🔴 **Tests de usabilidad** de la asistencia en directo (Riesgo #2)
 - [ ] 🟡 Degradación elegante si falla la diarización (Riesgo #9)
 - [ ] 🔴 Empaquetado/instalador macOS y hardening final
