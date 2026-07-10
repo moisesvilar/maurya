@@ -53,6 +53,7 @@ describe('searchGlobal', () => {
       })
       const contact = repository.createContact({ companyId: company.id, name: 'María López' })
       const interview = repository.createInterview({
+        discoveryId: discovery.id,
         companyId: company.id,
         title: 'Entrevista de dolor con María'
       })

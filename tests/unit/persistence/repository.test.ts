@@ -157,12 +157,15 @@ describe('repository', () => {
       const template = createInterviewTemplate({ name: 'Guión exploratorio' })
 
       const interview = createInterview({
+        discoveryId: discovery.id,
         companyId: company.id,
         title: 'Entrevista con Jane',
         contactId: contact.id,
         templateId: template.id
       })
       expect(interview.status).toBe('draft')
+      // SPEC-020 (schema v2): la entrevista ancla su discovery directamente
+      expect(interview.discoveryId).toBe(discovery.id)
       expect(interview.companyId).toBe(company.id)
       expect(interview.contactId).toBe(contact.id)
       expect(interview.templateId).toBe(template.id)
@@ -238,12 +241,13 @@ describe('repository', () => {
       const interviewTemplate = createInterviewTemplate({ name: 'Guión exploratorio' })
       const noteTemplate = createNoteTemplate({ name: 'Notas de entrevista' })
       const interviewA = createInterview({
+        discoveryId: discovery.id,
         companyId: companyA.id,
         title: 'Entrevista A',
         contactId: contact.id,
         templateId: interviewTemplate.id
       })
-      createInterview({ companyId: companyB.id, title: 'Entrevista B' })
+      createInterview({ discoveryId: discovery.id, companyId: companyB.id, title: 'Entrevista B' })
       createNote({ interviewId: interviewA.id, contentMarkdown: '# Notas' })
 
       deleteDiscovery(discovery.id)
@@ -265,6 +269,7 @@ describe('repository', () => {
       const company = createCompany({ discoveryId: discovery.id, name: 'Acme Corp' })
       const template = createInterviewTemplate({ name: 'Guión exploratorio' })
       const interview = createInterview({
+        discoveryId: discovery.id,
         companyId: company.id,
         title: 'Entrevista con template',
         templateId: template.id
@@ -282,7 +287,11 @@ describe('repository', () => {
     it('deletes an interview removing its note as well', () => {
       const discovery = createDiscovery({ name: 'Discovery Maurya' })
       const company = createCompany({ discoveryId: discovery.id, name: 'Acme Corp' })
-      const interview = createInterview({ companyId: company.id, title: 'Entrevista con nota' })
+      const interview = createInterview({
+        discoveryId: discovery.id,
+        companyId: company.id,
+        title: 'Entrevista con nota'
+      })
       createNote({ interviewId: interview.id, contentMarkdown: '# Notas de la sesión' })
       expect(getNoteByInterview(interview.id)).not.toBeNull()
 

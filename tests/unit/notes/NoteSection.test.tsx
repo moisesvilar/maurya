@@ -61,6 +61,8 @@ const TRANSCRIPT_PATH = '/tmp/maurya-recordings/entrevista.transcript.json'
 function interview(overrides: Partial<Interview> = {}): Interview {
   return {
     id: 'i-1',
+    // SPEC-020 (schema v2): toda entrevista ancla su discovery directamente.
+    discoveryId: 'd-1',
     companyId: 'c-1',
     contactId: null,
     templateId: null,

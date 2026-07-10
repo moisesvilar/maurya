@@ -131,6 +131,7 @@ function seedBase(options: { withTranscript?: boolean } = {}): Seeded {
     ]
   })
   const interview = repository.createInterview({
+    discoveryId: discovery.id,
     companyId: company.id,
     title: 'Discovery con Acme'
   })

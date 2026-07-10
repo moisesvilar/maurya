@@ -135,6 +135,12 @@ function createMockDbApi(): DbApi {
     getInterview: vi.fn<DbApi['getInterview']>(),
     updateInterview: vi.fn<DbApi['updateInterview']>(),
     deleteInterview: vi.fn<DbApi['deleteInterview']>(),
+    // SPEC-020: listado global de capturas (default vacío, se configura por
+    // test) y asignación compuesta de empresa/contacto (se configura por test)
+    listAllInterviews: vi
+      .fn<DbApi['listAllInterviews']>()
+      .mockResolvedValue({ ok: true, data: [] }),
+    assignInterviewCompany: vi.fn<DbApi['assignInterviewCompany']>(),
 
     createNoteTemplate: vi.fn<DbApi['createNoteTemplate']>(),
     listNoteTemplates: vi

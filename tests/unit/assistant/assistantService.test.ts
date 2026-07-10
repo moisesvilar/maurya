@@ -174,10 +174,15 @@ beforeEach(() => {
   process.env['ANTHROPIC_API_KEY'] = 'sk-ant-test'
   process.env['DEEPGRAM_API_KEY'] = 'dg-test'
 
-  // Entrevista con objetivos y guión (contexto recomendado)
+  // Entrevista con objetivos y guión (contexto recomendado). SPEC-020 AC-16:
+  // la sesión corre sobre una CAPTURA SIN EMPRESA (companyId null) — el
+  // asistente se activa solo por interviewId y toda la suite debe funcionar
+  // igual sin empresa asignada (la ausencia de empresa no lo inhibe).
   const discovery = repository.createDiscovery({ name: 'Discovery Maurya' })
-  const company = repository.createCompany({ discoveryId: discovery.id, name: 'Acme Corp' })
-  const interview = repository.createInterview({ companyId: company.id, title: 'Entrevista' })
+  const interview = repository.createInterview({
+    discoveryId: discovery.id,
+    title: 'Entrevista'
+  })
   repository.updateInterview(interview.id, {
     objectives: ['Objetivo cero', 'Objetivo uno', 'Objetivo dos'],
     scriptMarkdown: '# Guión de la entrevista'

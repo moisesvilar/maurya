@@ -1,62 +1,41 @@
 /**
  * Tests del shell de navegación (SPEC-009, AC-01..AC-07 y AC-14): sidebar,
  * top bar, redirect del index y 404. Se replica la tabla de rutas real de
- * App.tsx bajo <Layout/> en MemoryRouter (sin importar App). Los servicios del
- * harness de captura van mockeados porque /capture es la home.
+ * App.tsx bajo <Layout/> en MemoryRouter (sin importar App).
+ * SPEC-020: el ítem "Captura" pasa a "Capturas" (→ /captures, home nueva), el
+ * index y la ruta legado /capture redirigen a /captures y el harness de spike
+ * (SpikeAudioCapturePage) deja de estar enrutado — la réplica de rutas y las
+ * aserciones se actualizan a ese contrato.
  * Lección vigente: máximo 1 hover de tooltip por render (grace area de Radix
  * anclado en jsdom tras el primer unhover).
  */
 import { render, screen, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from '@/components/layout/Layout'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { CapturesPage } from '@/pages/CapturesPage'
 import { DiscoveriesPage } from '@/pages/DiscoveriesPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { NoteTemplateEditorPage } from '@/pages/NoteTemplateEditorPage'
 import { SettingsPage } from '@/pages/SettingsPage'
-import { SpikeAudioCapturePage } from '@/pages/SpikeAudioCapturePage'
 import { TemplatesHubPage } from '@/pages/TemplatesHubPage'
-import { getPermissionsStatus } from '@/services/permissionsService'
-import { listAudioInputDevices } from '@/services/captureService'
 import { installMockApi } from '../../helpers/mockApi'
-
-vi.mock('@/services/permissionsService', () => ({
-  getPermissionsStatus: vi.fn(),
-  requestMicrophoneAccess: vi.fn(),
-  openPrivacySettings: vi.fn()
-}))
-
-vi.mock('@/services/captureService', () => ({
-  DEFAULT_DEVICE_ID: '__default__',
-  acquireMicrophoneStream: vi.fn(),
-  acquireSystemAudioStream: vi.fn(),
-  listAudioInputDevices: vi.fn(),
-  stopStream: vi.fn()
-}))
-
-vi.mock('@/services/wavRecorderService', () => ({
-  CAPTURE_SAMPLE_RATE: 16000,
-  WavRecorderService: class {
-    start = vi.fn()
-    stop = vi.fn()
-    getLevels = vi.fn()
-  }
-}))
 
 const STORAGE_KEY = 'maurya:sidebar-collapsed'
 
-/** Réplica de la tabla de rutas de App.tsx (SPEC-009). */
+/** Réplica de la tabla de rutas de App.tsx (SPEC-009, actualizada por SPEC-020). */
 function renderApp(initialEntry: string): RenderResult {
   return render(
     <TooltipProvider>
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/" element={<Layout />}>
-            <Route index element={<Navigate to="/capture" replace />} />
-            <Route path="capture" element={<SpikeAudioCapturePage />} />
+            <Route index element={<Navigate to="/captures" replace />} />
+            <Route path="capture" element={<Navigate to="/captures" replace />} />
+            <Route path="captures" element={<CapturesPage />} />
             <Route path="discoveries" element={<DiscoveriesPage />} />
             <Route path="templates" element={<TemplatesHubPage />} />
             <Route path="settings" element={<SettingsPage />} />
@@ -76,26 +55,22 @@ function getSidebar(): HTMLElement {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks()
   window.localStorage.clear()
   installMockApi()
-  vi.mocked(getPermissionsStatus).mockResolvedValue({
-    microphone: 'granted',
-    systemAudio: 'granted'
-  })
-  vi.mocked(listAudioInputDevices).mockResolvedValue([])
 })
 
 describe('Layout (shell de navegación)', () => {
   describe('sidebar', () => {
-    // SPEC-009 · AC-01
-    it('shows the sidebar with the four section items and the "Navegación principal" landmark', () => {
+    // SPEC-009 · AC-01 (ítem renombrado a "Capturas" por SPEC-020 AC-01)
+    it('shows the sidebar with the four section items — "Capturas" among them — and the "Navegación principal" landmark', () => {
       renderApp('/discoveries')
 
       const sidebar = getSidebar()
       expect(within(sidebar).getByRole('link', { name: 'Discoveries' })).toBeInTheDocument()
       expect(within(sidebar).getByRole('link', { name: 'Plantillas' })).toBeInTheDocument()
-      expect(within(sidebar).getByRole('link', { name: 'Captura' })).toBeInTheDocument()
+      // SPEC-020 AC-01: mismo ítem (3ª posición, icono Mic) ahora "Capturas" → /captures
+      const captures = within(sidebar).getByRole('link', { name: 'Capturas' })
+      expect(captures).toHaveAttribute('href', '/captures')
       expect(within(sidebar).getByRole('link', { name: 'Ajustes' })).toBeInTheDocument()
       // Marca de la app en la cabecera del sidebar expandido
       expect(within(sidebar).getByText('Maurya')).toBeInTheDocument()
@@ -104,7 +79,7 @@ describe('Layout (shell de navegación)', () => {
     // SPEC-009 · AC-02
     it('navigates on item click and marks the active item with background and font weight (not color alone)', async () => {
       const user = userEvent.setup()
-      renderApp('/capture')
+      renderApp('/captures')
 
       const sidebar = getSidebar()
       await user.click(within(sidebar).getByRole('link', { name: 'Discoveries' }))
@@ -114,7 +89,7 @@ describe('Layout (shell de navegación)', () => {
       const active = within(sidebar).getByRole('link', { name: 'Discoveries' })
       expect(active).toHaveClass('bg-accent')
       expect(active).toHaveClass('font-medium')
-      expect(within(sidebar).getByRole('link', { name: 'Captura' })).not.toHaveClass('bg-accent')
+      expect(within(sidebar).getByRole('link', { name: 'Capturas' })).not.toHaveClass('bg-accent')
     })
 
     // SPEC-009 · AC-03
@@ -171,7 +146,7 @@ describe('Layout (shell de navegación)', () => {
     it('shows a tooltip with the section name when hovering an item of the collapsed sidebar', async () => {
       const user = userEvent.setup()
       window.localStorage.setItem(STORAGE_KEY, 'true')
-      renderApp('/capture')
+      renderApp('/captures')
 
       const sidebar = getSidebar()
       await user.hover(within(sidebar).getByRole('link', { name: 'Plantillas' }))
@@ -183,13 +158,13 @@ describe('Layout (shell de navegación)', () => {
   })
 
   describe('top bar', () => {
-    // SPEC-009 · AC-06
+    // SPEC-009 · AC-06 (sección "Capturas" por SPEC-020)
     it('shows the active section title in the banner for each key route', () => {
-      const { unmount: unmountCapture } = renderApp('/capture')
+      const { unmount: unmountCaptures } = renderApp('/captures')
       expect(
-        within(screen.getByRole('banner')).getByRole('heading', { name: 'Captura' })
+        within(screen.getByRole('banner')).getByRole('heading', { name: 'Capturas' })
       ).toBeInTheDocument()
-      unmountCapture()
+      unmountCaptures()
 
       const { unmount: unmountDiscoveries } = renderApp('/discoveries')
       expect(
@@ -206,17 +181,17 @@ describe('Layout (shell de navegación)', () => {
   })
 
   describe('routes', () => {
-    // SPEC-009 · AC-07
-    it('redirects the index route to the Captura section (provisional home)', async () => {
+    // SPEC-009 · AC-07 (home nueva por SPEC-020 AC-02: el index → /captures)
+    it('redirects the index route to the Capturas section (SPEC-020 home)', async () => {
       renderApp('/')
 
-      expect(await screen.findByRole('button', { name: 'Iniciar captura' })).toBeInTheDocument()
+      expect(await screen.findByText('Aún no hay capturas')).toBeInTheDocument()
       expect(
-        within(screen.getByRole('banner')).getByRole('heading', { name: 'Captura' })
+        within(screen.getByRole('banner')).getByRole('heading', { name: 'Capturas' })
       ).toBeInTheDocument()
     })
 
-    // SPEC-009 · AC-14
+    // SPEC-009 · AC-14 (el link legado /capture aterriza en /captures vía redirect)
     it('shows the Spanish 404 page for unknown routes with a working "Ir a Captura" link', async () => {
       const user = userEvent.setup()
       renderApp('/ruta-que-no-existe')
@@ -225,9 +200,10 @@ describe('Layout (shell de navegación)', () => {
       expect(screen.getAllByText('Página no encontrada').length).toBeGreaterThanOrEqual(1)
       await user.click(screen.getByRole('link', { name: 'Ir a Captura' }))
 
-      expect(await screen.findByRole('button', { name: 'Iniciar captura' })).toBeInTheDocument()
+      // SPEC-020 AC-02: /capture redirige a /captures (listado global)
+      expect(await screen.findByText('Aún no hay capturas')).toBeInTheDocument()
       expect(
-        within(screen.getByRole('banner')).getByRole('heading', { name: 'Captura' })
+        within(screen.getByRole('banner')).getByRole('heading', { name: 'Capturas' })
       ).toBeInTheDocument()
     })
   })

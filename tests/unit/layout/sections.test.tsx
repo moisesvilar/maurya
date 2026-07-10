@@ -1,58 +1,37 @@
 /**
  * Tests de las secciones bajo el layout (SPEC-009, AC-08..AC-12): Discoveries,
- * hub de Plantillas, Ajustes sin "Volver", editor con "Volver" y Captura sin
- * engranaje. Misma réplica de rutas reales que Layout.test.tsx.
+ * hub de Plantillas, Ajustes sin "Volver" y editor con "Volver". Misma réplica
+ * de rutas reales que Layout.test.tsx.
+ * SPEC-020: la sección Captura (harness de spike) deja de estar enrutada — el
+ * AC-12 original queda derogado y su sitio lo ocupa la verificación de que la
+ * ruta legado /capture redirige al listado global de Capturas.
  */
 import { render, screen, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from '@/components/layout/Layout'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { CapturesPage } from '@/pages/CapturesPage'
 import { DiscoveriesPage } from '@/pages/DiscoveriesPage'
 import { InterviewTemplatesPage } from '@/pages/InterviewTemplatesPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { NoteTemplateEditorPage } from '@/pages/NoteTemplateEditorPage'
 import { SettingsPage } from '@/pages/SettingsPage'
-import { SpikeAudioCapturePage } from '@/pages/SpikeAudioCapturePage'
 import { TemplatesHubPage } from '@/pages/TemplatesHubPage'
-import { getPermissionsStatus } from '@/services/permissionsService'
-import { listAudioInputDevices } from '@/services/captureService'
 import { installMockApi } from '../../helpers/mockApi'
 
-vi.mock('@/services/permissionsService', () => ({
-  getPermissionsStatus: vi.fn(),
-  requestMicrophoneAccess: vi.fn(),
-  openPrivacySettings: vi.fn()
-}))
-
-vi.mock('@/services/captureService', () => ({
-  DEFAULT_DEVICE_ID: '__default__',
-  acquireMicrophoneStream: vi.fn(),
-  acquireSystemAudioStream: vi.fn(),
-  listAudioInputDevices: vi.fn(),
-  stopStream: vi.fn()
-}))
-
-vi.mock('@/services/wavRecorderService', () => ({
-  CAPTURE_SAMPLE_RATE: 16000,
-  WavRecorderService: class {
-    start = vi.fn()
-    stop = vi.fn()
-    getLevels = vi.fn()
-  }
-}))
-
-/** Réplica de la tabla de rutas de App.tsx (SPEC-009). */
+/** Réplica de la tabla de rutas de App.tsx (SPEC-009, actualizada por SPEC-020). */
 function renderApp(initialEntry: string): RenderResult {
   return render(
     <TooltipProvider>
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/" element={<Layout />}>
-            <Route index element={<Navigate to="/capture" replace />} />
-            <Route path="capture" element={<SpikeAudioCapturePage />} />
+            <Route index element={<Navigate to="/captures" replace />} />
+            <Route path="capture" element={<Navigate to="/captures" replace />} />
+            <Route path="captures" element={<CapturesPage />} />
             <Route path="discoveries" element={<DiscoveriesPage />} />
             <Route path="templates" element={<TemplatesHubPage />} />
             <Route path="templates/interview" element={<InterviewTemplatesPage />} />
@@ -69,14 +48,8 @@ function renderApp(initialEntry: string): RenderResult {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks()
   window.localStorage.clear()
   installMockApi()
-  vi.mocked(getPermissionsStatus).mockResolvedValue({
-    microphone: 'granted',
-    systemAudio: 'granted'
-  })
-  vi.mocked(listAudioInputDevices).mockResolvedValue([])
 })
 
 describe('secciones bajo el layout (SPEC-009)', () => {
@@ -168,21 +141,20 @@ describe('secciones bajo el layout (SPEC-009)', () => {
     })
   })
 
-  describe('Captura bajo el layout', () => {
-    // SPEC-009 · AC-12
-    it('renders the working capture harness without the settings gear button', async () => {
+  describe('Capturas bajo el layout', () => {
+    // SPEC-009 · AC-12 DEROGADO por SPEC-020 (el harness de spike queda sin
+    // ruta); en su lugar se fija el contrato nuevo: SPEC-020 AC-02.
+    it('redirects the legacy /capture route to the global captures list under the layout', async () => {
       renderApp('/capture')
 
-      // El harness funciona igual que hasta ahora (ambos permisos concedidos
-      // → dos badges 'Concedido', una por fuente)
-      expect(await screen.findByRole('button', { name: 'Iniciar captura' })).toBeInTheDocument()
-      expect(await screen.findAllByText('Concedido')).toHaveLength(2)
-      expect(screen.getByText('Audio del sistema')).toBeInTheDocument()
-
-      // Sin engranaje: Ajustes se alcanza por el sidebar (que sí tiene su link)
-      expect(screen.queryByRole('button', { name: 'Ajustes' })).not.toBeInTheDocument()
-      const sidebar = screen.getByRole('navigation', { name: 'Navegación principal' })
-      expect(within(sidebar).getByRole('link', { name: 'Ajustes' })).toBeInTheDocument()
+      // El listado global de Capturas es el destino (empty state por defecto)
+      expect(await screen.findByText('Aún no hay capturas')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Crear primera captura' })).toBeInTheDocument()
+      expect(
+        within(screen.getByRole('banner')).getByRole('heading', { name: 'Capturas' })
+      ).toBeInTheDocument()
+      // Y el harness de spike ya no se monta ("Iniciar captura" era su CTA)
+      expect(screen.queryByRole('button', { name: 'Iniciar captura' })).not.toBeInTheDocument()
     })
   })
 })

@@ -279,7 +279,9 @@
       "AC-16": "tests/unit/persistence/repository.test.ts::repository::edge cases::persists both of two chained writes with no loss when re-reading the file",
       "AC-17": "tests/unit/persistence/repository.test.ts::repository::edge cases::recovers names with emoji, special characters and 500-char length identical after a disk round-trip"
     },
-    "created_at": "2026-07-04"
+    "created_at": "2026-07-04",
+    "notes": "SPEC-020 (schema v2) cambió CreateInterviewInput (discoveryId obligatorio, companyId opcional/null): las llamadas a createInterview de repository.test.ts pasan ahora discoveryId y el AC-05 aserta también interview.discoveryId (regresión de contrato presupuestada, no bug). La cobertura nueva del schema v2 (migración, invariantes, listAllInterviews, assignInterviewCompany) vive en tests/unit/persistence/repository.captures.test.ts bajo SPEC-020.",
+    "updated_at": "2026-07-10"
   },
   "SPEC-007": {
     "spec_file": "specs/SPEC-007-settings-api-keys.md",
@@ -384,12 +386,12 @@
       {
         "file": "tests/unit/layout/Layout.test.tsx",
         "test_count": 9,
-        "description": "Shell con la tabla de rutas real de App.tsx bajo <Layout/> en MemoryRouter (servicios del harness mockeados; localStorage limpio por test): sidebar con los 4 links y landmark 'Navegación principal' (AC-01), click navega y el activo lleva bg-accent + font-medium por clases (AC-02), colapsar → labels sr-only + marca 'M' + localStorage 'true' + remontaje arranca colapsado (AC-03), refuerzo de AC-03: primer arranque con innerWidth 800 → colapsado sin escribir localStorage, expandir → labels visibles + localStorage 'false' (AC-04), tooltip con el nombre de sección al hover en colapsado —máx 1 hover por render, lección Radix— (AC-05), top bar con el título por ruta clave: /capture 'Captura', /discoveries 'Discoveries', /settings/note-templates/new 'Ajustes' (AC-06), index redirige a Captura (AC-07) y ruta inexistente → 'Página no encontrada' con 'Ir a Captura' funcional (AC-14)."
+        "description": "Shell con la tabla de rutas real de App.tsx (actualizada por SPEC-020: index y /capture legado redirigen a /captures, CapturesPage como home, spike desenrutado) bajo <Layout/> en MemoryRouter (localStorage limpio por test): sidebar con los 4 links — 'Capturas' → /captures — y landmark 'Navegación principal' (AC-01), click navega y el activo lleva bg-accent + font-medium por clases (AC-02), colapsar → labels sr-only + marca 'M' + localStorage 'true' + remontaje arranca colapsado (AC-03), refuerzo de AC-03: primer arranque con innerWidth 800 → colapsado sin escribir localStorage, expandir → labels visibles + localStorage 'false' (AC-04), tooltip con el nombre de sección al hover en colapsado —máx 1 hover por render, lección Radix— (AC-05), top bar con el título por ruta clave: /captures 'Capturas', /discoveries 'Discoveries', /settings/note-templates/new 'Ajustes' (AC-06), index redirige a Capturas (AC-07) y ruta inexistente → 'Página no encontrada' con 'Ir a Captura' funcional que aterriza en /captures vía redirect (AC-14)."
       },
       {
         "file": "tests/unit/layout/sections.test.tsx",
         "test_count": 5,
-        "description": "Secciones bajo el layout (misma réplica de rutas): Discoveries con empty state y texto secundario sin CTA (AC-08), hub de Plantillas con card de entrevistas 'Disponible próximamente' no clicable y card de notas que navega a la pestaña note-templates de Ajustes (AC-09), Ajustes sin back button 'Volver' con tabs funcionales (AC-10), editor de plantillas conservando su 'Volver' bajo el layout y volviendo al listado (AC-11), y Captura funcionando sin botón de engranaje con el link 'Ajustes' del sidebar como vía (AC-12)."
+        "description": "Secciones bajo el layout (misma réplica de rutas, actualizada por SPEC-020): Discoveries con empty state y CTA funcional (AC-08), hub de Plantillas con ambas cards navegando a su destino (AC-09), Ajustes sin back button 'Volver' con tabs funcionales (AC-10), editor de plantillas conservando su 'Volver' bajo el layout y volviendo al listado (AC-11), y la ruta legado /capture redirigiendo al listado global de Capturas — el AC-12 original (harness de spike) queda derogado por SPEC-020."
       }
     ],
     "e2e": [],
@@ -398,24 +400,24 @@
       "humo-visual-shell": "Humo visual del shell: anchos reales del sidebar (240/64px), overflow y scroll del contenedor main, sticky bottom bar del editor bajo el nuevo scroll container, transición de colapso — jsdom no hace layout ni estilos; revisión visual manual."
     },
     "acceptance_criteria_coverage": {
-      "AC-01": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::shows the sidebar with the four section items and the \"Navegación principal\" landmark",
+      "AC-01": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::shows the sidebar with the four section items — \"Capturas\" among them — and the \"Navegación principal\" landmark",
       "AC-02": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::navigates on item click and marks the active item with background and font weight (not color alone)",
       "AC-03": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::collapses to icons-only persisting the state in localStorage and across remounts + tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::starts collapsed on first launch when the window is narrower than 1024px (refuerzo)",
       "AC-04": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::expands back showing the labels when the expand button is clicked",
       "AC-05": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::shows a tooltip with the section name when hovering an item of the collapsed sidebar",
       "AC-06": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::top bar::shows the active section title in the banner for each key route",
-      "AC-07": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::routes::redirects the index route to the Captura section (provisional home)",
+      "AC-07": "ACTUALIZADO por SPEC-020 AC-02 (el index redirige ahora a /captures): tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::routes::redirects the index route to the Capturas section (SPEC-020 home)",
       "AC-08": "DEROGADO PARCIALMENTE por SPEC-010 (el empty state provisional perdió el texto secundario y ganó CTA funcional): tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Discoveries::shows the Discoveries empty state with its functional CTA under the layout + cobertura completa del empty state en SPEC-010 AC-03",
       "AC-09": "DEROGADO por SPEC-012 AC-01 (la card de entrevistas pasó a ser clicable → /templates/interview con la descripción 'Cuestionarios base para tus entrevistas'): tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Plantillas (hub)::shows both template cards, each navigating to its destination",
       "AC-10": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Ajustes bajo el layout::keeps the settings tabs functional and no longer shows the \"Volver\" back button",
       "AC-11": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::editor de plantillas bajo el layout::keeps the \"Volver\" back button in the note-template editor (detail flow) under the layout",
-      "AC-12": "tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Captura bajo el layout::renders the working capture harness without the settings gear button",
-      "AC-13": "REFERENCIA CRUZADA: cubierto implícitamente por los literales españoles asertados en todos los tests del shell y secciones (sidebar 'Discoveries/Plantillas/Captura/Ajustes', top bar, 'Aún no hay discoveries', 'Página no encontrada', 'Ir a Captura', tooltips y aria-labels en español); sin test propio.",
+      "AC-12": "DEROGADO por SPEC-020 (el harness de spike /capture deja de estar enrutado; su lugar lo ocupa el contrato nuevo): tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Capturas bajo el layout::redirects the legacy /capture route to the global captures list under the layout",
+      "AC-13": "REFERENCIA CRUZADA: cubierto implícitamente por los literales españoles asertados en todos los tests del shell y secciones (sidebar 'Discoveries/Plantillas/Capturas/Ajustes', top bar, 'Aún no hay discoveries', 'Página no encontrada', 'Ir a Captura', tooltips y aria-labels en español); sin test propio.",
       "AC-14": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::routes::shows the Spanish 404 page for unknown routes with a working \"Ir a Captura\" link"
     },
-    "notes": "SPEC-010 derogó parcialmente AC-08 (empty state de Discoveries): el test de sections.test.tsx se reescribió con findBy* (la página ahora carga del bridge), sin el texto secundario provisional y asertando el CTA 'Crear primer discovery' (regresión de contrato presupuestada, no bug).",
+    "notes": "SPEC-010 derogó parcialmente AC-08 (empty state de Discoveries): el test de sections.test.tsx se reescribió con findBy* (la página ahora carga del bridge), sin el texto secundario provisional y asertando el CTA 'Crear primer discovery' (regresión de contrato presupuestada, no bug). SPEC-020 reescribió la réplica de rutas y las aserciones de Layout.test.tsx/sections.test.tsx al contrato nuevo ('Capturas' → /captures como home; /capture e index redirigen; SpikeAudioCapturePage desenrutada — los mocks de servicios del spike ya no son necesarios en estos tests). Regresión de contrato presupuestada, no bug.",
     "created_at": "2026-07-04",
-    "updated_at": "2026-07-04"
+    "updated_at": "2026-07-10"
   },
   "SPEC-010": {
     "spec_file": "specs/SPEC-010-gestion-discoveries.md",
@@ -589,9 +591,9 @@
       "AC-13": "tests/unit/interviews/InterviewDetailPage.test.tsx::InterviewDetailPage::nonexistent interview::shows the error state with the \"Volver a Discoveries\" link when getInterview fails",
       "AC-14": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::mutation errors::shows an error toast, keeps the dialog open and leaves the list untouched when the bridge fails"
     },
-    "notes": "Sin adaptaciones de infra ni regresión sobre tests previos (la sección Entrevistas es nueva y los tests de SPEC-011 acotan por fila, no por conteos globales). getInterview se mockea por test. SPEC-014 derogó parcialmente AC-12 (secundario del empty state del guión) → test adaptado; el otro test roto (AC-11) solo necesitaba el mock nuevo de api.llm en el helper (TypeError de getStatus), sin cambios en sus asserts (regresión de contrato presupuestada, no bug).",
+    "notes": "Sin adaptaciones de infra ni regresión sobre tests previos (la sección Entrevistas es nueva y los tests de SPEC-011 acotan por fila, no por conteos globales). getInterview se mockea por test. SPEC-014 derogó parcialmente AC-12 (secundario del empty state del guión) → test adaptado; el otro test roto (AC-11) solo necesitaba el mock nuevo de api.llm en el helper (TypeError de getStatus), sin cambios en sus asserts (regresión de contrato presupuestada, no bug). SPEC-020 (schema v2): las fixtures de Interview ganan discoveryId: 'd-1' y las aserciones de createInterview incluyen discoveryId (la firma nueva useInterviews(discoveryId, companyId) lo envía desde la ruta). Regresión de contrato presupuestada, no bug.",
     "created_at": "2026-07-04",
-    "updated_at": "2026-07-04"
+    "updated_at": "2026-07-10"
   },
   "SPEC-014": {
     "spec_file": "specs/SPEC-014-guion-ia.md",
@@ -628,8 +630,9 @@
       "AC-11": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::asks to discard unsaved changes on cancel, and returns directly when clean",
       "AC-12": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::editing::saves via updateInterview without status, silently dropping empty objectives, and returns to read mode (mismo it que AC-10: el payload aserta el filtrado de vacíos) + filtrado también fijado en el servicio (AC-01 servicio: objetivos vacíos descartados)"
     },
-    "notes": "Adaptación de infra: tests/helpers/mockApi.ts amplía BridgeApi con llm: LlmApi (getStatus default {hasAnthropicKey:false}; generateScript configurable por test) tras el cambio de contrato del preload (window.api.llm).",
-    "created_at": "2026-07-04"
+    "notes": "Adaptación de infra: tests/helpers/mockApi.ts amplía BridgeApi con llm: LlmApi (getStatus default {hasAnthropicKey:false}; generateScript configurable por test) tras el cambio de contrato del preload (window.api.llm). SPEC-020 (schema v2): los seeds de llmService.test.ts y las fixtures de ScriptSection.test.tsx ganan discoveryId; el prompt de usuario incluye ahora la sección '## Discovery' también con empresa (los asserts existentes no se ven afectados). La degradación sin empresa se cubre en tests/unit/script/llmService.captures.test.ts bajo SPEC-020.",
+    "created_at": "2026-07-04",
+    "updated_at": "2026-07-10"
   },
   "SPEC-015": {
     "spec_file": "specs/SPEC-015-grabacion-entrevista.md",
@@ -664,9 +667,9 @@
       "AC-13": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::after recording::restores the persisted summary after a reload, reading the latency from the transcript file",
       "AC-14": "tests/unit/recording/RecordingSection.test.tsx::RecordingSection::script visibility::keeps the Guión section visible and readable while the recording is running"
     },
-    "notes": "Adaptación de infra: tests/helpers/mockApi.ts añade recording.getTranscriptStats (default null) tras la ampliación del contrato (única rotura de compilación, presupuestada). Los tests previos del detalle de entrevista no requirieron cambios: el bridge del spike ya estaba mockeado por el helper y la sección nueva degrada bien con los defaults. SPEC-016 añadió el panel de objetivos EN VIVO durante la grabación → el test de AC-14 pasó a getAllBy para el h4 'Objetivos' (dos headings: panel del asistente + sección Guión; regresión de contrato presupuestada, no bug).",
+    "notes": "Adaptación de infra: tests/helpers/mockApi.ts añade recording.getTranscriptStats (default null) tras la ampliación del contrato (única rotura de compilación, presupuestada). Los tests previos del detalle de entrevista no requirieron cambios: el bridge del spike ya estaba mockeado por el helper y la sección nueva degrada bien con los defaults. SPEC-016 añadió el panel de objetivos EN VIVO durante la grabación → el test de AC-14 pasó a getAllBy para el h4 'Objetivos' (dos headings: panel del asistente + sección Guión; regresión de contrato presupuestada, no bug). SPEC-020 (schema v2): la fixture de Interview de RecordingSection.test.tsx gana discoveryId: 'd-1' (rotura de compilación presupuestada, no bug).",
     "created_at": "2026-07-04",
-    "updated_at": "2026-07-04"
+    "updated_at": "2026-07-10"
   },
   "SPEC-016": {
     "spec_file": "specs/SPEC-016-asistencia-tiempo-real.md",
@@ -707,8 +710,9 @@
       "AC-14": "tests/unit/assistant/assistantService.test.ts::assistantService::API errors::emits a typed error keeping the counters so the next window retries + tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::errors::shows the discreet retry line under the preserved suggestion on analysis error",
       "AC-15": "tests/unit/assistant/assistantService.test.ts::assistantService::stop::detaches the listener and discards late in-flight responses after stop + tests/unit/assistant/AssistantPanel.test.tsx::AssistantPanel::end of recording::removes the assistant panel when the recording stops into the recorded state"
     },
-    "notes": "Adaptación de infra (causa única del breakage, presupuestada): tests/helpers/mockApi.ts amplía BridgeApi con assistant: AssistantApi (onUpdate con unsubscribe real; sendFeedback resuelto) + emitAssistantUpdate en el handle — esto recupera los tests de recording/script/interviews sin tocarlos. La forma PersistedTranscript del test de SPEC-002 gana el campo assistant ({ lines, latency, assistant }).",
-    "created_at": "2026-07-04"
+    "notes": "Adaptación de infra (causa única del breakage, presupuestada): tests/helpers/mockApi.ts amplía BridgeApi con assistant: AssistantApi (onUpdate con unsubscribe real; sendFeedback resuelto) + emitAssistantUpdate en el handle — esto recupera los tests de recording/script/interviews sin tocarlos. La forma PersistedTranscript del test de SPEC-002 gana el campo assistant ({ lines, latency, assistant }). SPEC-020: la fixture de AssistantPanel.test.tsx gana discoveryId; el seed de assistantService.test.ts pasa a una CAPTURA SIN EMPRESA (companyId null) — toda la suite SPEC-016 corre ahora sin empresa asignada y sirve de evidencia de SPEC-020 AC-16 (el asistente solo depende de interviewId). Las garantías de SPEC-016 no cambian: ningún AC dependía de la empresa.",
+    "created_at": "2026-07-04",
+    "updated_at": "2026-07-10"
   },
   "SPEC-017": {
     "spec_file": "specs/SPEC-017-nota-resumen-entrevista.md",
@@ -756,8 +760,9 @@
       "AC-22": "tests/unit/notes/NoteSection.test.tsx::NoteSection::export::toasts the destructive \"No se pudo exportar\" when the export fails + tests/unit/notes/noteService.test.ts::noteService::export::fails typed with kind write when the file cannot be written",
       "AC-23": "tests/unit/notes/NoteSection.test.tsx::NoteSection::interview status::shows the \"Resumida\" status badge for a summarized interview (STATUS_LABELS.summarized compartido por el listado de la empresa)"
     },
-    "notes": "Adaptación de infra (breakage exacto del plan §5): tests/helpers/mockApi.ts añade llm.generateNote, recording.getTranscriptLines (default ok []) y notes: NotesApi (createMockNotesApi exportado, default {saved:true, filePath:'/tmp/x.md'}). GAP documentado: la calidad real del resumen con la API real es juicio humano (manual_verification).",
-    "created_at": "2026-07-04"
+    "notes": "Adaptación de infra (breakage exacto del plan §5): tests/helpers/mockApi.ts añade llm.generateNote, recording.getTranscriptLines (default ok []) y notes: NotesApi (createMockNotesApi exportado, default {saved:true, filePath:'/tmp/x.md'}). GAP documentado: la calidad real del resumen con la API real es juicio humano (manual_verification). SPEC-020 (schema v2): el seed de noteService.test.ts y la fixture de NoteSection.test.tsx ganan discoveryId (rotura de compilación presupuestada, no bug). La degradación de la nota sin empresa se cubre en tests/unit/notes/noteService.captures.test.ts bajo SPEC-020.",
+    "created_at": "2026-07-04",
+    "updated_at": "2026-07-10"
   },
   "SPEC-018": {
     "spec_file": "specs/SPEC-018-busqueda-global.md",
@@ -801,7 +806,108 @@
       "AC-18": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::empty and error states::shows the \"Sin resultados\" empty state for a query without matches",
       "AC-19": "tests/unit/search/GlobalSearch.test.tsx::GlobalSearch::empty and error states::shows \"No se pudo buscar\" inside the dialog when the bridge fails, without breaking the app"
     },
-    "notes": "Adaptación de infra (breakage exacto del plan §5): tests/helpers/mockApi.ts añade db.search a createMockDbApi (default sin resultados, overridable). SIN gaps de jsdom: el autofocus de cmdk y las flechas+Enter funcionaron (no hizo falta degradar). Las rutas de destino asertadas son las ANIDADAS reales (desviación documentada del propio código respecto a las planas de la nota técnica).",
-    "created_at": "2026-07-04"
+    "notes": "Adaptación de infra (breakage exacto del plan §5): tests/helpers/mockApi.ts añade db.search a createMockDbApi (default sin resultados, overridable). SIN gaps de jsdom: el autofocus de cmdk y las flechas+Enter funcionaron (no hizo falta degradar). Las rutas de destino asertadas son las ANIDADAS reales (desviación documentada del propio código respecto a las planas de la nota técnica). SPEC-020: SearchInterviewHit gana companyId/companyName nullables y discoveryId propio; search.test.ts pasa discoveryId en createInterview (los toEqual existentes ya coinciden con la forma nueva) y los hits sin empresa (contexto 'Sin empresa' + navegación /captures/:id) se cubren en tests/unit/search/search.captures.test.ts y GlobalSearch.captures.test.tsx bajo SPEC-020.",
+    "created_at": "2026-07-04",
+    "updated_at": "2026-07-10"
+  },
+  "SPEC-020": {
+    "spec_file": "specs/SPEC-020-capturas-capture-first.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec — el conteo real es 35 (navegación/listado ×8, nueva captura ×5, detalle ×4, guión sin empresa ×3, asignación ×10, edición/eliminación ×3, integraciones ×2): AC-01 sidebar 'Capturas'→/captures, AC-02 redirects / y /capture→/captures, AC-03 listado global updatedAt desc con fila título+Badge+refs, AC-04 'Sin empresa' como Badge outline, AC-05 filtro 'Sin empresa'+'Limpiar filtros', AC-06 empty state, AC-07 error state+Reintentar, AC-08 Skeletons, AC-09 Dialog nueva captura (Título/Discovery/Plantilla), AC-10 título vacío→error inline, AC-11 discovery vacío→error inline, AC-12 cero discoveries→aviso+link, AC-13 crear→draft companyId null+Toast+navegación, AC-14 detalle cabecera (Volver/h1/Badge/fila muted), AC-15 secciones Grabación→Nota→Guión íntegras, AC-16 asistente sin empresa, AC-17 id inexistente→error+'Volver a Capturas', AC-18 guión sin empresa (template+discovery, sin Empresa/Contacto/Histórico, prepared), AC-19 sin plantilla→no-template sin LLM, AC-20 regenerar tras asignar→contexto completo, AC-21 botón 'Asignar empresa' en detalle, AC-22 acción de fila 'Asignar empresa y contacto', AC-23 Sheet con Selects (empresas del discovery + contacto bloqueado con Tooltip), AC-24 '+ Nueva empresa' inline, AC-25 '+ Nuevo contacto' inline, AC-26 nombre vacío→error sin persistir, AC-27 asignar existente→Toast+cierre+reflejo sin recargar, AC-28 crear-y-asignar en una operación (si falla, nada), AC-29 captura asignada listada bajo su empresa, AC-30 fallo bridge→Sheet abierto+Toast destructive sin estado a medias, AC-31 menú Editar (Contacto solo con empresa)/Eliminar, AC-32 AlertDialog de borrado con copys exactos, AC-33 cascada deleteDiscovery sobre capturas sin empresa, AC-34 búsqueda: hit sin empresa→'Sin empresa'+/captures/:id, AC-35 entrevistas del flujo de empresa en el listado global.",
+    "unit": [
+      {
+        "file": "tests/unit/captures/CapturesPage.test.tsx",
+        "test_count": 13,
+        "description": "Listado global /captures con window.api mockeado (probes /captures/:id y /discoveries): filas con Link, Badge de estado y refs muted resueltas en el orden que entrega main (AC-03); navegación del título de una entrevista de empresa a /captures/:id (AC-35); 'Sin empresa' como Badge outline (data-variant) solo en filas sin empresa (AC-04); filtro chip 'Sin empresa' + 'Limpiar filtros' con restauración (AC-05, ×2 con el empty por filtro 'No hay capturas sin empresa'); empty global con CTA que abre el Dialog (AC-06); error state con mensaje del bridge y 'Reintentar' que recarga (AC-07); 3+ Skeletons con la promesa pendiente (AC-08); creación capture-first → createInterview {discoveryId, companyId: null, title, templateId} + toast 'Captura creada' + navegación al detalle (AC-13); menú ⋯ con 'Asignar empresa y contacto' SOLO sin empresa abriendo el Sheet (AC-22); 'Editar'/'Eliminar' con Dialog de edición sin campo Contacto sin empresa y CON Contacto precargado con empresa (AC-31, ×2); y AlertDialog 'Eliminar captura' con el copy exacto «título» y sus notas → deleteInterview + fila fuera + toast (AC-32)."
+      },
+      {
+        "file": "tests/unit/captures/NewCaptureDialog.test.tsx",
+        "test_count": 4,
+        "description": "Dialog 'Nueva captura' aislado (frontera: prop onSubmit; MemoryRouter por el link del aviso): campos Título (placeholder 'Captura dd/mm/aaaa'), Discovery con placeholder y Plantilla default 'Sin template' con etiquetas nombre (fase) (AC-09); 'Campo requerido' bajo Título sin llamar a onSubmit (AC-10); 'Campo requerido' bajo Discovery sin llamar (AC-11); y cero discoveries → Select disabled con 'No hay discoveries' + link 'Crear discovery' a /discoveries (AC-12)."
+      },
+      {
+        "file": "tests/unit/captures/CaptureDetailPage.test.tsx",
+        "test_count": 5,
+        "description": "Detalle /captures/:id con las secciones REALES montadas (mocks del spike, patrón SPEC-015/016/017) + bridge mockeado: cabecera con 'Volver' → /captures, h1, Badge y fila muted 'discovery · Sin empresa · Sin contacto · Sin template' (AC-14); secciones Grabación → Nota → Guión en ese orden con la Grabación operativa (AC-15 — el comportamiento íntegro de cada sección lo garantizan sus suites SPEC-015/016/017/019, montadas tal cual con {interview, onInterviewUpdated}); error state con link 'Volver a Capturas' (AC-17); botón outline 'Asignar empresa' que abre el Sheet solo sin empresa (con empresa: cabecera resuelta y sin botón) (AC-21); y asignación de empresa existente → assignInterviewCompany + toast 'Empresa asignada' + Sheet cerrado + cabecera reflejada SIN recargar (getInterview una sola vez) (AC-27 UI)."
+      },
+      {
+        "file": "tests/unit/captures/AssignCompanySheet.test.tsx",
+        "test_count": 6,
+        "description": "Sheet 'Asignar empresa y contacto' aislado (frontera: window.api): descripción con «discovery», Select Empresa con las empresas del discovery + '+ Nueva empresa', Contacto disabled con Tooltip 'Selecciona primero una empresa' (wrapper span tabIndex 0) hasta elegir empresa y luego 'Sin contacto'+contactos+'+ Nuevo contacto' (AC-23); campos inline Nombre/Website/LinkedIn con '+ Nueva empresa' sin segundo modal y contacto reducido a Sin/Nuevo (AC-24); campos inline Nombre/Posición/LinkedIn con '+ Nuevo contacto' (AC-25); nombre de empresa nueva vacío → 'Campo requerido' sin tocar el bridge (AC-26); empresa+contacto nuevos → UNA sola llamada assignInterviewCompany {newCompany, newContact} + onAssigned + toast + cierre (AC-28 UI); y {ok:false} → toast destructive con el Sheet abierto, formulario intacto y reintento posible (AC-30 UI)."
+      },
+      {
+        "file": "tests/unit/persistence/repository.captures.test.ts",
+        "test_count": 9,
+        "description": "Persistencia SPEC-020 contra el store REAL en temporal: migración v1→v2 (backfill de discoveryId desde la empresa; entrevista con empresa irresoluble eliminada con su nota; schemaVersion 2 persistido); createInterview capture-first (companyId/contactId null, draft) (AC-13 main); invariantes de referencia (empresa∉discovery, contacto sin empresa, contacto de otra empresa) sin persistir nada; updateInterview endurecido (contacto exige empresa); cascada deleteDiscovery sobre capturas sin empresa y sus notas, respetando otros discoveries (AC-33); listAllInterviews con contexto resuelto, nulls defensivos y orden updatedAt desc (AC-03 main); assignInterviewCompany con existentes → entrevista actualizada y listada bajo la empresa (AC-27 main + AC-29); con nuevos → empresa en el discovery de la captura y contacto en esa empresa, todo en una operación (AC-28 main); e inputs inválidos → error tipado con el db.json byte-idéntico (atomicidad, AC-28/AC-30 main)."
+      },
+      {
+        "file": "tests/unit/script/llmService.captures.test.ts",
+        "test_count": 3,
+        "description": "llmService en Node (SDK mockeado, store real): captura sin empresa → prompt SOLO con '## Discovery' + template (sin '## Empresa'/'## Contacto'/'## Entrevistas anteriores'), system prompt 'al contexto del discovery' y status prepared persistido (AC-18); sin plantilla → no-template sin llamar al SDK (AC-19); y tras assignInterviewCompany real (empresa+contacto nuevos) con entrevista previa de esa empresa → el prompt recupera Empresa/Contacto/Histórico, mantiene '## Discovery' y el system vuelve a 'a la empresa y al contacto concretos' (AC-20)."
+      },
+      {
+        "file": "tests/unit/notes/noteService.captures.test.ts",
+        "test_count": 1,
+        "description": "noteService en Node (SDK mockeado, store y transcript reales): la nota de una captura sin empresa se genera igual con '## Empresa\\nSin empresa asignada.' y '## Contacto\\nSin contacto asignado.' en el prompt, persistiendo nota y status summarized (refuerzo de AC-15: NoteSection íntegra sin empresa; hallazgo del plan fuera de Notas técnicas)."
+      },
+      {
+        "file": "tests/unit/search/search.captures.test.ts",
+        "test_count": 2,
+        "description": "searchGlobal en Node contra el store real: hit de captura sin empresa con companyId/companyName null y discoveryId propio (AC-34 main); y omisión defensiva mantenida SOLO para companyId no-null irresoluble (db.json v2 inconsistente escrito a mano) (refuerzo AC-34)."
+      },
+      {
+        "file": "tests/unit/search/GlobalSearch.captures.test.tsx",
+        "test_count": 2,
+        "description": "TopBar + GlobalSearchDialog (arnés de SPEC-018, probes /captures/:id y anidada): el hit sin empresa muestra 'Sin empresa' como contexto y navega a /captures/:id cerrando el diálogo (AC-34 UI); el hit CON empresa conserva la ruta anidada (refuerzo AC-34)."
+      }
+    ],
+    "repurposed_tests_note": "AC-01/AC-02 se cubren en los tests del shell reescritos por esta spec (tests/unit/layout/Layout.test.tsx y sections.test.tsx, entradas de SPEC-009 actualizadas); AC-16 se cubre con la suite completa de assistantService (SPEC-016), cuyo seed pasa a una captura sin empresa.",
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "AC-15": "Componentes físicos/perceptuales de la 'experiencia completa': grabación con audio real (mic+sistema), transcripción en vivo real de Deepgram, aviso de consentimiento sonoro y export con save dialog real del SO exigen la app real en macOS. El montaje idéntico de las secciones y su orden están automatizados aquí; el comportamiento interno de cada sección está automatizado en sus suites (SPEC-015/016/017/019), que corren sobre los MISMOS componentes montados tal cual.",
+      "AC-16": "La sugerencia proactiva del asistente durante una grabación REAL de una captura sin empresa requiere audio y APIs reales; la vía automatizada es la suite de assistantService (SPEC-016) corriendo íntegra sobre una captura sin empresa.",
+      "migracion-real": "Migración v1→v2 sobre un db.json real de una instalación existente (smoke del plan): automatizada en unit con un v1 sintético; la verificación sobre datos reales de userData es manual.",
+      "responsive": "Cabecera del listado en dos filas en mobile, Sheet a ancho completo y metadata en línea propia: jsdom no hace layout; revisión visual manual."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::sidebar::shows the sidebar with the four section items — \"Capturas\" among them — and the \"Navegación principal\" landmark",
+      "AC-02": "tests/unit/layout/Layout.test.tsx::Layout (shell de navegación)::routes::redirects the index route to the Capturas section (SPEC-020 home) + tests/unit/layout/sections.test.tsx::secciones bajo el layout (SPEC-009)::Capturas bajo el layout::redirects the legacy /capture route to the global captures list under the layout",
+      "AC-03": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::listing::lists every interview in the system with title link, status badge and the muted refs row + tests/unit/persistence/repository.captures.test.ts::repository (SPEC-020 capturas)::listAllInterviews::returns every interview with resolved names (null for missing refs) ordered by updatedAt descending",
+      "AC-04": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::listing::renders \"Sin empresa\" as an outline badge only on rows without company",
+      "AC-05": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::listing::filters to companyId-null captures with the \"Sin empresa\" chip and clears with \"Limpiar filtros\" + tests/unit/captures/CapturesPage.test.tsx::CapturesPage::listing::shows the \"No hay capturas sin empresa\" filtered empty state when the filter matches nothing",
+      "AC-06": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::listing::shows the empty state with \"Aún no hay capturas\" and a working \"Crear primera captura\" CTA",
+      "AC-07": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::listing::shows the error state with the bridge message and recovers on \"Reintentar\"",
+      "AC-08": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::listing::shows row skeletons while the list request is pending",
+      "AC-09": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::renders Título (required), Discovery (required) and Plantilla defaulting to \"Sin template\" with name+phase labels",
+      "AC-10": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::shows the inline \"Campo requerido\" error under Título and creates nothing when the title is empty",
+      "AC-11": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::shows the inline \"Campo requerido\" error under Discovery and creates nothing when no discovery is selected",
+      "AC-12": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::disables the Discovery select with \"No hay discoveries\" and links to create one when there are zero discoveries",
+      "AC-13": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::creating a capture::creates the capture with discoveryId and companyId null, toasts \"Captura creada\" and navigates to its detail + tests/unit/persistence/repository.captures.test.ts::repository (SPEC-020 capturas)::createInterview capture-first::creates a capture with the chosen discoveryId, null companyId/contactId and draft status",
+      "AC-14": "tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::header::shows the \"Volver\" back button to /captures, the h1 title, the status badge and the muted refs row with fallbacks",
+      "AC-15": "tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::sections::mounts the same interview sections in order: Grabación, Nota and Guión + tests/unit/notes/noteService.captures.test.ts::noteService (SPEC-020 capturas)::generates the note for a companyless capture declaring \"Sin empresa asignada.\" in the prompt and persists status summarized (comportamiento interno de cada sección: suites SPEC-015/016/017/019 sobre los mismos componentes; componente físico: MANUAL)",
+      "AC-16": "tests/unit/assistant/assistantService.test.ts::assistantService (suite completa de SPEC-016 corriendo sobre una captura SIN empresa — seed SPEC-020): la activación por interviewId, las sugerencias, el feedback y la persistencia funcionan sin empresa asignada (grabación real: MANUAL)",
+      "AC-17": "tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::error state::shows the error state with a \"Volver a Capturas\" link when the capture id does not exist",
+      "AC-18": "tests/unit/script/llmService.captures.test.ts::llmService (SPEC-020 capturas)::generation without a company::generates from the template and the discovery name only, omitting the company/contact/history sections, and sets status prepared",
+      "AC-19": "tests/unit/script/llmService.captures.test.ts::llmService (SPEC-020 capturas)::generation without a company::fails with the no-template block without calling the LLM when the capture has no template",
+      "AC-20": "tests/unit/script/llmService.captures.test.ts::llmService (SPEC-020 capturas)::regeneration after assigning a company::includes the company, the contact and the company historical context again when regenerating after assignment",
+      "AC-21": "tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::company assignment::shows the outline \"Asignar empresa\" button opening the Sheet only while the capture has no company",
+      "AC-22": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::row actions menu::offers \"Asignar empresa y contacto\" only on unassigned rows and opens the assign Sheet",
+      "AC-23": "tests/unit/captures/AssignCompanySheet.test.tsx::AssignCompanySheet::offers the discovery companies plus \"+ Nueva empresa\", and gates the contact select behind choosing a company",
+      "AC-24": "tests/unit/captures/AssignCompanySheet.test.tsx::AssignCompanySheet::shows the inline Nombre/Website/LinkedIn fields when \"+ Nueva empresa\" is selected, without a second modal",
+      "AC-25": "tests/unit/captures/AssignCompanySheet.test.tsx::AssignCompanySheet::shows the inline Nombre/Posición/LinkedIn fields when \"+ Nuevo contacto\" is selected",
+      "AC-26": "tests/unit/captures/AssignCompanySheet.test.tsx::AssignCompanySheet::shows the inline \"Campo requerido\" error and persists nothing when the new company name is empty + tests/unit/persistence/repository.captures.test.ts::repository (SPEC-020 capturas)::assignInterviewCompany::rejects invalid assignments atomically leaving the data file byte-identical (nombre vacío en main)",
+      "AC-27": "tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::company assignment::assigns an existing company, toasts \"Empresa asignada\", closes the Sheet and refreshes the header without reloading + tests/unit/persistence/repository.captures.test.ts::repository (SPEC-020 capturas)::assignInterviewCompany::assigns an existing company and contact updating the interview, which then lists under that company",
+      "AC-28": "tests/unit/captures/AssignCompanySheet.test.tsx::AssignCompanySheet::assigns creating the new company and contact in a single bridge operation and notifies the assignment + tests/unit/persistence/repository.captures.test.ts::repository (SPEC-020 capturas)::assignInterviewCompany::creates the inline company in the capture discovery and the inline contact in that company, assigning both + tests/unit/persistence/repository.captures.test.ts::repository (SPEC-020 capturas)::assignInterviewCompany::rejects invalid assignments atomically leaving the data file byte-identical",
+      "AC-29": "tests/unit/persistence/repository.captures.test.ts::repository (SPEC-020 capturas)::assignInterviewCompany::assigns an existing company and contact updating the interview, which then lists under that company (la sección Entrevistas de CompanyDetailPage renderiza listInterviews(companyId): cubierto por SPEC-013 AC-01)",
+      "AC-30": "tests/unit/captures/AssignCompanySheet.test.tsx::AssignCompanySheet::keeps the Sheet open with a destructive toast and no half-applied state when the bridge fails + tests/unit/persistence/repository.captures.test.ts::repository (SPEC-020 capturas)::assignInterviewCompany::rejects invalid assignments atomically leaving the data file byte-identical",
+      "AC-31": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::row actions menu::includes \"Editar\" and \"Eliminar\" in the menu and opens the edit dialog without a Contacto field for unassigned captures + tests/unit/captures/CapturesPage.test.tsx::CapturesPage::row actions menu::includes the Contacto select preloaded in the edit dialog when the capture has a company",
+      "AC-32": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::row actions menu::confirms deletion in the \"Eliminar captura\" AlertDialog with the exact copy and removes the row with its toast",
+      "AC-33": "tests/unit/persistence/repository.captures.test.ts::repository (SPEC-020 capturas)::deleteDiscovery cascade::deletes companyless captures and their notes in cascade when their discovery is deleted",
+      "AC-34": "tests/unit/search/GlobalSearch.captures.test.tsx::GlobalSearch (SPEC-020 capturas)::shows \"Sin empresa\" as the context of a companyless capture hit and navigates to /captures/:id on click + tests/unit/search/GlobalSearch.captures.test.tsx::GlobalSearch (SPEC-020 capturas)::keeps the nested interview route for hits that do have a company + tests/unit/search/search.captures.test.ts::searchGlobal (SPEC-020 capturas)::emits interview hits without company carrying null companyId/companyName and the interview discoveryId + tests/unit/search/search.captures.test.ts::searchGlobal (SPEC-020 capturas)::still omits interviews whose non-null companyId does not resolve",
+      "AC-35": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::listing::navigates to /captures/:id when the title of a company-flow interview is clicked"
+    },
+    "notes": "Migración v1→v2 (Notas técnicas, sin AC propio) cubierta en repository.captures.test.ts::v1 to v2 migration; el invariante endurecido de updateInterview (contacto exige empresa) en ::createInterview capture-first::rejects updating a companyless capture with a contactId via updateInterview. Desviación declarada del implementador asumida por los tests: la fila muted del listado omite las partes null y 'Sin empresa' va como Badge outline (wireframe prevalece sobre el literal del AC-03). Breakage presupuestado repuesto: mockApi (+listAllInterviews/+assignInterviewCompany), fixtures de Interview con discoveryId en 8 suites, firmas de createInterview con discoveryId, tests del shell reescritos a 'Capturas'/redirects, seed del asistente sin empresa.",
+    "created_at": "2026-07-10",
+    "updated_at": "2026-07-10"
   }
 }

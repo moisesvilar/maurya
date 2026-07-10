@@ -52,6 +52,8 @@ const TEMPLATE: InterviewTemplate = {
 function interview(overrides: Partial<Interview> = {}): Interview {
   return {
     id: 'i-1',
+    // SPEC-020 (schema v2): toda entrevista ancla su discovery directamente.
+    discoveryId: 'd-1',
     companyId: 'c-1',
     contactId: 'ct-1',
     templateId: 'tpl-1',
@@ -230,7 +232,9 @@ describe('CompanyDetailPage (entrevistas)', () => {
       await user.click(await screen.findByRole('option', { name: 'Entrevista MDR (Problema)' }))
       await user.click(screen.getByRole('button', { name: 'Crear' }))
 
+      // SPEC-020: la creación viaja con el discoveryId de la ruta (schema v2)
       expect(vi.mocked(mockApi.api.db.createInterview)).toHaveBeenCalledWith({
+        discoveryId: 'd-1',
         companyId: 'c-1',
         title: 'Entrevista con Jane',
         contactId: 'ct-1',
@@ -255,6 +259,7 @@ describe('CompanyDetailPage (entrevistas)', () => {
       await user.type(titleInput, 'Sin referencias{Enter}')
 
       expect(vi.mocked(mockApi.api.db.createInterview)).toHaveBeenCalledWith({
+        discoveryId: 'd-1',
         companyId: 'c-1',
         title: 'Sin referencias',
         contactId: null,
@@ -299,6 +304,7 @@ describe('CompanyDetailPage (entrevistas)', () => {
       await user.type(titleInput, 'Solo título')
       await user.click(screen.getByRole('button', { name: 'Crear' }))
       expect(vi.mocked(mockApi.api.db.createInterview)).toHaveBeenCalledWith({
+        discoveryId: 'd-1',
         companyId: 'c-1',
         title: 'Solo título',
         contactId: null,

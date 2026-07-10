@@ -73,6 +73,7 @@ interface Seeded {
   interview: Interview
   template: InterviewTemplate
   companyId: string
+  discoveryId: string
 }
 
 /** Discovery + empresa + contacto + template + entrevista con template asignado. */
@@ -101,12 +102,13 @@ function seedBase(options: { withTemplate?: boolean } = {}): Seeded {
     ]
   })
   const interview = repository.createInterview({
+    discoveryId: discovery.id,
     companyId: company.id,
     title: 'Discovery con Acme',
     contactId: contact.id,
     templateId: withTemplate ? template.id : null
   })
-  return { interview, template, companyId: company.id }
+  return { interview, template, companyId: company.id, discoveryId: discovery.id }
 }
 
 async function captureLlmError(promise: Promise<unknown>): Promise<LlmOperationError> {
@@ -192,7 +194,7 @@ describe('llmService', () => {
   describe('historical context', () => {
     // SPEC-014 · AC-04
     it('injects previous same-company transcripts and notes into the user prompt, omitting other companies and corrupt transcripts', async () => {
-      const { interview, template, companyId } = seedBase()
+      const { interview, template, companyId, discoveryId } = seedBase()
 
       // Entrevista previa de la MISMA empresa con transcript legible
       const transcriptDir = mkdtempSync(join(tmpdir(), 'maurya-llm-transcripts-'))
@@ -214,6 +216,7 @@ describe('llmService', () => {
         })
       )
       const previousWithTranscript = repository.createInterview({
+        discoveryId,
         companyId,
         title: 'Primera toma de contacto',
         templateId: template.id
@@ -222,6 +225,7 @@ describe('llmService', () => {
 
       // Entrevista previa de la MISMA empresa con nota
       const previousWithNote = repository.createInterview({
+        discoveryId,
         companyId,
         title: 'Sesión de seguimiento'
       })
@@ -235,6 +239,7 @@ describe('llmService', () => {
       const corruptPath = join(transcriptDir, 'corrupto.transcript.json')
       writeFileSync(corruptPath, '{esto no es json')
       const previousCorrupt = repository.createInterview({
+        discoveryId,
         companyId,
         title: 'Sesión con transcript corrupto'
       })
@@ -247,6 +252,7 @@ describe('llmService', () => {
         name: 'Globex'
       })
       const otherInterview = repository.createInterview({
+        discoveryId: otherDiscovery.id,
         companyId: otherCompany.id,
         title: 'Entrevista ajena'
       })
