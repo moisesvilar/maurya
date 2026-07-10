@@ -16,7 +16,10 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import type { WebContents } from 'electron'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { DeepgramCallbacks, DeepgramConnectionOptions } from '../../../src/main/deepgramService'
+import type {
+  DeepgramCallbacks,
+  DeepgramConnectionOptions
+} from '../../../src/main/deepgramService'
 import {
   persistTranscript,
   resetTranscription,
@@ -53,11 +56,7 @@ vi.mock('../../../src/main/deepgramService', () => ({
     closeStream = vi.fn()
     terminate = vi.fn()
 
-    constructor(
-      apiKey: string,
-      callbacks: DeepgramCallbacks,
-      options?: DeepgramConnectionOptions
-    ) {
+    constructor(apiKey: string, callbacks: DeepgramCallbacks, options?: DeepgramConnectionOptions) {
       this.apiKey = apiKey
       this.callbacks = callbacks
       this.options = options
@@ -186,8 +185,10 @@ describe('transcriptionService (degradación SPEC-022)', () => {
     )
   })
 
-  // SPEC-022 · AC-03
-  it('gives up with the current literal message when the no-diarization attempt also fails', async () => {
+  // SPEC-022 · AC-03 (contrato corregido por SPEC-022-iter-1: la rendición de
+  // un fallback que nunca abrió va SIN campo degraded — la sesión jamás entró
+  // en modo degradado operativo)
+  it('gives up with the current literal message and exact shape when the no-diarization attempt also fails', async () => {
     const { sender, send } = createSender()
     startTranscription(sender)
     await exhaustDiarizedRetries()
@@ -201,11 +202,13 @@ describe('transcriptionService (degradación SPEC-022)', () => {
           kind: 'deepgram-connection',
           message:
             'No se pudo restablecer la conexión con Deepgram (código 1006). La captura continúa sin transcripción; se conservan las líneas ya recibidas.'
-        },
-        degraded: true
+        }
       })
     })
     expect(harness.instances).toHaveLength(3)
+    // SPEC-022-iter-1: NINGÚN evento de esta sesión llevó degraded:true (el
+    // intento sin diarización nunca llegó a abrir)
+    expect(statusEvents(send).some((event) => event.degraded === true)).toBe(false)
   })
 
   // SPEC-022 · AC-04

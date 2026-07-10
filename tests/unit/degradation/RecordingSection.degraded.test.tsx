@@ -248,4 +248,42 @@ describe('RecordingSection (degradación SPEC-022)', () => {
     expect(screen.getByText('Hablante 1')).toBeInTheDocument()
     expect(screen.queryByTestId('transcription-degraded-alert')).not.toBeInTheDocument()
   })
+
+  // SPEC-022-iter-1 (refuerzo de AC-06: el Alert SOLO en modo degradado real —
+  // la rendición de un fallback que nunca abrió llega sin la marca y no debe
+  // mostrar "la transcripción sigue funcionando" junto al error de conexión)
+  it('does not show the degraded alert when the fallback surrender arrives without the degraded mark', async () => {
+    const user = userEvent.setup()
+    renderDetail()
+    await startRecording(user)
+
+    // Secuencia real de main tras el fix: reintento y rendición SIN degraded
+    act(() => {
+      mockApi.emitTranscriptionStatus({
+        status: 'disconnected',
+        error: {
+          kind: 'deepgram-connection',
+          message: 'Se perdió la conexión con Deepgram (código 1006). Reintentando la conexión…'
+        }
+      })
+    })
+    act(() => {
+      mockApi.emitTranscriptionStatus({
+        status: 'disconnected',
+        error: {
+          kind: 'deepgram-connection',
+          message:
+            'No se pudo restablecer la conexión con Deepgram (código 1006). La captura continúa sin transcripción; se conservan las líneas ya recibidas.'
+        }
+      })
+    })
+
+    // Aparece SOLO el error de conexión; jamás el Alert de modo degradado
+    expect(
+      await screen.findByText(/No se pudo restablecer la conexión con Deepgram/)
+    ).toBeInTheDocument()
+    expect(screen.queryByTestId('transcription-degraded-alert')).not.toBeInTheDocument()
+    // La grabación sigue en curso (la rendición no la detiene)
+    expect(screen.getByRole('button', { name: 'Detener' })).toBeInTheDocument()
+  })
 })
