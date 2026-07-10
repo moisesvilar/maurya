@@ -77,7 +77,7 @@ Depende de H0 y H3.
 - [x] 🔴 **Transcripción en vivo** visible durante la llamada (RF-AUDIO-003) — SPEC-015
 - [x] 🔴 Flujo de **permisos y selección de dispositivos** dentro de la app (RF-AUDIO-005) — SPEC-015
 - [x] 🟡 **Atribución de hablante** (diarización) en la transcripción (RF-AUDIO-004) — SPEC-015
-- [ ] 🔴 Sostener sesión continua de **≥60 min** sin degradarse ni perder audio (NFR §4.5)
+- [x] 🔴 Sostener sesión continua de **≥60 min** sin degradarse ni perder audio (NFR §4.5) — validado 2026-07-10 con sesión real instrumentada: 61,1 min de PCM continuo (234,7 MB, ritmo exacto 3,84 MB/min sin una sola parada), transcripción Deepgram activa en los 13 checkpoints, heap plano 33-57 MB. Evidencia en docs/MEMORY.md. **H4 completo**
 
 ---
 
@@ -141,11 +141,11 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H1 · Shell | 6 | 6 |
 | H2 · CRUD | 9 | 9 |
 | H3 · IA guión | 5 | 5 |
-| H4 · Transcripción | 6 | 5 |
+| H4 · Transcripción | 6 | 6 |
 | H5 · Asistencia | 8 | 8 |
 | H6 · Resumen | 5 | 5 |
 | H7 · Pulido | 7 | 4 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **48** |
+| **Total** | **56** | **49** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
