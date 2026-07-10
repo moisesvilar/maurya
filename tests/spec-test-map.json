@@ -1131,6 +1131,11 @@
         "file": "tests/unit/ai-cost/AiCostCard.submitGuard.test.tsx",
         "test_count": 1,
         "description": "Guard de doble submit (AC-06, cierra la observación de QA de SPEC-021): con setAiCostSettings EN VUELO (promesa controlada) el botón Guardar queda disabled con spinner inline (.animate-spin); los reintentos de click (userEvent y fireEvent directo) no producen un segundo envío (setAiCostSettings ×1 con {limitUsd: 2.5}); al resolver, toast 'Ajustes guardados' y botón operativo de nuevo sin spinner."
+      },
+      {
+        "file": "tests/unit/packaging/afterPack.test.ts",
+        "test_count": 5,
+        "description": "SPEC-024-iter-1 (hook afterPack que sella el bundle con firma ad-hoc real): línea ACTIVA 'afterPack: build/afterPack.js' en electron-builder.yml (no comentario); build/afterPack.js carga como CommonJS y exporta función; no-op fuera de darwin (contexto win32/linux mínimo A PROPÓSITO sin appOutDir/packager: si el guard no cortara, lanzaría — y codesign jamás se invoca); en darwin firma <appOutDir>/<productFilename>.app con --force --deep --sign - --entitlements build/entitlements.mac.plist y DESPUÉS verifica con --verify --deep --strict (orden y args exactos, child_process mockeado vía vi.mock aplicado al require del CJS inlinado); y un fallo de codesign se PROPAGA (build en rojo) sin intentar la verificación."
       }
     ],
     "e2e": [],
@@ -1139,7 +1144,7 @@
       "AC-07": "Documental: el drift de céntimos por suma de deltas en estimatedCostUsd y el desglose del Tooltip con caché plegado quedan ACEPTADOS SIN CAMBIO en la propia spec (sección Decisiones asumidas) — no hay código que testear; las suites de SPEC-021/023 siguen fijando el comportamiento vigente sin modificaciones.",
       "AC-08": "Ejecución del orquestador tras esta QA (plan §4): npm run build:mac → dist/Maurya-1.0.0.dmg + .zip arm64 sin errores con typecheck previo en verde (electron-builder tarda minutos; no reproducible en unit).",
       "AC-09": "Ejecución del orquestador: plutil -p sobre el Info.plist del .app generado → NSMicrophoneUsageDescription, NSAudioCaptureUsageDescription y LSApplicationCategoryType presentes (la mitad de configuración está automatizada en el test de AC-05).",
-      "AC-10": "Ejecución del orquestador: codesign --verify + codesign -d --entitlements - sobre el .app → firma ad-hoc válida y entitlements embebidos = build/entitlements.mac.plist (la mitad de configuración está automatizada en los tests de AC-01/AC-02).",
+      "AC-10": "Ejecución del orquestador: codesign --verify + codesign -d --entitlements - sobre el .app → firma ad-hoc válida y entitlements embebidos = build/entitlements.mac.plist (la mitad de configuración está automatizada en los tests de AC-01/AC-02). SPEC-024-iter-1: la re-verificación tras el fix del sello (codesign --verify --deep --strict OK, Signature=adhoc, recursos sellados, entitlements embebidos = plist) la ejecuta el orquestador; la orquestación del hook está automatizada en tests/unit/packaging/afterPack.test.ts.",
       "AC-11": "Ejecución del orquestador: open del .app → humo con la ventana de Capturas; los prompts TCC atribuidos a 'Maurya' y el flujo completo empaquetado quedan como verificación humana final (ya listada en MEMORY). La UI de Capturas en sí está automatizada por las suites de SPEC-020."
     },
     "acceptance_criteria_coverage": {
@@ -1153,10 +1158,12 @@
       "AC-08": "MANUAL/orquestador: npm run build:mac → dist/Maurya-1.0.0.dmg + .zip arm64 (plan §4, se registrará el resultado al cierre).",
       "AC-09": "MANUAL/orquestador: plutil sobre el Info.plist del bundle (config automatizada en tests/unit/packaging/hardening.test.ts::packaging hardening (SPEC-024)::MVP version and metadata::declares LSApplicationCategoryType in the extendInfo MAP keeping both TCC descriptions intact).",
       "AC-10": "MANUAL/orquestador: codesign --verify + entitlements embebidos (config automatizada en los tests de AC-01/AC-02 de tests/unit/packaging/hardening.test.ts).",
-      "AC-11": "MANUAL/orquestador: humo del .app (ventana con la UI de Capturas — automatizada en unit por las suites de SPEC-020); prompts TCC como \"Maurya\": verificación humana final listada en MEMORY."
+      "AC-11": "MANUAL/orquestador: humo del .app (ventana con la UI de Capturas — automatizada en unit por las suites de SPEC-020); prompts TCC como \"Maurya\": verificación humana final listada en MEMORY.",
+      "ITER-1": "tests/unit/packaging/afterPack.test.ts::afterPack hook (SPEC-024-iter-1)::registers build/afterPack.js as the active afterPack hook in electron-builder.yml + ::ships build/afterPack.js as a loadable CommonJS module exporting a function + ::is a no-op outside darwin: never invokes codesign and never throws + ::signs <appOutDir>/<productFilename>.app ad-hoc with the repo entitlements and then verifies the seal + ::propagates a codesign failure so the build goes red instead of packaging an unsealed bundle (orquestación unit; el SELLO REAL del bundle — codesign -dv con Signature=adhoc, Info.plist bound y entitlements embebidos — es la re-verificación del orquestador de AC-10, MANUAL en curso)"
     },
-    "notes": "Breakage presupuestado verificado: cero (la suite de SPEC-005 aserta la versión por regex semver, no literal, y no toca entitlements). Decisión documentada (a petición del orquestador): los ACs de configuración (AC-01..AC-05) se cubren con unit de Node leyendo los archivos del repo como fixtures — deterministas, estables y más valiosos que MANUAL porque fijan la config contra regresiones futuras (p. ej. reintroducir un entitlement del scaffold o convertir extendInfo en lista); la verificación del BUNDLE generado sigue siendo del orquestador (MANUAL, AC-08..AC-11).",
+    "notes": "Breakage presupuestado verificado: cero (la suite de SPEC-005 aserta la versión por regex semver, no literal, y no toca entitlements). Decisión documentada (a petición del orquestador): los ACs de configuración (AC-01..AC-05) se cubren con unit de Node leyendo los archivos del repo como fixtures — deterministas, estables y más valiosos que MANUAL porque fijan la config contra regresiones futuras (p. ej. reintroducir un entitlement del scaffold o convertir extendInfo en lista); la verificación del BUNDLE generado sigue siendo del orquestador (MANUAL, AC-08..AC-11). SPEC-024-iter-1 (fix 68b7226, originado en la verificación del bundle del orquestador: identity null hacía que electron-builder OMITIERA la firma — sello nominal): suite del hook afterPack añadida (5 tests) con child_process mockeado; si la interop CJS de vitest impidiera el mock en runtime (riesgo declarado), el fallback documentado es degradar los 2 tests de codesign a MANUAL — el resto (yml, carga, guard no-darwin) no depende del mock.",
     "created_at": "2026-07-10",
-    "updated_at": "2026-07-10"
+    "updated_at": "2026-07-10",
+    "iteration_spec_file": "specs/SPEC-024-iter-1-empaquetado-hardening-final.md"
   }
 }
