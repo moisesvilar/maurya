@@ -1117,5 +1117,46 @@
     "notes": "Breakage presupuestado verificado y repuesto: SOLO el test de extractUsage de tests/unit/ai-cost/aiCost.test.ts (toEqual exacto de 2 campos → 4 campos con caso null; rotura de runtime, no de tipos — tsc ya salía limpio). El resto de la suite de SPEC-021 pasa sin cambios (coste de sesión recomputado desde componentes, computeCostUsd retrocompatible, user string con conversación intacta — verificado contra assistantService.aiCost.test.ts y assistantService.degraded.test.ts).",
     "created_at": "2026-07-10",
     "updated_at": "2026-07-10"
+  },
+  "SPEC-024": {
+    "spec_file": "specs/SPEC-024-empaquetado-hardening-final.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec — el conteo real es 11 (entitlements/firma ×3, versión/metadatos ×2, hardening UI ×2, verificación del bundle ×4): AC-01 device.audio-input + allow-jit en el plist, AC-02 eliminación de allow-unsigned-executable-memory y allow-dyld-environment-variables, AC-03 firma ad-hoc activa con el camino a Developer ID/notarización documentado en comentarios, AC-04 version 1.0.0, AC-05 LSApplicationCategoryType en el MAP extendInfo con las TCC intactas, AC-06 guard de doble submit en AiCostCard, AC-07 observaciones menores aceptadas sin cambio (documental), AC-08 build:mac produce DMG/ZIP 1.0.0 arm64, AC-09 Info.plist del bundle con las 3 claves, AC-10 codesign ad-hoc válido con entitlements embebidos = plist, AC-11 humo: la app abre con la UI de Capturas.",
+    "unit": [
+      {
+        "file": "tests/unit/packaging/hardening.test.ts",
+        "test_count": 5,
+        "description": "Config del repo como fixtures (fs + texto, convención de packagingConfig.test.ts de SPEC-005 — decisión deliberada: unit estable mejor que MANUAL para archivos commiteados): plist con device.audio-input y allow-jit adyacentes a <true/> (AC-01); sin los dos entitlements del scaffold (AC-02); separación líneas ACTIVAS vs COMENTARIOS del yml — ad-hoc activo (identity: null/notarize: false), 'notarize: true' y 'Developer ID Application' SOLO en comentarios, con APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID documentadas (AC-03); version 1.0.0 exacta + artifactName derivado sin literal 0.1.0 (AC-04); y LSApplicationCategoryType como entrada de MAP en extendInfo (no lista — regresión conocida de SPEC-005) con ambas descripciones TCC intactas (AC-05)."
+      },
+      {
+        "file": "tests/unit/ai-cost/AiCostCard.submitGuard.test.tsx",
+        "test_count": 1,
+        "description": "Guard de doble submit (AC-06, cierra la observación de QA de SPEC-021): con setAiCostSettings EN VUELO (promesa controlada) el botón Guardar queda disabled con spinner inline (.animate-spin); los reintentos de click (userEvent y fireEvent directo) no producen un segundo envío (setAiCostSettings ×1 con {limitUsd: 2.5}); al resolver, toast 'Ajustes guardados' y botón operativo de nuevo sin spinner."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "AC-07": "Documental: el drift de céntimos por suma de deltas en estimatedCostUsd y el desglose del Tooltip con caché plegado quedan ACEPTADOS SIN CAMBIO en la propia spec (sección Decisiones asumidas) — no hay código que testear; las suites de SPEC-021/023 siguen fijando el comportamiento vigente sin modificaciones.",
+      "AC-08": "Ejecución del orquestador tras esta QA (plan §4): npm run build:mac → dist/Maurya-1.0.0.dmg + .zip arm64 sin errores con typecheck previo en verde (electron-builder tarda minutos; no reproducible en unit).",
+      "AC-09": "Ejecución del orquestador: plutil -p sobre el Info.plist del .app generado → NSMicrophoneUsageDescription, NSAudioCaptureUsageDescription y LSApplicationCategoryType presentes (la mitad de configuración está automatizada en el test de AC-05).",
+      "AC-10": "Ejecución del orquestador: codesign --verify + codesign -d --entitlements - sobre el .app → firma ad-hoc válida y entitlements embebidos = build/entitlements.mac.plist (la mitad de configuración está automatizada en los tests de AC-01/AC-02).",
+      "AC-11": "Ejecución del orquestador: open del .app → humo con la ventana de Capturas; los prompts TCC atribuidos a 'Maurya' y el flujo completo empaquetado quedan como verificación humana final (ya listada en MEMORY). La UI de Capturas en sí está automatizada por las suites de SPEC-020."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/packaging/hardening.test.ts::packaging hardening (SPEC-024)::entitlements for real signing::declares device.audio-input and keeps allow-jit in build/entitlements.mac.plist",
+      "AC-02": "tests/unit/packaging/hardening.test.ts::packaging hardening (SPEC-024)::entitlements for real signing::removes the scaffold entitlements that weaken the hardened runtime",
+      "AC-03": "tests/unit/packaging/hardening.test.ts::packaging hardening (SPEC-024)::signing path documentation::keeps ad-hoc signing active while documenting the Developer ID / notarization path as comments",
+      "AC-04": "tests/unit/packaging/hardening.test.ts::packaging hardening (SPEC-024)::MVP version and metadata::bumps package.json version to 1.0.0 (MVP artifacts become Maurya-1.0.0.*)",
+      "AC-05": "tests/unit/packaging/hardening.test.ts::packaging hardening (SPEC-024)::MVP version and metadata::declares LSApplicationCategoryType in the extendInfo MAP keeping both TCC descriptions intact",
+      "AC-06": "tests/unit/ai-cost/AiCostCard.submitGuard.test.tsx::AiCostCard (guard de doble submit SPEC-024)::disables Guardar with an inline spinner while the save is in flight, ignores extra submits and re-enables on resolve",
+      "AC-07": "MANUAL/documental: aceptación sin cambio registrada en la spec (Decisiones asumidas); sin código que testear — las suites de SPEC-021/023 fijan el comportamiento vigente.",
+      "AC-08": "MANUAL/orquestador: npm run build:mac → dist/Maurya-1.0.0.dmg + .zip arm64 (plan §4, se registrará el resultado al cierre).",
+      "AC-09": "MANUAL/orquestador: plutil sobre el Info.plist del bundle (config automatizada en tests/unit/packaging/hardening.test.ts::packaging hardening (SPEC-024)::MVP version and metadata::declares LSApplicationCategoryType in the extendInfo MAP keeping both TCC descriptions intact).",
+      "AC-10": "MANUAL/orquestador: codesign --verify + entitlements embebidos (config automatizada en los tests de AC-01/AC-02 de tests/unit/packaging/hardening.test.ts).",
+      "AC-11": "MANUAL/orquestador: humo del .app (ventana con la UI de Capturas — automatizada en unit por las suites de SPEC-020); prompts TCC como \"Maurya\": verificación humana final listada en MEMORY."
+    },
+    "notes": "Breakage presupuestado verificado: cero (la suite de SPEC-005 aserta la versión por regex semver, no literal, y no toca entitlements). Decisión documentada (a petición del orquestador): los ACs de configuración (AC-01..AC-05) se cubren con unit de Node leyendo los archivos del repo como fixtures — deterministas, estables y más valiosos que MANUAL porque fijan la config contra regresiones futuras (p. ej. reintroducir un entitlement del scaffold o convertir extendInfo en lista); la verificación del BUNDLE generado sigue siendo del orquestador (MANUAL, AC-08..AC-11).",
+    "created_at": "2026-07-10",
+    "updated_at": "2026-07-10"
   }
 }
