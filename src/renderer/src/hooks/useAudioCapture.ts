@@ -226,5 +226,20 @@ export function useAudioCapture(onSaved: (result: StopResult) => void): UseAudio
     })
   }, [finalize])
 
+  // Cleanup de SOLO-desmontaje: si el componente se desmonta con captura
+  // activa, el interval de refresco de UI seguía vivo y llamaba a setState
+  // sobre un árbol desmontado (leak documentado en MEMORY desde SPEC-001:
+  // `window is not defined` tras el teardown de jsdom en los tests del spike).
+  // Solo se limpia el interval: streams y recorder NO se detienen aquí — su
+  // ciclo lo gestiona el auto-stop al navegar de RecordingSection.
+  useEffect(() => {
+    return (): void => {
+      if (intervalRef.current !== null) {
+        window.clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
+    }
+  }, [])
+
   return { status, elapsedSeconds, levels, error, result, start, stop, clearError }
 }
