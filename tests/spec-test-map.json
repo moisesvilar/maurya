@@ -1019,5 +1019,58 @@
     "notes": "Breakage presupuestado repuesto: mockApi (+getAiCostSettings con default seguro/+setAiCostSettings/+assistant.resume), toEqual del summary y del transcript de assistantService.test.ts con usage a ceros, SettingsPage AC-13 con 3 botones Guardar (los 2 de claves deshabilitados), asserts exactos de la fila muted de CaptureDetailPage → regex (el segmento de coste añade un separador final). Decisión del plan asumida por los tests: 'Sin datos de coste' como texto muted (mandan los ACs sobre el wireframe, Riesgo 1).",
     "created_at": "2026-07-10",
     "updated_at": "2026-07-10"
+  },
+  "SPEC-022": {
+    "spec_file": "specs/SPEC-022-degradacion-sin-diarizacion.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec (10): fallback ×5 (AC-01 intento único sin diarización al agotar los reintentos never-opened, AC-02 fallback abre → speaker null + status degradado, AC-03 fallback falla → rendición actual con mensaje intacto, AC-04 fallo auth → sin fallback, AC-05 stop degradado → transcript.json con la forma actual), visibilidad ×3 (AC-06 Alert informativo con copy literal persistente en sesión, AC-07 líneas con etiquetas genéricas sin errores, AC-08 sesión normal → el Alert nunca aparece), asistencia/nota ×2 (AC-09 asistente con líneas sin índice de hablante y sugerencias con normalidad, AC-10 nota generada y export con etiquetas genéricas).",
+    "unit": [
+      {
+        "file": "tests/unit/degradation/transcriptionService.degraded.test.ts",
+        "test_count": 6,
+        "description": "Fallback en Node (arnés SPEC-002: DeepgramConnection mockeada CAPTURANDO las opciones del constructor; classifyConnectionFailure configurable): reintentos never-opened agotados → 3ª conexión con {diarize:false} y la misma key, con el status 'Reintentando…' intacto, el reintento intermedio aún con diarización y SIN emitir la rendición durante el intento silencioso (AC-01); el fallback abre → evento EXACTO {status:'active', degraded:true} y resultados fluyendo con speaker null (AC-02); el fallback también cae → rendición con el mensaje LITERAL actual ('No se pudo restablecer… código 1006 …se conservan las líneas ya recibidas.', con degraded:true) y 3 instancias en total (AC-03); clasificación 'auth' → AUTH_ERROR literal, UNA sola instancia (ni reintento ni fallback) y ningún evento degraded (AC-04); persistTranscript de la sesión degradada → forma ACTUAL exacta (keys lines/latency/assistant/consent) con speaker null (AC-05); y sesión normal → shape exacto {status} sin campo degraded en NINGÚN evento (AC-08 main). La semántica sesión-vs-conexión (sesión que ABRIÓ y cae NO dispara fallback) queda fijada por el test existente de SPEC-002 AC-11 (2 instancias y rendición) — referenciado, no duplicado."
+      },
+      {
+        "file": "tests/unit/degradation/deepgramService.degraded.test.ts",
+        "test_count": 2,
+        "description": "URL de conexión con WebSocket global stubbeado (arnés SPEC-002): {diarize:false} → URL sin 'diarize' conservando encoding/sample_rate/channels/multichannel/interim_results/language y la auth por subprotocolo (refuerzo AC-01); sin opciones → URL histórica con diarize=true BYTE A BYTE (igualdad exacta, no toContain) — garantía de compatibilidad del builder (refuerzo AC-01)."
+      },
+      {
+        "file": "tests/unit/degradation/RecordingSection.degraded.test.tsx",
+        "test_count": 3,
+        "description": "Sección Grabación vía InterviewDetailPage (mocks del spike + consentimiento SPEC-019 atravesado): evento {status:'active', degraded:true} → Alert testid transcription-degraded-alert con el copy LITERAL 'Transcribiendo sin atribución de hablante. La transcripción y el asistente siguen funcionando.', no destructivo, persistente ante más eventos y AUSENTE tras Detener (AC-06); líneas finales degradadas (speaker null) pintadas sin huecos ni chip 'Hablante N' con la grabación operativa (AC-07 — las etiquetas 'Tú'/'Interlocutor N' del Sheet y el export las fijan las suites de SPEC-017); y sesión normal (status sin degraded, speaker 0 → 'Hablante 1') sin que el Alert aparezca nunca (AC-08 UI)."
+      },
+      {
+        "file": "tests/unit/degradation/assistantService.degraded.test.ts",
+        "test_count": 1,
+        "description": "Asistente en Node (arnés SPEC-016) con las 3 líneas finales inyectadas con speaker null por la vía pública: el prompt usa el formato existente '[mic] texto'/'[system] texto' SIN sufijo ' sN' (regex negativa) y la sugerencia llega con normalidad en el evento 'active' (AC-09)."
+      },
+      {
+        "file": "tests/unit/degradation/noteService.degraded.test.ts",
+        "test_count": 1,
+        "description": "Nota/export en Node (arnés SPEC-017) sobre un transcript degradado real (todas las líneas speaker null): la generación funciona (status summarized + nota ensamblada), el prompt etiqueta '[Tú]'/'[Interlocutor 1]' y el export produce '**Tú:** …' / '**Interlocutor 1:** …' una línea por intervención (AC-10)."
+      }
+    ],
+    "breakage_note": "Verificado el 'cero roturas' presupuestado por el plan: npx tsc -p tsconfig.test.json --noEmit salió limpio ANTES de añadir esta suite (el 3er argumento opcional del constructor no rompe los mocks de 2 argumentos) y las decisiones de diseño que protegen los tests existentes (degraded OMITIDO cuando es false; fallback condicionado a everOpened de sesión) se asertan explícitamente aquí (AC-08 main) y quedan guardadas por el test de SPEC-002 AC-11.",
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "manual_verification": {
+      "rechazo-real": "Forzar el rechazo real del handshake de Deepgram por la diarización (plan/modelo sin soporte) exige una cuenta real con esa limitación: el smoke del plan (Alert + 'Interlocutor 1' + transcript.json + nota tras detener) es humano; la orquestación del fallback está íntegramente automatizada con la conexión mockeada.",
+      "aspecto-visual": "Colocación del Alert junto a los avisos de conexión existentes y su comportamiento responsive: jsdom no hace layout; revisión visual manual."
+    },
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/degradation/transcriptionService.degraded.test.ts::transcriptionService (degradación SPEC-022)::attempts exactly one extra connection without diarization after exhausting the never-opened retries + tests/unit/degradation/deepgramService.degraded.test.ts::DeepgramConnection (degradación SPEC-022)::builds the fallback URL without diarize=true keeping every other stream parameter and the subprotocol auth + tests/unit/degradation/deepgramService.degraded.test.ts::DeepgramConnection (degradación SPEC-022)::keeps the historic diarized URL byte-identical when no options are passed (sesión que llegó a abrir NO dispara el fallback: tests/unit/spike-transcription/transcriptionService.test.ts::transcriptionService::when the connection drops while transcribing::retries once automatically and, if the retry fails, gives up keeping the lines already received)",
+      "AC-02": "tests/unit/degradation/transcriptionService.degraded.test.ts::transcriptionService (degradación SPEC-022)::continues degraded when the fallback opens: active status carries degraded true and lines flow with speaker null (speaker null sin words diarizadas: fijado por tests/unit/spike-diarization/deepgramService.diarization.test.ts)",
+      "AC-03": "tests/unit/degradation/transcriptionService.degraded.test.ts::transcriptionService (degradación SPEC-022)::gives up with the current literal message when the no-diarization attempt also fails",
+      "AC-04": "tests/unit/degradation/transcriptionService.degraded.test.ts::transcriptionService (degradación SPEC-022)::does not try the fallback on an auth-classified failure, keeping the current auth message",
+      "AC-05": "tests/unit/degradation/transcriptionService.degraded.test.ts::transcriptionService (degradación SPEC-022)::persists the transcript with the current shape (speaker null lines) when a degraded session stops",
+      "AC-06": "tests/unit/degradation/RecordingSection.degraded.test.tsx::RecordingSection (degradación SPEC-022)::shows the informative degraded alert with the literal copy while the degraded session lasts and hides it when the recording stops",
+      "AC-07": "tests/unit/degradation/RecordingSection.degraded.test.tsx::RecordingSection (degradación SPEC-022)::renders degraded final lines with the generic labels and no speaker chip, without errors + REFERENCIAS: tests/unit/spike-diarization/TranscriptLine.diarization.test.tsx::TranscriptLine (diarización)::when the line has no speaker information::renders no speaker label when speaker is null, keeping only the source badge; etiquetas \"Tú\"/\"Interlocutor N\" del Sheet/export en las suites de SPEC-017 (NoteSection AC-17, noteService AC-18/AC-20)",
+      "AC-08": "tests/unit/degradation/RecordingSection.degraded.test.tsx::RecordingSection (degradación SPEC-022)::never shows the degraded alert during a normal session with working diarization + tests/unit/degradation/transcriptionService.degraded.test.ts::transcriptionService (degradación SPEC-022)::emits the exact current event shape without any degraded field during a normal session (las suites de SPEC-002/003/015 ya asertan igualdad exacta de los eventos de sesión normal)",
+      "AC-09": "tests/unit/degradation/assistantService.degraded.test.ts::assistantService (degradación SPEC-022)::builds the LLM prompt without speaker indices for speaker-null lines and keeps delivering suggestions",
+      "AC-10": "tests/unit/degradation/noteService.degraded.test.ts::noteService (degradación SPEC-022)::generates the note from a degraded recording and exports the transcript with the generic speaker labels"
+    },
+    "notes": "Cero reposiciones necesarias (breakage presupuestado del plan verificado como cero). Suites nuevas en tests/unit/degradation/ reutilizando los arneses de spike-transcription (mock de DeepgramConnection ampliado localmente para capturar el 3er argumento options), SPEC-016 y SPEC-017. Sin cambios en tests/helpers/mockApi.ts.",
+    "created_at": "2026-07-10",
+    "updated_at": "2026-07-10"
   }
 }
