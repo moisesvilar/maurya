@@ -207,8 +207,18 @@ describe('CapturesPage', () => {
 
       await user.click(screen.getByRole('button', { name: 'Sin empresa' }))
 
-      expect(await screen.findByText('No hay capturas sin empresa')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Limpiar filtros' })).toBeInTheDocument()
+      const emptyText = await screen.findByText('No hay capturas sin empresa')
+      // Con filtro activo y cero coincidencias hay DOS "Limpiar filtros"
+      // legítimos (barra de filtros + empty state), ambos del wireframe
+      expect(screen.getAllByRole('button', { name: 'Limpiar filtros' })).toHaveLength(2)
+      const emptyState = emptyText.parentElement
+      if (emptyState === null) {
+        throw new Error('El empty por filtro debe renderizarse en su propio contenedor')
+      }
+      // El botón del EMPTY STATE limpia el filtro y restaura el listado
+      await user.click(within(emptyState).getByRole('button', { name: 'Limpiar filtros' }))
+      expect(await screen.findByRole('link', { name: 'Entrevista con Acme' })).toBeInTheDocument()
+      expect(screen.queryByText('No hay capturas sin empresa')).not.toBeInTheDocument()
     })
 
     // SPEC-020 · AC-06

@@ -2,8 +2,11 @@
  * Tests del panel del asistente y del panel de objetivos (SPEC-016, mitad UI),
  * montados vía InterviewDetailPage con la grabación en curso (mocks del spike,
  * patrón SPEC-015) y eventos inyectados con emitAssistantUpdate.
+ * SPEC-019: "Iniciar grabación" abre primero el aviso de consentimiento
+ * (AlertDialog modal) — todo arranque de grabación lo atraviesa confirmando
+ * "Entendido, iniciar grabación" (ver startRecording).
  */
-import { act, render, screen, waitFor, type RenderResult } from '@testing-library/react'
+import { act, render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -137,13 +140,27 @@ function renderDetail(): RenderResult {
   )
 }
 
+/**
+ * Arranca la grabación atravesando el aviso de consentimiento (SPEC-019):
+ * "Iniciar grabación" abre el AlertDialog "Aviso de grabación" y la captura
+ * solo arranca tras "Entendido, iniciar grabación". La casilla queda sin
+ * marcar: no se persiste ninguna preferencia entre tests.
+ */
 async function startRecording(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   await user.click(await screen.findByRole('button', { name: 'Iniciar grabación' }))
+  const consent = await screen.findByRole('alertdialog')
+  expect(
+    within(consent).getByRole('heading', { name: 'Aviso de grabación' })
+  ).toBeInTheDocument()
+  await user.click(within(consent).getByRole('button', { name: 'Entendido, iniciar grabación' }))
   await screen.findByRole('button', { name: 'Detener' })
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // Aislamiento del aviso de consentimiento (SPEC-019): sin preferencia
+  // 'maurya:recording-consent-dismissed' persistida entre tests
+  window.localStorage.clear()
   mockApi = installMockApi()
   vi.mocked(mockApi.api.db.getCompany).mockResolvedValue({ ok: true, data: COMPANY })
   setInterview(interview())

@@ -6,6 +6,9 @@
  * Lecciones aplicadas: "Micrófono" aparece ×2-3 (LevelMeter, MicSelect,
  * TranscriptLine) → roles/getAllBy, nunca getByText a secas; sonner tolerante;
  * máx 1 tooltip hover por render; esperar estados habilitados antes de click.
+ * SPEC-019: "Iniciar grabación" abre primero el aviso de consentimiento
+ * (AlertDialog modal) — todo arranque de grabación lo atraviesa confirmando
+ * "Entendido, iniciar grabación" (ver startRecording).
  */
 import { act, render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -152,14 +155,28 @@ function renderDetail(): RenderResult {
   )
 }
 
-/** Espera la preparación y arranca la grabación (el botón existe desde el montaje). */
+/**
+ * Espera la preparación y arranca la grabación atravesando el aviso de
+ * consentimiento (SPEC-019): "Iniciar grabación" abre el AlertDialog "Aviso
+ * de grabación" (modal: el fondo queda aria-hidden) y la captura solo arranca
+ * tras "Entendido, iniciar grabación". La casilla queda sin marcar: no se
+ * persiste ninguna preferencia entre tests.
+ */
 async function startRecording(user: ReturnType<typeof userEvent.setup>): Promise<void> {
   await user.click(await screen.findByRole('button', { name: 'Iniciar grabación' }))
+  const consent = await screen.findByRole('alertdialog')
+  expect(
+    within(consent).getByRole('heading', { name: 'Aviso de grabación' })
+  ).toBeInTheDocument()
+  await user.click(within(consent).getByRole('button', { name: 'Entendido, iniciar grabación' }))
   await screen.findByRole('button', { name: 'Detener' })
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
+  // Aislamiento del aviso de consentimiento (SPEC-019): sin preferencia
+  // 'maurya:recording-consent-dismissed' persistida entre tests
+  window.localStorage.clear()
   mockApi = installMockApi()
   vi.mocked(mockApi.api.db.getCompany).mockResolvedValue({ ok: true, data: COMPANY })
   setInterview(interview())
@@ -207,6 +224,12 @@ describe('RecordingSection', () => {
       renderDetail()
 
       await user.click(await screen.findByRole('button', { name: 'Iniciar grabación' }))
+      // SPEC-019: el aviso de consentimiento aparece ANTES de cualquier
+      // intento de captura; el bloqueo por permisos se evalúa tras confirmar
+      const consent = await screen.findByRole('alertdialog')
+      await user.click(
+        within(consent).getByRole('button', { name: 'Entendido, iniciar grabación' })
+      )
 
       const title = await screen.findByText('Permiso de micrófono no concedido')
       const alert = title.closest('[role="alert"]')
@@ -249,8 +272,18 @@ describe('RecordingSection', () => {
 
       await startRecording(user)
 
-      // La asociación viaja en recording:start con el id de la entrevista
-      expect(vi.mocked(mockApi.api.recording.start)).toHaveBeenCalledWith('i-1')
+      // La asociación viaja en recording:start con el id de la entrevista Y el
+      // timestamp del consentimiento (SPEC-019: se registra en transcript.json)
+      expect(vi.mocked(mockApi.api.recording.start)).toHaveBeenCalledWith(
+        'i-1',
+        expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/)
+      )
+      const consentAcknowledgedAt = vi.mocked(mockApi.api.recording.start).mock.calls[0][1]
+      if (consentAcknowledgedAt === undefined) {
+        throw new Error('recording.start debe recibir el timestamp del consentimiento (SPEC-019)')
+      }
+      // ISO 8601 real (round-trip exacto), no solo con forma de fecha
+      expect(new Date(consentAcknowledgedAt).toISOString()).toBe(consentAcknowledgedAt)
       expect(recorderMock.start).toHaveBeenCalledTimes(1)
       expect(screen.getByText('00:00')).toBeInTheDocument()
       expect(screen.getAllByRole('progressbar')).toHaveLength(2)
