@@ -162,7 +162,16 @@ function createMockDbApi(): DbApi {
     getAiCostSettings: vi
       .fn<DbApi['getAiCostSettings']>()
       .mockResolvedValue({ ok: true, data: { limitUsd: null } }),
-    setAiCostSettings: vi.fn<DbApi['setAiCostSettings']>()
+    setAiCostSettings: vi.fn<DbApi['setAiCostSettings']>(),
+
+    // SPEC-025: prompts de IA personalizables (default de solo-lectura seguro:
+    // catálogo vacío; save/reset se configuran por test)
+    listCustomPrompts: vi.fn<DbApi['listCustomPrompts']>().mockResolvedValue({
+      ok: true,
+      data: []
+    }),
+    saveCustomPrompt: vi.fn<DbApi['saveCustomPrompt']>(),
+    resetCustomPrompt: vi.fn<DbApi['resetCustomPrompt']>()
   }
 }
 

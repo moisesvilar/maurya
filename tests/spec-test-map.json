@@ -1166,5 +1166,56 @@
     "created_at": "2026-07-10",
     "updated_at": "2026-07-10",
     "iteration_spec_file": "specs/SPEC-024-iter-1-empaquetado-hardening-final.md"
+  },
+  "SPEC-025": {
+    "spec_file": "specs/SPEC-025-custom-prompts.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec (22): listado ×5 (AC-01 lista de 3 prompts con nombre/descripción/Badge, AC-02 Badge Default sin override, AC-03 Badge Personalizado con override, AC-04 skeletons, AC-05 error state con Reintentar), edición ×8 (AC-06 Sheet con editor WYSIWYG + botonera + reglas fijas solo lectura, AC-07 formato de botonera reflejado al instante, AC-08 guardar persiste Markdown + cierra + Toast + Badge Personalizado, AC-09 round-trip fiel del formato guardado, AC-10 vacío → error inline sin persistir, AC-11 fallo de guardado → Toast destructive con Sheet abierto, AC-12 descartar cambios con AlertDialog, AC-13 cierre directo sin cambios), restablecer ×3 (AC-14 AlertDialog con consecuencia, AC-15 confirmación → Badge Default + Toast, AC-16 botón disabled con Tooltip), runtime ×6 (AC-17 override script en system con reglas intactas, AC-18 ídem nota, AC-19 systemBlocks del asistente con override y límites intactos, AC-20 sin override → default del módulo, AC-21 sesión en curso byte-estable y override en la siguiente, AC-22 reset → default en el siguiente uso).",
+    "unit": [
+      {
+        "file": "tests/unit/custom-prompts/CustomPromptsTab.test.tsx",
+        "test_count": 8,
+        "description": "Pestaña 'Prompts personalizados' vía SettingsPage real (?tab=custom-prompts, patrón NoteTemplatesTab, frontera api.db): catálogo de 3 filas con nombre/descripción/Badge (AC-01), Badge Default/Personalizado según overrideBody (AC-02/03), skeletons con promesa pendiente (AC-04), error state + Reintentar que relanza el listado (AC-05), AlertDialog 'Restablecer prompt' con la consecuencia y sin llamar al bridge hasta confirmar (AC-14), confirmación → resetCustomPrompt(id) + Badge Default + toast 'Prompt restablecido' (AC-15), y botón Restablecer disabled con Tooltip vía span envolvente — 1 hover por render (AC-16)."
+      },
+      {
+        "file": "tests/unit/custom-prompts/CustomPromptSheet.test.tsx",
+        "test_count": 8,
+        "description": "Sheet de edición con TipTap REAL montado en jsdom (polyfills de geometría en tests/helpers/prosemirrorJsdom.ts): apertura con texto vigente + botonera de 5 acciones + reglas fijas solo lectura (AC-06), acción Título → heading nivel 2 visible al instante con aria-pressed (AC-07), guardar → saveCustomPrompt('script', '## …') con Markdown serializado + cierre + toast 'Prompt guardado' + Badge Personalizado (AC-08), round-trip de un override con negrita y lista renderizados (AC-09), editor de solo espacios → error inline 'El prompt no puede quedar vacío' sin persistir (AC-10; el GIVEN se materializa con override de espacios: vaciar un contenteditable de ProseMirror por teclado no es fiable en jsdom), fallo de guardado → toast destructive con Sheet abierto y formato intacto (AC-11), Cancelar con cambios → AlertDialog 'Descartar cambios' y cierre sin persistir al confirmar (AC-12), y cierre directo sin AlertDialog cuando no hay cambios (AC-13). Los cambios de documento en los tests se hacen vía botonera (determinista) en lugar de teclado."
+      },
+      {
+        "file": "tests/unit/custom-prompts/customPromptsResolution.test.ts",
+        "test_count": 6,
+        "description": "Resolución en runtime en Node (SDK Anthropic mockeado, store/repository reales, transcriptionService mockeado capturando el finalLineListener, fake timers solo Date): override de script en el system del guión con fase/tarea/reglas del JSON intactas (AC-17), override de nota con contexto del note-template y reglas intactas (AC-18), systemBlocks del asistente con override + 'máximo 200/140 caracteres' + cache_control ephemeral en el último bloque (AC-19), sin override → persona default del módulo en el system y resolvePromptPersona de note/assistant (AC-20), override guardado a mitad de sesión → system byte-idéntico (JSON.stringify) entre llamadas y aplicado solo en la sesión siguiente (AC-21), y reset → persona default en la generación siguiente (AC-22)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e/Playwright no aplica en este proyecto (app Electron local sin public link, decisión humana 2026-07-03); todos los ACs de SPEC-025 son automatizables como unit.",
+    "manual_verification": "Recomendada (no bloqueante): experiencia real de edición WYSIWYG (caret, teclado, look del editor) en la app empaquetada — jsdom no reproduce la interacción de teclado de ProseMirror.",
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/custom-prompts/CustomPromptsTab.test.tsx::CustomPromptsTab::listing the catalog::renders the three prompts with name, description and a status badge each",
+      "AC-02": "tests/unit/custom-prompts/CustomPromptsTab.test.tsx::CustomPromptsTab::listing the catalog::shows the \"Default\" badge when a prompt has no saved override",
+      "AC-03": "tests/unit/custom-prompts/CustomPromptsTab.test.tsx::CustomPromptsTab::listing the catalog::shows the \"Personalizado\" badge when a prompt has a saved override",
+      "AC-04": "tests/unit/custom-prompts/CustomPromptsTab.test.tsx::CustomPromptsTab::listing the catalog::shows skeletons while the prompt catalog is loading",
+      "AC-05": "tests/unit/custom-prompts/CustomPromptsTab.test.tsx::CustomPromptsTab::listing the catalog::shows the error state with the message and a \"Reintentar\" button that reloads the catalog",
+      "AC-06": "tests/unit/custom-prompts/CustomPromptSheet.test.tsx::CustomPromptSheet::opening the editor::opens the Sheet with the WYSIWYG editor showing the current text, the toolbar and the read-only locked rules",
+      "AC-07": "tests/unit/custom-prompts/CustomPromptSheet.test.tsx::CustomPromptSheet::formatting from the toolbar::applies toolbar formatting and reflects it immediately in the editor view",
+      "AC-08": "tests/unit/custom-prompts/CustomPromptSheet.test.tsx::CustomPromptSheet::saving::saves the modified text as Markdown, closes the Sheet, shows the \"Prompt guardado\" toast and switches the badge to \"Personalizado\"",
+      "AC-09": "tests/unit/custom-prompts/CustomPromptSheet.test.tsx::CustomPromptSheet::opening the editor::renders a saved override with its exact formatting when reopening the editor (Markdown round-trip)",
+      "AC-10": "tests/unit/custom-prompts/CustomPromptSheet.test.tsx::CustomPromptSheet::saving::shows the inline error \"El prompt no puede quedar vacío\" and does not persist when saving an empty editor",
+      "AC-11": "tests/unit/custom-prompts/CustomPromptSheet.test.tsx::CustomPromptSheet::saving::keeps the Sheet open with the text intact and shows a destructive toast when saving fails",
+      "AC-12": "tests/unit/custom-prompts/CustomPromptSheet.test.tsx::CustomPromptSheet::closing::asks to discard unsaved changes with the \"Descartar cambios\" AlertDialog and closes without persisting on confirm",
+      "AC-13": "tests/unit/custom-prompts/CustomPromptSheet.test.tsx::CustomPromptSheet::closing::closes the Sheet directly without confirmation when there are no unsaved changes",
+      "AC-14": "tests/unit/custom-prompts/CustomPromptsTab.test.tsx::CustomPromptsTab::resetting a prompt to default::opens the \"Restablecer prompt\" AlertDialog naming the prompt and its consequence",
+      "AC-15": "tests/unit/custom-prompts/CustomPromptsTab.test.tsx::CustomPromptsTab::resetting a prompt to default::resets the prompt, switches the badge to \"Default\" and shows the \"Prompt restablecido\" toast after confirming",
+      "AC-16": "tests/unit/custom-prompts/CustomPromptsTab.test.tsx::CustomPromptsTab::resetting a prompt to default::disables the \"Restablecer prompt\" button with an explanatory tooltip when the prompt is at default",
+      "AC-17": "tests/unit/custom-prompts/customPromptsResolution.test.ts::customPromptsResolution::script generation (llmService)::uses the saved script override as persona block keeping the locked rules intact in the system prompt",
+      "AC-18": "tests/unit/custom-prompts/customPromptsResolution.test.ts::customPromptsResolution::note generation (noteService)::uses the saved note override as persona block keeping the locked rules intact in the system prompt",
+      "AC-19": "tests/unit/custom-prompts/customPromptsResolution.test.ts::customPromptsResolution::live assistant (assistantService)::builds the session systemBlocks with the saved assistant override keeping rules and char limits intact",
+      "AC-20": "tests/unit/custom-prompts/customPromptsResolution.test.ts::customPromptsResolution::script generation (llmService)::builds the system prompt from the module defaults when no override is saved",
+      "AC-21": "tests/unit/custom-prompts/customPromptsResolution.test.ts::customPromptsResolution::live assistant (assistantService)::keeps the running session systemBlocks byte-stable when the override changes and applies it on the next session",
+      "AC-22": "tests/unit/custom-prompts/customPromptsResolution.test.ts::customPromptsResolution::script generation (llmService)::returns to the default persona on the next generation after resetting the override"
+    },
+    "notes": "Infra de tests tocada con justificación: tests/helpers/mockApi.ts extendido con listCustomPrompts/saveCustomPrompt/resetCustomPrompt (DbApi creció en SPEC-025 y el helper tipado dejaba de compilar para TODA la suite) y nuevo tests/helpers/prosemirrorJsdom.ts (polyfills de Range/elementFromPoint que ProseMirror necesita bajo jsdom). El editor TipTap se monta real (sin mockearlo); riesgo conocido: si una versión futura de TipTap exige más APIs de DOM, ampliar el polyfill, no mockear el editor.",
+    "created_at": "2026-07-10",
+    "updated_at": "2026-07-10"
   }
 }
