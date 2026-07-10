@@ -5,10 +5,12 @@
  *
  * Monta NoteScriptSections directamente (las páginas solo lo componen tras la
  * Grabación; la cabecera se cubre en las suites de SPEC-013/020). Radix Tabs
- * con forceMount mantiene ambos paneles montados y oculta el inactivo con el
- * atributo `hidden` → los paneles se localizan con { hidden: true } y el
- * estado activo se asierta por aria-selected / data-state (lección 15: jsdom
- * no aplica clases de Tailwind).
+ * con forceMount mantiene AMBOS paneles montados y la ocultación del inactivo
+ * es por clase Tailwind (data-[state=inactive]:hidden), que jsdom NO aplica
+ * (lección 15) → los dos paneles coexisten para los queries de rol y toda
+ * aserción de contenido/acciones debe scopearse al tabpanel por data-state
+ * (helper activePanel/inactivePanel); el estado activo se asierta por
+ * aria-selected.
  */
 import { render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -78,6 +80,17 @@ function renderSections(value: Interview): RenderResult {
 async function sectionTitles(): Promise<Array<string | null>> {
   const headings = await screen.findAllByRole('heading', { level: 3 })
   return headings.map((heading) => heading.textContent)
+}
+
+/** Tabpanel por estado (con forceMount ambos están montados; jsdom no aplica la clase que oculta el inactivo). */
+function panelByState(state: 'active' | 'inactive'): HTMLElement {
+  const panel = screen
+    .getAllByRole('tabpanel', { hidden: true })
+    .find((candidate) => candidate.getAttribute('data-state') === state)
+  if (panel === undefined) {
+    throw new Error(`No hay tabpanel en estado ${state}`)
+  }
+  return panel
 }
 
 beforeEach(() => {
@@ -171,12 +184,13 @@ describe('NoteScriptSections', () => {
       const notasTab = await screen.findByRole('tab', { name: 'Notas' })
       expect(notasTab).toHaveAttribute('aria-selected', 'true')
       expect(screen.getByRole('tab', { name: 'Guión' })).toHaveAttribute('aria-selected', 'false')
-      expect(await screen.findByText('El CTO gestiona todo a mano.')).toBeInTheDocument()
-      // El panel del guión queda oculto (hidden de Radix con forceMount)
-      const scriptPanel = screen
-        .getAllByRole('tabpanel', { hidden: true })
-        .find((panel) => panel.getAttribute('data-state') === 'inactive')
-      expect(scriptPanel).toBeDefined()
+      // El panel activo contiene la nota; el del guión está en estado inactive
+      expect(
+        await within(panelByState('active')).findByText('El CTO gestiona todo a mano.')
+      ).toBeInTheDocument()
+      expect(
+        within(panelByState('inactive')).queryByText('El CTO gestiona todo a mano.')
+      ).toBeNull()
     })
 
     // SPEC-025 · AC-06
@@ -188,10 +202,15 @@ describe('NoteScriptSections', () => {
       await user.click(await screen.findByRole('tab', { name: 'Guión' }))
 
       expect(screen.getByRole('tab', { name: 'Guión' })).toHaveAttribute('aria-selected', 'true')
-      expect(await screen.findByText('Pregunta adaptada a Acme')).toBeVisible()
-      expect(screen.getByRole('button', { name: 'Editar' })).toBeVisible()
-      expect(screen.getByRole('button', { name: 'Regenerar' })).toBeVisible()
-      expect(screen.getByRole('heading', { name: 'Objetivos', level: 4 })).toBeInTheDocument()
+      // Scope al panel activo: con forceMount el panel de la nota sigue en el
+      // DOM y sus botones colisionarían con los del guión (lección 15)
+      const panel = panelByState('active')
+      expect(await within(panel).findByText('Pregunta adaptada a Acme')).toBeInTheDocument()
+      expect(within(panel).getByRole('button', { name: 'Editar' })).toBeInTheDocument()
+      expect(within(panel).getByRole('button', { name: 'Regenerar' })).toBeInTheDocument()
+      expect(
+        within(panel).getByRole('heading', { name: 'Objetivos', level: 4 })
+      ).toBeInTheDocument()
     })
 
     // SPEC-025 · AC-07
@@ -230,8 +249,13 @@ describe('NoteScriptSections', () => {
       setNote(NOTE)
       renderSections(bothExist())
 
-      // Entrar en edición de la nota y hacer un cambio real vía toolbar
-      await user.click(await screen.findByRole('button', { name: 'Editar' }))
+      // Entrar en edición de la nota (scope al panel activo: el panel del
+      // guión también tiene "Editar" y su carga es asíncrona) y hacer un
+      // cambio real vía toolbar
+      await screen.findByRole('tablist')
+      await user.click(
+        await within(panelByState('active')).findByRole('button', { name: 'Editar' })
+      )
       const editor = await screen.findByTestId('note-markdown-editor')
       await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
       await waitFor(() => {

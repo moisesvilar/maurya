@@ -174,9 +174,10 @@ describe('CaptureDetailPage', () => {
       expect(grabacion).toBeGreaterThanOrEqual(0)
       expect(guion).toBeGreaterThan(grabacion)
       expect(nota).toBeGreaterThan(guion)
-      // Las secciones reciben la captura real: la Grabación ofrece su CTA
-      // (findBy: los permisos del spike se resuelven async antes de habilitarla)
-      expect(await screen.findByRole('button', { name: 'Iniciar grabación' })).toBeInTheDocument()
+      // Las secciones reciben la captura real: la Grabación está en estado
+      // "Grabada" y muestra la ruta del WAV del fixture (con wavPath ya no
+      // ofrece el CTA "Iniciar grabación")
+      expect(await screen.findByText('/tmp/maurya-recordings/captura.wav')).toBeInTheDocument()
     })
   })
 
