@@ -15,10 +15,29 @@ import * as repository from './db/repository'
 // se actualiza aquí en una release.
 export const INPUT_USD_PER_MTOK = 5
 export const OUTPUT_USD_PER_MTOK = 25
+// Prompt caching (SPEC-023): escritura de caché a 1,25× la tarifa de entrada;
+// lectura a 0,1×. Solo el asistente cachea (guión/nota son llamadas únicas).
+export const CACHE_WRITE_USD_PER_MTOK = 6.25
+export const CACHE_READ_USD_PER_MTOK = 0.5
 
-/** Coste estimado en USD de una llamada o acumulado: tokens × tarifa por MTok. */
-export function computeCostUsd(inputTokens: number, outputTokens: number): number {
-  return (inputTokens / 1e6) * INPUT_USD_PER_MTOK + (outputTokens / 1e6) * OUTPUT_USD_PER_MTOK
+/**
+ * Coste estimado en USD de una llamada o acumulado: tokens × tarifa por MTok.
+ * `inputTokens` son SOLO los tokens de entrada no cacheados; los componentes
+ * de caché (SPEC-023) son opcionales con default 0 — toda llamada de 2
+ * argumentos produce el valor idéntico al histórico (retrocompatible).
+ */
+export function computeCostUsd(
+  inputTokens: number,
+  outputTokens: number,
+  cacheWriteTokens = 0,
+  cacheReadTokens = 0
+): number {
+  return (
+    (inputTokens / 1e6) * INPUT_USD_PER_MTOK +
+    (outputTokens / 1e6) * OUTPUT_USD_PER_MTOK +
+    (cacheWriteTokens / 1e6) * CACHE_WRITE_USD_PER_MTOK +
+    (cacheReadTokens / 1e6) * CACHE_READ_USD_PER_MTOK
+  )
 }
 
 /**
@@ -36,15 +55,31 @@ export function roundUpUsd(value: number): number {
  * Extrae los tokens del bloque `usage` de una respuesta de Messages.
  * Defensivo (AC): una respuesta sin bloque de uso — caso anómalo del SDK —
  * contabiliza la llamada con 0 tokens sin romper la generación.
+ * SPEC-023: incluye los componentes de caché. Ojo: con prompt caching,
+ * `usage.input_tokens` del SDK son SOLO los tokens de entrada no cacheados;
+ * el total de entrada = input + cacheCreation + cacheRead. Los campos de
+ * caché del SDK son `number | null` → el typeof degrada null (y ausente) a 0.
  */
 export function extractUsage(response: Anthropic.Message): {
   inputTokens: number
   outputTokens: number
+  cacheCreationInputTokens: number
+  cacheReadInputTokens: number
 } {
-  const usage = response.usage as { input_tokens?: unknown; output_tokens?: unknown } | undefined
+  const usage = response.usage as
+    | {
+        input_tokens?: unknown
+        output_tokens?: unknown
+        cache_creation_input_tokens?: unknown
+        cache_read_input_tokens?: unknown
+      }
+    | undefined
+  const asTokens = (value: unknown): number => (typeof value === 'number' ? value : 0)
   return {
-    inputTokens: typeof usage?.input_tokens === 'number' ? usage.input_tokens : 0,
-    outputTokens: typeof usage?.output_tokens === 'number' ? usage.output_tokens : 0
+    inputTokens: asTokens(usage?.input_tokens),
+    outputTokens: asTokens(usage?.output_tokens),
+    cacheCreationInputTokens: asTokens(usage?.cache_creation_input_tokens),
+    cacheReadInputTokens: asTokens(usage?.cache_read_input_tokens)
   }
 }
 
@@ -52,17 +87,34 @@ export function extractUsage(response: Anthropic.Message): {
  * Suma al acumulado `aiUsage` persistido de la entrevista el uso de una llamada
  * exitosa (o de una sesión completa del asistente si `calls` viene informado).
  * JAMÁS lanza: un fallo de medición se loguea y no interrumpe al usuario (AC).
+ * SPEC-023: los componentes de caché se pliegan en `inputTokens` (suma de los
+ * tres) sin cambiar la forma de AiUsage; el coste usa las 4 tarifas. Si el
+ * caller aporta `estimatedCostUsd` ya calculado por componentes (el volcado de
+ * la sesión del asistente pasa su AiUsage, cuyo inputTokens ya viene plegado),
+ * se respeta — recomputarlo desde el total plegado tarificaría el caché a la
+ * tarifa de entrada normal y falsearía el importe.
  */
 export function recordInterviewUsage(
   interviewId: string,
-  tokens: { inputTokens: number; outputTokens: number; calls?: number }
+  tokens: {
+    inputTokens: number
+    outputTokens: number
+    cacheCreationInputTokens?: number
+    cacheReadInputTokens?: number
+    calls?: number
+    estimatedCostUsd?: number
+  }
 ): void {
   try {
+    const cacheWrite = tokens.cacheCreationInputTokens ?? 0
+    const cacheRead = tokens.cacheReadInputTokens ?? 0
     const delta: AiUsage = {
       calls: tokens.calls ?? 1,
-      inputTokens: tokens.inputTokens,
+      inputTokens: tokens.inputTokens + cacheWrite + cacheRead,
       outputTokens: tokens.outputTokens,
-      estimatedCostUsd: computeCostUsd(tokens.inputTokens, tokens.outputTokens)
+      estimatedCostUsd:
+        tokens.estimatedCostUsd ??
+        computeCostUsd(tokens.inputTokens, tokens.outputTokens, cacheWrite, cacheRead)
     }
     repository.addInterviewAiUsage(interviewId, delta)
   } catch (error) {

@@ -45,17 +45,26 @@ export const SCRIPT_EXCERPT_CHARS = 6000
 
 // Constantes del modelo (documentadas; ajustables si el humano quiere otro
 // equilibrio latencia/coste). NUNCA enviar temperature/top_p/top_k ni
-// budget_tokens: devuelven 400 en este modelo.
+// budget_tokens: devuelven 400 en este modelo. cache_control SÍ está permitido.
 const MODEL = 'claude-opus-4-8'
-const MAX_TOKENS = 1024
+// SPEC-023: 1024 → 512. Con la salida acotada por schema (baseline ~136 tok de
+// salida) queda margen ~3,7×; un JSON truncado cae en la red de seguridad
+// existente (stop_reason !== 'end_turn' → error de formato → reintento natural).
+const MAX_TOKENS = 512
+
+// Topes de longitud de la salida (SPEC-023): DEBEN ser los mismos números en
+// el schema y en el texto del prompt (contradicción prompt↔schema = riesgo).
+const SUGGESTED_QUESTION_MAX_CHARS = 200
+const REASON_MAX_CHARS = 140
 
 /** Schema de structured outputs: la respuesta del análisis es SIEMPRE este JSON. */
 const OUTPUT_SCHEMA = {
   type: 'object' as const,
   properties: {
     action: { type: 'string' as const, enum: ['dig_deeper', 'continue'] },
-    suggestedQuestion: { type: 'string' as const },
-    reason: { type: 'string' as const },
+    // maxLength (SPEC-023): acota el tiempo de salida, el dominante en la latencia
+    suggestedQuestion: { type: 'string' as const, maxLength: SUGGESTED_QUESTION_MAX_CHARS },
+    reason: { type: 'string' as const, maxLength: REASON_MAX_CHARS },
     alarms: {
       type: 'array' as const,
       items: { type: 'string' as const, enum: ['compliment', 'generic', 'hypothetical'] }
@@ -95,6 +104,19 @@ interface AssistantSession {
   pausedByLimit: boolean
   /** "Reanudar" pulsado: el límite ya no vuelve a pausar en esta sesión (AC). */
   limitOverridden: boolean
+  /**
+   * Prefijo fijo del prompt cacheado (SPEC-023): instrucciones + guión y
+   * objetivos, construido UNA sola vez por sesión en startAssistant. La
+   * estabilidad byte a byte entre llamadas es condición del acierto de caché:
+   * nada de este prefijo depende de objectivesMet, suggestion ni Date.
+   */
+  systemBlocks: Anthropic.TextBlockParam[]
+  /**
+   * Totales de la sesión por componente (SPEC-023): el coste se recomputa
+   * SIEMPRE desde aquí con las 4 tarifas — recomputar desde el inputTokens ya
+   * plegado tarificaría el caché a la tarifa de entrada normal.
+   */
+  tokenTotals: { input: number; output: number; cacheWrite: number; cacheRead: number }
 }
 
 let session: AssistantSession | null = null
@@ -162,7 +184,10 @@ export function startAssistant(sender: WebContents, interviewId: string): void {
     usage: { calls: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 },
     persistedBaseUsd,
     pausedByLimit: false,
-    limitOverridden: false
+    limitOverridden: false,
+    // SPEC-023: el prefijo cacheado se construye AQUÍ y no se recalcula
+    systemBlocks: buildSystemBlocks(objectives, scriptExcerpt),
+    tokenTotals: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 }
   }
   session = target
   setFinalLineListener((line) => {
@@ -270,13 +295,22 @@ async function runAnalysis(target: AssistantSession): Promise<void> {
       target.objectivesMet.add(index)
     }
     // Medición de la sesión (SPEC-021): SOLO en el camino de éxito completo
-    // (una llamada que falla no cambia el acumulado, AC)
+    // (una llamada que falla no cambia el acumulado, AC). SPEC-023: se
+    // acumulan los 4 componentes y el coste se recomputa desde los totales
+    // con sus tarifas (los de caché se pliegan en inputTokens para la UI).
+    target.tokenTotals.input += outcome.tokens.inputTokens
+    target.tokenTotals.output += outcome.tokens.outputTokens
+    target.tokenTotals.cacheWrite += outcome.tokens.cacheCreationInputTokens
+    target.tokenTotals.cacheRead += outcome.tokens.cacheReadInputTokens
     target.usage.calls += 1
-    target.usage.inputTokens += outcome.tokens.inputTokens
-    target.usage.outputTokens += outcome.tokens.outputTokens
+    target.usage.inputTokens =
+      target.tokenTotals.input + target.tokenTotals.cacheWrite + target.tokenTotals.cacheRead
+    target.usage.outputTokens = target.tokenTotals.output
     target.usage.estimatedCostUsd = computeCostUsd(
-      target.usage.inputTokens,
-      target.usage.outputTokens
+      target.tokenTotals.input,
+      target.tokenTotals.output,
+      target.tokenTotals.cacheWrite,
+      target.tokenTotals.cacheRead
     )
     emitUpdate(target, {
       state: 'active',
@@ -314,12 +348,14 @@ async function runAnalysis(target: AssistantSession): Promise<void> {
 function buildSystemPrompt(): string {
   return [
     'Eres el copiloto en tiempo real de un entrevistador de discovery de producto, anclado a The Mom Test (Rob Fitzpatrick) y Running Lean (Ash Maurya): hechos pasados y comportamiento concreto, nunca hipótesis halagadoras.',
-    'Recibirás la ventana reciente de la conversación (transcrita en vivo, puede contener errores), los objetivos de la entrevista y el guión. Tu tarea: decidir la siguiente jugada del entrevistador.',
+    // SPEC-023: los objetivos y el guión viven en este prefijo fijo; en cada
+    // mensaje solo llega la parte variable (ventana + índices cubiertos)
+    'Más abajo tienes, si existen, los objetivos y el guión de la entrevista. En cada mensaje recibirás la ventana reciente de la conversación (transcrita en vivo, puede contener errores) y los índices de los objetivos ya cubiertos. Tu tarea: decidir la siguiente jugada del entrevistador.',
     'Reglas:',
     '- Escribe TODO en español.',
     "- `action`: 'dig_deeper' si la última respuesta del interlocutor carece de evidencia concreta (hechos pasados, cifras, ejemplos reales) o toca un objetivo aún no cubierto; 'continue' si ya hay material concreto suficiente para avanzar con el guión.",
-    '- `suggestedQuestion`: la siguiente pregunta exacta que debe hacer el entrevistador, breve y sobre hechos pasados y comportamiento concreto.',
-    "- `reason`: el porqué en UNA sola línea corta. Con 'dig_deeper', referencia el motivo concreto: la evidencia que falta según The Mom Test o el objetivo aún no cubierto.",
+    `- \`suggestedQuestion\`: la siguiente pregunta exacta que debe hacer el entrevistador, breve (máximo ${SUGGESTED_QUESTION_MAX_CHARS} caracteres) y sobre hechos pasados y comportamiento concreto.`,
+    `- \`reason\`: el porqué en UNA sola frase corta (máximo ${REASON_MAX_CHARS} caracteres). Con 'dig_deeper', referencia el motivo concreto: la evidencia que falta según The Mom Test o el objetivo aún no cubierto.`,
     "- `alarms`: señales de alarma detectadas en las últimas intervenciones del interlocutor: 'compliment' (cumplidos: «suena interesante»), 'generic' (genéricos: «normalmente hacemos»), 'hypothetical' (futuros hipotéticos: «lo compraríamos»). Array vacío si no hay. Si detectas una alarma, la pregunta sugerida debe reconducir a lo concreto (hechos pasados, casos reales).",
     '- `objectivesMet`: índices (0-based) de los objetivos YA cubiertos por la conversación, incluidos los que se marcaron cubiertos en análisis anteriores. Array vacío si no hay objetivos.',
     '- No repitas la sugerencia anterior: aporta la siguiente jugada.',
@@ -327,19 +363,51 @@ function buildSystemPrompt(): string {
   ].join('\n')
 }
 
+/**
+ * Prefijo fijo del prompt en formato de bloques (SPEC-023): instrucciones +
+ * guión/objetivos SIN estado dinámico ([cubierto|pendiente] viaja como índices
+ * en el mensaje de usuario). `cache_control` ephemeral SOLO en el último
+ * bloque: cachea todo el prefijo (TTL 5 min; las llamadas van ≥20 s aparte).
+ * Nota: por debajo del mínimo cacheable del modelo (~1024 tokens de prefijo,
+ * p. ej. sin guión) el caché no aplica — degradación silenciosa sin error, la
+ * ganancia de salida acotada se mantiene.
+ */
+function buildSystemBlocks(
+  objectives: string[],
+  scriptExcerpt: string | null
+): Anthropic.TextBlockParam[] {
+  const blocks: Anthropic.TextBlockParam[] = [{ type: 'text', text: buildSystemPrompt() }]
+  const contextSections: string[] = []
+  if (objectives.length > 0) {
+    const objectiveLines = objectives.map((objective, index) => `${index}. ${objective}`)
+    contextSections.push(`## Objetivos de la entrevista\n${objectiveLines.join('\n')}`)
+  }
+  if (scriptExcerpt !== null) {
+    contextSections.push(`## Guión de la entrevista\n${scriptExcerpt}`)
+  }
+  if (contextSections.length > 0) {
+    blocks.push({ type: 'text', text: contextSections.join('\n\n') })
+  }
+  blocks[blocks.length - 1].cache_control = { type: 'ephemeral' }
+  return blocks
+}
+
+/**
+ * Parte VARIABLE del prompt (SPEC-023): índices de objetivos cubiertos +
+ * ventana de conversación + sugerencia anterior + tarea. Siempre string (los
+ * consumidores leen `messages[0].content` como string); las secciones de
+ * conversación, sugerencia anterior y tarea conservan su formato histórico.
+ */
 function buildUserPrompt(target: AssistantSession): string {
   const sections: string[] = []
 
+  // El estado dinámico de los objetivos sale del prefijo cacheado y viaja
+  // aquí compacto (los textos de los objetivos viven en systemBlocks)
   if (target.objectives.length > 0) {
-    const objectiveLines = target.objectives.map((objective, index) => {
-      const status = target.objectivesMet.has(index) ? 'cubierto' : 'pendiente'
-      return `${index}. [${status}] ${objective}`
-    })
-    sections.push(`## Objetivos de la entrevista\n${objectiveLines.join('\n')}`)
-  }
-
-  if (target.scriptExcerpt !== null) {
-    sections.push(`## Guión de la entrevista\n${target.scriptExcerpt}`)
+    const covered = sortedObjectivesMet(target)
+    sections.push(
+      `## Objetivos ya cubiertos (índices)\n${covered.length > 0 ? covered.join(', ') : 'ninguno'}`
+    )
   }
 
   const conversation = target.lines
@@ -375,9 +443,18 @@ interface AnalysisOutcome {
   objectivesMet: number[]
 }
 
-/** Outcome del análisis + tokens de la respuesta (SPEC-021). */
+/**
+ * Outcome del análisis + tokens de la respuesta (SPEC-021). SPEC-023: viajan
+ * los 4 componentes (entrada no cacheada, salida, escritura y lectura de
+ * caché) para que el acumulador recompute el coste con sus tarifas reales.
+ */
 interface AnalysisResult extends AnalysisOutcome {
-  tokens: { inputTokens: number; outputTokens: number }
+  tokens: {
+    inputTokens: number
+    outputTokens: number
+    cacheCreationInputTokens: number
+    cacheReadInputTokens: number
+  }
 }
 
 const FORMAT_ERROR_MESSAGE = 'La respuesta de la IA no tiene el formato esperado.'
@@ -437,7 +514,8 @@ async function requestSuggestion(target: AssistantSession): Promise<AnalysisResu
       max_tokens: MAX_TOKENS,
       thinking: { type: 'adaptive' },
       output_config: { effort: 'low', format: { type: 'json_schema', schema: OUTPUT_SCHEMA } },
-      system: buildSystemPrompt(),
+      // SPEC-023: prefijo fijo cacheado, construido una vez por sesión
+      system: target.systemBlocks,
       messages: [{ role: 'user', content: buildUserPrompt(target) }]
     })
   } catch (error) {
