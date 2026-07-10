@@ -24,6 +24,13 @@ mac:
   # Firma ad-hoc: sin Developer ID ni notarización en esta fase (H7 = distribución)
   identity: null
   notarize: false
+  # Camino a firma real + notarización (SPEC-024, activar cuando haya cuenta
+  # Apple Developer; NO activado):
+  #   identity: 'Developer ID Application: <Nombre del titular> (<TEAM_ID>)'
+  #   notarize: true
+  # y exportar en el entorno del build: APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD
+  # y APPLE_TEAM_ID. Los entitlements de build/entitlements.mac.plist ya están
+  # listos para el hardened runtime.
   entitlementsInherit: build/entitlements.mac.plist
   # extendInfo DEBE ser un map (una lista deja el Info.plist sin las claves TCC)
   extendInfo:
@@ -33,6 +40,8 @@ mac:
     NSAudioCaptureUsageDescription: >-
       Maurya necesita capturar el audio del sistema para grabar y transcribir
       la voz de la persona entrevistada (llamada o reunión en curso).
+    # Categoría de la app en el Finder/App Store (SPEC-024)
+    LSApplicationCategoryType: public.app-category.productivity
 dmg:
   artifactName: ${productName}-${version}.${ext}
 npmRebuild: false

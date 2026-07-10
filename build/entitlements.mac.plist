@@ -1,12 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+  <!-- SPEC-024: entitlements mínimos para firma real (hardened runtime).
+       Con la firma ad-hoc actual no se aplican (cambio inocuo hoy, exigido
+       mañana): allow-jit lo necesita Electron; device.audio-input lo exigirá
+       el hardened runtime para el micrófono. Se eliminan los permisos del
+       scaffold (allow-unsigned-executable-memory, allow-dyld-environment-variables):
+       Electron moderno no los necesita y debilitan el hardened runtime. -->
   <dict>
     <key>com.apple.security.cs.allow-jit</key>
     <true/>
-    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-    <true/>
-    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <key>com.apple.security.device.audio-input</key>
     <true/>
   </dict>
 </plist>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,6 +16,8 @@ export function AiCostCard(): React.ReactElement {
   const [value, setValue] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** Guard de doble submit (SPEC-024): botón disabled + spinner mientras persiste. */
+  const [submitting, setSubmitting] = useState(false)
 
   // Precarga del límite persistido; mientras carga, el input queda disabled.
   // Un ajuste ilegible viaja normalizado desde main como "sin límite".
@@ -47,7 +50,9 @@ export function AiCostCard(): React.ReactElement {
       limitUsd = parsed
     }
     setError(null)
+    setSubmitting(true)
     void window.api.db.setAiCostSettings({ limitUsd }).then((result) => {
+      setSubmitting(false)
       if (result.ok) {
         toast('Ajustes guardados')
       } else {
@@ -87,7 +92,8 @@ export function AiCostCard(): React.ReactElement {
                 }
               }}
             />
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || submitting}>
+              {submitting && <Loader2 className="animate-spin" />}
               Guardar
             </Button>
           </div>
