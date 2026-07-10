@@ -96,8 +96,9 @@ function renderDetail(): RenderResult {
   )
 }
 
-/** La sección Objetivos, una vez cargado el detalle. */
+/** Monta el detalle y devuelve la sección Objetivos una vez cargada. */
 async function findSection(): Promise<HTMLElement> {
+  renderDetail()
   return await screen.findByTestId('objectives-section')
 }
 
