@@ -137,15 +137,15 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 
 | Hito | Total ítems | Hechos |
 |------|-------------|--------|
-| H0 · Spike | 6 | 5 |
+| H0 · Spike | 6 | 6 |
 | H1 · Shell | 6 | 6 |
 | H2 · CRUD | 9 | 9 |
 | H3 · IA guión | 5 | 5 |
 | H4 · Transcripción | 6 | 5 |
 | H5 · Asistencia | 8 | 8 |
 | H6 · Resumen | 5 | 5 |
-| H7 · Pulido | 7 | 1 |
+| H7 · Pulido | 7 | 4 |
 | Validación | 4 | 0 |
-| **Total** | **56** | **44** |
+| **Total** | **56** | **48** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
