@@ -26,10 +26,11 @@ type CaptureDetailState =
 
 /**
  * Detalle de una captura (SPEC-020, ruta /captures/:id — Layout 2 detalle):
- * misma experiencia que el detalle de entrevista de Discoveries — la sección
- * Grabación (RecordingSection) y las secciones Nota y Guión compuestas por
- * NoteScriptSections (SPEC-027: apiladas o en pestañas "Notas"/"Guión"), con
- * el mismo onInterviewUpdated compartido. La diferencia es el contexto: la captura
+ * misma experiencia que el detalle de entrevista de Discoveries — las secciones
+ * Nota y Guión compuestas por NoteScriptSections (SPEC-027: apiladas o en
+ * pestañas "Notas"/"Guión") y, al final, la sección Grabación (RecordingSection,
+ * SPEC-030: material de archivo tras el flujo end-to-end), con el mismo
+ * onInterviewUpdated compartido. La diferencia es el contexto: la captura
  * puede no tener empresa todavía; en ese caso la cabecera muestra el botón
  * "Asignar empresa" que abre el Sheet de asignación diferida.
  * Carga encadenada: getInterview y, con el resultado, getDiscovery +
@@ -154,12 +155,14 @@ export function CaptureDetailPage(): React.ReactElement {
             )}
           </div>
 
-          <RecordingSection
+          <NoteScriptSections
             interview={state.interview}
             onInterviewUpdated={handleInterviewUpdated}
           />
 
-          <NoteScriptSections
+          {/* SPEC-030: la Grabación cierra la página — tras el flujo end-to-end
+              es material de archivo (rutas WAV/transcript, latencia) */}
+          <RecordingSection
             interview={state.interview}
             onInterviewUpdated={handleInterviewUpdated}
           />
