@@ -13,7 +13,7 @@ import type {
 import { LlmOperationError, getAnthropicKey, mapSdkError } from './llmService'
 import { extractUsage, recordInterviewUsage } from './aiCost'
 import * as repository from './db/repository'
-import { resolvePromptPersona } from './prompts'
+import { buildPersonaBlock } from './prompts'
 
 /**
  * Servicio de la nota de resumen de la entrevista (SPEC-017). Vive SOLO en
@@ -126,14 +126,18 @@ export function readTranscriptLines(transcriptPath: string): TranscriptLinesResu
 // ---------------------------------------------------------------------------
 
 function buildSystemPrompt(template: NoteTemplate): string {
+  // SPEC-031: el contexto del note-template es parte dinámica bloqueada —
+  // elemento propio FUERA de los delimitadores del bloque de persona.
   const context =
     template.context.trim() !== ''
-      ? `\nContexto del note-template (manda sobre el enfoque de la síntesis):\n${template.context.trim()}`
-      : ''
+      ? `Contexto del note-template (manda sobre el enfoque de la síntesis):\n${template.context.trim()}`
+      : null
   // SPEC-026: el bloque de persona/enfoque se resuelve en cada uso
   // (override de Ajustes → default); las reglas de abajo quedan bloqueadas.
+  // SPEC-031: el bloque va delimitado y precedido de la salvaguarda anti-inyección.
   return [
-    resolvePromptPersona('note') + context,
+    buildPersonaBlock('note'),
+    ...(context !== null ? [context] : []),
     'Tu tarea: sintetizar la conversación proporcionada siguiendo las secciones del note-template, en su orden.',
     'Reglas:',
     '- Escribe TODO en español.',

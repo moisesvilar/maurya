@@ -14,7 +14,7 @@ import { getAnthropicKey, mapSdkError, toLlmError, LlmOperationError } from './l
 import { computeCostUsd, extractUsage, roundUpUsd } from './aiCost'
 import { setFinalLineListener } from './transcriptionService'
 import * as repository from './db/repository'
-import { resolvePromptPersona } from './prompts'
+import { buildPersonaBlock } from './prompts'
 import { REASON_MAX_CHARS, SUGGESTED_QUESTION_MAX_CHARS } from './prompts/defaults'
 
 /**
@@ -188,9 +188,10 @@ export function startAssistant(sender: WebContents, interviewId: string): void {
     pausedByLimit: false,
     limitOverridden: false,
     // SPEC-023: el prefijo cacheado se construye AQUÍ y no se recalcula.
-    // SPEC-026: el override del prompt se lee SOLO al arrancar la sesión; un
-    // cambio en Ajustes a mitad aplica a la siguiente sesión (byte-estable).
-    systemBlocks: buildSystemBlocks(objectives, scriptExcerpt, resolvePromptPersona('assistant')),
+    // SPEC-026/031: el override del prompt se lee SOLO al arrancar la sesión
+    // (un cambio en Ajustes a mitad aplica a la siguiente sesión) y llega ya
+    // envuelto con salvaguarda + delimitadores estáticos (byte-estable).
+    systemBlocks: buildSystemBlocks(objectives, scriptExcerpt, buildPersonaBlock('assistant')),
     tokenTotals: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 }
   }
   session = target
@@ -349,11 +350,12 @@ async function runAnalysis(target: AssistantSession): Promise<void> {
 // Prompt
 // ---------------------------------------------------------------------------
 
-function buildSystemPrompt(persona: string): string {
-  // SPEC-026: `persona` llega resuelta UNA vez en startAssistant (override de
-  // Ajustes → default) para que el prefijo cacheado sea byte-estable en sesión.
+function buildSystemPrompt(personaBlock: string): string {
+  // SPEC-026/031: `personaBlock` llega resuelto UNA vez en startAssistant
+  // (salvaguarda + persona delimitada; override de Ajustes → default) para que
+  // el prefijo cacheado sea byte-estable en sesión.
   return [
-    persona,
+    personaBlock,
     // SPEC-023: los objetivos y el guión viven en este prefijo fijo; en cada
     // mensaje solo llega la parte variable (ventana + índices cubiertos)
     'Más abajo tienes, si existen, los objetivos y el guión de la entrevista. En cada mensaje recibirás la ventana reciente de la conversación (transcrita en vivo, puede contener errores) y los índices de los objetivos ya cubiertos. Tu tarea: decidir la siguiente jugada del entrevistador.',
@@ -381,9 +383,11 @@ function buildSystemPrompt(persona: string): string {
 function buildSystemBlocks(
   objectives: string[],
   scriptExcerpt: string | null,
-  persona: string
+  personaBlock: string
 ): Anthropic.TextBlockParam[] {
-  const blocks: Anthropic.TextBlockParam[] = [{ type: 'text', text: buildSystemPrompt(persona) }]
+  const blocks: Anthropic.TextBlockParam[] = [
+    { type: 'text', text: buildSystemPrompt(personaBlock) }
+  ]
   const contextSections: string[] = []
   if (objectives.length > 0) {
     const objectiveLines = objectives.map((objective, index) => `${index}. ${objective}`)

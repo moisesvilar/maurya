@@ -12,7 +12,7 @@ import type { LlmError, LlmErrorKind, LlmStatus } from '../renderer/src/types/ll
 import { getDecryptedSecret } from './secretsService'
 import { extractUsage, recordInterviewUsage } from './aiCost'
 import * as repository from './db/repository'
-import { resolvePromptPersona } from './prompts'
+import { buildPersonaBlock } from './prompts'
 
 /**
  * Servicio de generación de guión y objetivos con Claude (SPEC-014). Vive SOLO
@@ -179,10 +179,12 @@ const PHASE_LABELS: Record<string, string> = {
 }
 
 function buildSystemPrompt(template: InterviewTemplate, hasCompany: boolean): string {
+  // SPEC-031: la fase es parte dinámica bloqueada — línea propia FUERA de los
+  // delimitadores del bloque de persona.
   const phase =
     template.phase !== null
-      ? ` La entrevista es de fase ${PHASE_LABELS[template.phase] ?? template.phase}.`
-      : ''
+      ? `La entrevista es de fase ${PHASE_LABELS[template.phase] ?? template.phase}.`
+      : null
   // SPEC-020: sin empresa asignada, la adaptación se ancla al contexto del
   // discovery (no hay empresa/contacto concretos a los que adaptar).
   const task = hasCompany
@@ -190,8 +192,10 @@ function buildSystemPrompt(template: InterviewTemplate, hasCompany: boolean): st
     : 'Tu tarea: adaptar el template de entrevista proporcionado al contexto del discovery, y definir los objetivos de la entrevista.'
   // SPEC-026: el bloque de persona/enfoque se resuelve en cada uso
   // (override de Ajustes → default); las reglas de abajo quedan bloqueadas.
+  // SPEC-031: el bloque va delimitado y precedido de la salvaguarda anti-inyección.
   return [
-    resolvePromptPersona('script') + phase,
+    buildPersonaBlock('script'),
+    ...(phase !== null ? [phase] : []),
     task,
     'Reglas:',
     '- Escribe TODO en español.',
