@@ -860,8 +860,8 @@
       },
       {
         "file": "tests/unit/captures/NewCaptureDialog.test.tsx",
-        "test_count": 4,
-        "description": "Dialog 'Nueva captura' aislado (frontera: prop onSubmit; MemoryRouter por el link del aviso): campos Título (placeholder 'Captura dd/mm/aaaa'), Discovery con placeholder y Plantilla default 'Sin template' con etiquetas nombre (fase) (AC-09); 'Campo requerido' bajo Título sin llamar a onSubmit (AC-10); 'Campo requerido' bajo Discovery sin llamar (AC-11); y cero discoveries → Select disabled con 'No hay discoveries' + link 'Crear discovery' a /discoveries (AC-12)."
+        "test_count": 3,
+        "description": "Dialog 'Nueva captura' aislado (frontera: prop onSubmit; MemoryRouter por el link del aviso) — adaptado por SPEC-032 (título opcional con nombre por defecto): campos Título (opcional, placeholder 'Captura dd-mmmm-yyyy hh:mm'), Discovery con placeholder y Plantilla default 'Sin template' con etiquetas nombre (fase) (AC-09 adaptado); 'Campo requerido' bajo Discovery sin llamar (AC-11); y cero discoveries → Select disabled con 'No hay discoveries' + link 'Crear discovery' a /discoveries (AC-12). El test de AC-10 (título vacío → error) se retiró por la derogación de SPEC-032; el archivo aloja además los 6 tests del describe 'default capture title (SPEC-032)' contados en la entrada SPEC-032."
       },
       {
         "file": "tests/unit/captures/CaptureDetailPage.test.tsx",
@@ -917,8 +917,8 @@
       "AC-06": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::listing::shows the empty state with \"Aún no hay capturas\" and a working \"Crear primera captura\" CTA",
       "AC-07": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::listing::shows the error state with the bridge message and recovers on \"Reintentar\"",
       "AC-08": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::listing::shows row skeletons while the list request is pending",
-      "AC-09": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::renders Título (required), Discovery (required) and Plantilla defaulting to \"Sin template\" with name+phase labels",
-      "AC-10": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::shows the inline \"Campo requerido\" error under Título and creates nothing when the title is empty",
+      "AC-09": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::renders Título (optional, with the default-name placeholder), Discovery (required) and Plantilla defaulting to \"Sin template\" with name+phase labels",
+      "AC-10": "DEROGADO por SPEC-032 (el Título pasa a ser opcional con nombre por defecto; ver derogación en specs/SPEC-032-nombre-defecto-captura.md): test retirado. El comportamiento vigente lo cubre tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::default capture title (SPEC-032)::creates the capture with the default title \"Captura dd-mmmm-yyyy hh:mm\" of the creation moment when Título is left empty",
       "AC-11": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::shows the inline \"Campo requerido\" error under Discovery and creates nothing when no discovery is selected",
       "AC-12": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::disables the Discovery select with \"No hay discoveries\" and links to create one when there are zero discoveries",
       "AC-13": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::creating a capture::creates the capture with discoveryId and companyId null, toasts \"Captura creada\" and navigates to its detail + tests/unit/persistence/repository.captures.test.ts::repository (SPEC-020 capturas)::createInterview capture-first::creates a capture with the chosen discoveryId, null companyId/contactId and draft status",
@@ -945,9 +945,9 @@
       "AC-34": "tests/unit/search/GlobalSearch.captures.test.tsx::GlobalSearch (SPEC-020 capturas)::shows \"Sin empresa\" as the context of a companyless capture hit and navigates to /captures/:id on click + tests/unit/search/GlobalSearch.captures.test.tsx::GlobalSearch (SPEC-020 capturas)::keeps the nested interview route for hits that do have a company + tests/unit/search/search.captures.test.ts::searchGlobal (SPEC-020 capturas)::emits interview hits without company carrying null companyId/companyName and the interview discoveryId + tests/unit/search/search.captures.test.ts::searchGlobal (SPEC-020 capturas)::still omits interviews whose non-null companyId does not resolve",
       "AC-35": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::listing::navigates to /captures/:id when the title of a company-flow interview is clicked"
     },
-    "notes": "Migración v1→v2 (Notas técnicas, sin AC propio) cubierta en repository.captures.test.ts::v1 to v2 migration; el invariante endurecido de updateInterview (contacto exige empresa) en ::createInterview capture-first::rejects updating a companyless capture with a contactId via updateInterview. Desviación declarada del implementador asumida por los tests: la fila muted del listado omite las partes null y 'Sin empresa' va como Badge outline (wireframe prevalece sobre el literal del AC-03). Breakage presupuestado repuesto: mockApi (+listAllInterviews/+assignInterviewCompany), fixtures de Interview con discoveryId en 8 suites, firmas de createInterview con discoveryId, tests del shell reescritos a 'Capturas'/redirects, seed del asistente sin empresa. Corrección post-run 2026-07-10: el test del empty por filtro de CapturesPage desambigua los DOS botones 'Limpiar filtros' legítimos (barra + empty state) scopeando al contenedor del empty state con within(), asertando que hay exactamente 2 y que el del empty state restaura el listado. SPEC-021 añadió el segmento de coste al final de la fila muted de ambas cabeceras de detalle: los asserts exactos de la fila en CaptureDetailPage.test.tsx pasan a regex (getNodeText conserva el separador final) y el test de AC-14 aserta además 'Sin datos de coste' (captura sin aiUsage). Regresión presupuestada, no bug.",
+    "notes": "Migración v1→v2 (Notas técnicas, sin AC propio) cubierta en repository.captures.test.ts::v1 to v2 migration; el invariante endurecido de updateInterview (contacto exige empresa) en ::createInterview capture-first::rejects updating a companyless capture with a contactId via updateInterview. Desviación declarada del implementador asumida por los tests: la fila muted del listado omite las partes null y 'Sin empresa' va como Badge outline (wireframe prevalece sobre el literal del AC-03). Breakage presupuestado repuesto: mockApi (+listAllInterviews/+assignInterviewCompany), fixtures de Interview con discoveryId en 8 suites, firmas de createInterview con discoveryId, tests del shell reescritos a 'Capturas'/redirects, seed del asistente sin empresa. Corrección post-run 2026-07-10: el test del empty por filtro de CapturesPage desambigua los DOS botones 'Limpiar filtros' legítimos (barra + empty state) scopeando al contenedor del empty state con within(), asertando que hay exactamente 2 y que el del empty state restaura el listado. SPEC-021 añadió el segmento de coste al final de la fila muted de ambas cabeceras de detalle: los asserts exactos de la fila en CaptureDetailPage.test.tsx pasan a regex (getNodeText conserva el separador final) y el test de AC-14 aserta además 'Sin datos de coste' (captura sin aiUsage). Regresión presupuestada, no bug. Derogación SPEC-032 (2026-07-12): el Título del Dialog de nueva captura deja de ser requerido — el test de AC-10 se retira y el de AC-09 se adapta (nombre y placeholder); la intención 'Discovery requerido' (AC-11) se conserva intacta.",
     "created_at": "2026-07-10",
-    "updated_at": "2026-07-12T00:00:00.000Z"
+    "updated_at": "2026-07-12"
   },
   "SPEC-021": {
     "spec_file": "specs/SPEC-021-medicion-control-coste-ia.md",
@@ -1505,6 +1505,36 @@
       "AC-18": "tests/unit/custom-prompts/customPromptsResolution.test.ts::customPromptsResolution::prompt injection safeguard (SPEC-031)::applies the safeguard and the delimiters also when the three prompts are unmodified defaults (mecanismo pinneado sobre buildPersonaBlock; los caminos reales con defaults los ejercitan además AC-14/15/16)"
     },
     "notes": "La suite ejercita la composición de los prompts (salvaguarda + delimitación), no la obediencia del modelo (manual). CustomPromptSheet.test.tsx retirado por la derogación del Sheet (SPEC-031); su intención vigente vive en CustomPromptItem.test.tsx y las aserciones de los 6 tests runtime de SPEC-026 se adaptaron a la envoltura sin perder intención (detalle en la entrada SPEC-026).",
+    "created_at": "2026-07-12",
+    "updated_at": "2026-07-12"
+  },
+  "SPEC-032": {
+    "spec_file": "specs/SPEC-032-nombre-defecto-captura.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición (7): creación con nombre por defecto ×3 (AC-01 título vacío → 'Captura dd-mmmm-yyyy hh:mm' del momento de creación, AC-02 solo espacios → igual que vacío, AC-03 formato: ceros iniciales en dd/hh, mes completo es-ES en minúsculas, hora local 24h) y comportamiento intacto ×4 (AC-04 título escrito → literal recortado, AC-05 sin discovery → 'Campo requerido' bajo Discovery sin crear nada, AC-06 placeholder del Título anuncia el default con la fecha/hora actuales, AC-07 el Dialog 'Editar' conserva el título requerido).",
+    "unit": [
+      {
+        "file": "tests/unit/captures/NewCaptureDialog.test.tsx",
+        "test_count": 6,
+        "description": "Describe 'default capture title (SPEC-032)' (6 tests) dentro del archivo compartido con SPEC-020 (frontera: prop onSubmit). Fake timers restringidos a Date (vi.useFakeTimers({toFake:['Date']}) + vi.setSystemTime, lección 12) para asertar strings exactos: título vacío → 'Captura 12-julio-2026 09:41' sin error (AC-01); solo espacios → 'Captura 03-enero-2026 22:05' (AC-02, mes distinto); formato con doble submit 05-marzo 08:07 y 31-diciembre 15:30 sin meridiano (AC-03); título escrito con espacios → literal recortado (AC-04); sin discovery y título vacío → UN solo 'Campo requerido' (el del Discovery, aria-invalid) sin llamar a onSubmit (AC-05); y placeholder exacto 'Captura 12-julio-2026 09:41' (AC-06)."
+      },
+      {
+        "file": "tests/unit/captures/EditCaptureDialog.test.tsx",
+        "test_count": 1,
+        "description": "Dialog 'Editar captura' aislado (frontera: prop onSubmit; captura sin empresa → sin window.api): vaciar el Título y Guardar → 'Campo requerido' inline con aria-invalid y onSubmit sin llamar — el default aplica solo a la creación (AC-07). No existía test previo de SPEC-020 para este caso (sus tests de edición en CapturesPage.test.tsx no ejercitan el título vacío)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e/Playwright no aplica en este proyecto (app Electron local sin public link, decisión humana 2026-07-03); los 7 ACs de SPEC-032 son automatizables como unit.",
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::default capture title (SPEC-032)::creates the capture with the default title \"Captura dd-mmmm-yyyy hh:mm\" of the creation moment when Título is left empty",
+      "AC-02": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::default capture title (SPEC-032)::creates with the default title when the title has only whitespace, behaving like empty",
+      "AC-03": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::default capture title (SPEC-032)::formats the default title with zero-padded day and hour, the full lowercase Spanish month and 24h local time",
+      "AC-04": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::default capture title (SPEC-032)::creates with the literal typed title trimmed of surrounding whitespace, as before",
+      "AC-05": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::default capture title (SPEC-032)::shows \"Campo requerido\" only under Discovery and creates nothing when no discovery is selected even with the title empty (co-cobertura con título escrito: SPEC-020 AC-11, vigente)",
+      "AC-06": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::default capture title (SPEC-032)::shows the Título placeholder announcing the default name for the current date and time",
+      "AC-07": "tests/unit/captures/EditCaptureDialog.test.tsx::EditCaptureDialog::keeps the inline \"Campo requerido\" error and saves nothing when the title is emptied on edit"
+    },
+    "notes": "Derogación aplicada sobre SPEC-020: retirado su test de AC-10 (título vacío → error bajo Título) y adaptado el de AC-09 (Título opcional, placeholder con el nuevo formato) — anotado en la entrada SPEC-020. Los tests usan la fecha/hora LOCAL del entorno (como la implementación), con el reloj congelado vía toFake:['Date'] para no romper userEvent/waitFor. La generación del default se verifica por los values que recibe onSubmit (frontera del Dialog); que ese título viaja intacto por createInterview lo cubre SPEC-020 AC-13.",
     "created_at": "2026-07-12",
     "updated_at": "2026-07-12"
   }
