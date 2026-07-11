@@ -566,8 +566,8 @@
       },
       {
         "file": "tests/unit/interviews/InterviewDetailPage.test.tsx",
-        "test_count": 3,
-        "description": "Detalle mínimo de entrevista (getInterview+getCompany mockeados; nombres resueltos con listContacts/listInterviewTemplates): h1 + Badge 'Borrador' + fila de referencias con fallbacks 'Acme Corp · Sin contacto · Sin template' (fixture con refs null) y Volver → detalle de la empresa (AC-11); sección Guión con 'Aún no hay guión' + 'La generación con IA llegará en la siguiente fase' (AC-12); y getInterview not-found → error + link 'Volver a Discoveries' (AC-13)."
+        "test_count": 4,
+        "description": "Detalle mínimo de entrevista (getInterview+getCompany mockeados; nombres resueltos con listContacts/listInterviewTemplates): h1 + Badge 'Borrador' + fila de referencias con fallbacks 'Acme Corp · Sin contacto · Sin template' (fixture con refs null) y Volver → detalle de la empresa (AC-11); sección Guión con 'Aún no hay guión' + 'La generación con IA llegará en la siguiente fase' (AC-12); y getInterview not-found → error + link 'Volver a Discoveries' (AC-13). (el 4º test del archivo es el de orden de secciones de SPEC-030, mapeado en su entrada)"
       }
     ],
     "e2e": [],
@@ -866,7 +866,7 @@
       {
         "file": "tests/unit/captures/CaptureDetailPage.test.tsx",
         "test_count": 5,
-        "description": "Detalle /captures/:id con las secciones REALES montadas (mocks del spike, patrón SPEC-015/016/017) + bridge mockeado: cabecera con 'Volver' → /captures, h1, Badge y fila muted 'discovery · Sin empresa · Sin contacto · Sin template' (AC-14); secciones Grabación → Nota → Guión en ese orden con la Grabación operativa (AC-15 — el comportamiento íntegro de cada sección lo garantizan sus suites SPEC-015/016/017/019, montadas tal cual con {interview, onInterviewUpdated}); error state con link 'Volver a Capturas' (AC-17); botón outline 'Asignar empresa' que abre el Sheet solo sin empresa (con empresa: cabecera resuelta y sin botón) (AC-21); y asignación de empresa existente → assignInterviewCompany + toast 'Empresa asignada' + Sheet cerrado + cabecera reflejada SIN recargar (getInterview una sola vez) (AC-27 UI)."
+        "description": "Detalle /captures/:id con las secciones REALES montadas (mocks del spike, patrón SPEC-015/016/017) + bridge mockeado: cabecera con 'Volver' → /captures, h1, Badge y fila muted 'discovery · Sin empresa · Sin contacto · Sin template' (AC-14); secciones Nota/Guión → Grabación al final — orden adaptado por SPEC-030, que deroga el 'Grabación primero' original — con la Grabación operativa (AC-15 — el comportamiento íntegro de cada sección lo garantizan sus suites SPEC-015/016/017/019, montadas tal cual con {interview, onInterviewUpdated}); error state con link 'Volver a Capturas' (AC-17); botón outline 'Asignar empresa' que abre el Sheet solo sin empresa (con empresa: cabecera resuelta y sin botón) (AC-21); y asignación de empresa existente → assignInterviewCompany + toast 'Empresa asignada' + Sheet cerrado + cabecera reflejada SIN recargar (getInterview una sola vez) (AC-27 UI)."
       },
       {
         "file": "tests/unit/captures/AssignCompanySheet.test.tsx",
@@ -923,7 +923,7 @@
       "AC-12": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::disables the Discovery select with \"No hay discoveries\" and links to create one when there are zero discoveries",
       "AC-13": "tests/unit/captures/CapturesPage.test.tsx::CapturesPage::creating a capture::creates the capture with discoveryId and companyId null, toasts \"Captura creada\" and navigates to its detail + tests/unit/persistence/repository.captures.test.ts::repository (SPEC-020 capturas)::createInterview capture-first::creates a capture with the chosen discoveryId, null companyId/contactId and draft status",
       "AC-14": "tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::header::shows the \"Volver\" back button to /captures, the h1 title, the status badge and the muted refs row with fallbacks",
-      "AC-15": "tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::sections::mounts Grabación first and the SPEC-027 Nota/Guión disposition for a capture with transcript (adaptado por SPEC-027: la disposición Nota/Guión pasó a ser condicional vía NoteScriptSections) + tests/unit/notes/noteService.captures.test.ts::noteService (SPEC-020 capturas)::generates the note for a companyless capture declaring \"Sin empresa asignada.\" in the prompt and persists status summarized (comportamiento interno de cada sección: suites SPEC-015/016/017/019 sobre los mismos componentes; componente físico: MANUAL)",
+      "AC-15": "tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::sections::mounts the Nota/Guión disposition after the header and Grabación last for a capture with transcript (adaptado por SPEC-027: disposición condicional vía NoteScriptSections; y por SPEC-030: la Grabación pasa al final) + tests/unit/notes/noteService.captures.test.ts::noteService (SPEC-020 capturas)::generates the note for a companyless capture declaring \"Sin empresa asignada.\" in the prompt and persists status summarized (comportamiento interno de cada sección: suites SPEC-015/016/017/019 sobre los mismos componentes; componente físico: MANUAL)",
       "AC-16": "tests/unit/assistant/assistantService.test.ts::assistantService (suite completa de SPEC-016 corriendo sobre una captura SIN empresa — seed SPEC-020): la activación por interviewId, las sugerencias, el feedback y la persistencia funcionan sin empresa asignada (grabación real: MANUAL)",
       "AC-17": "tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::error state::shows the error state with a \"Volver a Capturas\" link when the capture id does not exist",
       "AC-18": "tests/unit/script/llmService.captures.test.ts::llmService (SPEC-020 capturas)::generation without a company::generates from the template and the discovery name only, omitting the company/contact/history sections, and sets status prepared",
@@ -947,7 +947,7 @@
     },
     "notes": "Migración v1→v2 (Notas técnicas, sin AC propio) cubierta en repository.captures.test.ts::v1 to v2 migration; el invariante endurecido de updateInterview (contacto exige empresa) en ::createInterview capture-first::rejects updating a companyless capture with a contactId via updateInterview. Desviación declarada del implementador asumida por los tests: la fila muted del listado omite las partes null y 'Sin empresa' va como Badge outline (wireframe prevalece sobre el literal del AC-03). Breakage presupuestado repuesto: mockApi (+listAllInterviews/+assignInterviewCompany), fixtures de Interview con discoveryId en 8 suites, firmas de createInterview con discoveryId, tests del shell reescritos a 'Capturas'/redirects, seed del asistente sin empresa. Corrección post-run 2026-07-10: el test del empty por filtro de CapturesPage desambigua los DOS botones 'Limpiar filtros' legítimos (barra + empty state) scopeando al contenedor del empty state con within(), asertando que hay exactamente 2 y que el del empty state restaura el listado. SPEC-021 añadió el segmento de coste al final de la fila muted de ambas cabeceras de detalle: los asserts exactos de la fila en CaptureDetailPage.test.tsx pasan a regex (getNodeText conserva el separador final) y el test de AC-14 aserta además 'Sin datos de coste' (captura sin aiUsage). Regresión presupuestada, no bug.",
     "created_at": "2026-07-10",
-    "updated_at": "2026-07-10T18:30:00.000Z"
+    "updated_at": "2026-07-12T00:00:00.000Z"
   },
   "SPEC-021": {
     "spec_file": "specs/SPEC-021-medicion-control-coste-ia.md",
@@ -1440,6 +1440,34 @@
       "AC-18": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::reading::shows the \"Aún no hay guión\" empty state with the generate button when prerequisites are met (test de SPEC-014 · AC-08 sin cambios: el empty state no cambia)"
     },
     "notes": "Generada junto a la adaptación por derogación de SPEC-014/017/027 (y el it de SPEC-025 · AC-04): los tests que asumían modo lectura/'Editar'/'Cancelar'/markdown-view se adaptaron SOLO en lo derogado, conservando las aserciones cuya intención sigue vigente (generación, tooltips de prerrequisitos, export, AlertDialogs, payloads, borradores entre pestañas). Hallazgo de robustez (no defecto): al envolver los 'Regenerar' deshabilitados en TooltipTrigger, el botón se REMONTA al habilitarse (getStatus/templates async) y los clicks sobre la referencia previa se pierden en silencio → todos los clicks de regeneración esperan toBeEnabled() por testid y re-consultan el elemento.",
+    "created_at": "2026-07-12",
+    "updated_at": "2026-07-12T00:00:00.000Z"
+  },
+  "SPEC-030": {
+    "spec_file": "specs/SPEC-030-grabacion-al-final.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición (5): detalle de entrevista ×2 (AC-01 orden cabecera → Objetivos → Nota/Guión → Grabación al final, AC-02 la grabación en curso — transcripción en vivo y asistente — funciona igual dentro de la sección, ahora al final), detalle de captura ×1 (AC-03 orden cabecera → Nota/Guión → Grabación al final), comportamiento intacto ×2 (AC-04 contenido íntegro de la sección Grabación, AC-05 las secciones superiores se refrescan sin recargar ante acciones de la Grabación). Reordenación pura de composición en dos páginas: AC-02/04/05 se acreditan por CO-COBERTURA a las suites existentes de SPEC-015/016/022/025, que montan RecordingSection y ObjectivesSection VÍA las páginas de detalle reales y por tanto ya ejercitan todo el comportamiento con el orden nuevo.",
+    "unit": [
+      {
+        "file": "tests/unit/interviews/InterviewDetailPage.test.tsx",
+        "test_count": 4,
+        "description": "Nuevo describe 'section order (SPEC-030)' (1 test; los otros 3 son de SPEC-013): orden DOM cabecera (h1) → heading 'Objetivos' → heading 'Guión' (zona Nota/Guión) → heading 'Grabación' verificado con compareDocumentPosition (AC-01). Los headings de la zona Nota/Guión son asíncronos (Skeleton de NoteScriptSections hasta resolver getNoteByInterview — lección SPEC-029): findByRole siempre, también para 'Grabación' por robustez."
+      },
+      {
+        "file": "tests/unit/captures/CaptureDetailPage.test.tsx",
+        "test_count": 5,
+        "description": "Test 'sections' de SPEC-020 · AC-15 adaptado por SPEC-030 (asertaba el orden derogado 'Grabación primero'): ahora verifica cabecera (h1) → 'Guión' → 'Nota' → 'Grabación' al final con compareDocumentPosition, conservando la aserción de contenido (ruta WAV visible en la Grabación en estado Grabada) (AC-03, co-cubre SPEC-020 · AC-15). Headings Guión/Nota esperados con findByRole (asíncronos, lección SPEC-029)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/interviews/InterviewDetailPage.test.tsx::InterviewDetailPage::section order (SPEC-030)::renders the sections in order: header, Objetivos, Nota/Guión and Grabación last",
+      "AC-02": "CO-COBERTURA — la posición al final la fija el test de AC-01; el comportamiento con grabación en curso lo garantizan las suites de SPEC-015 montadas VÍA InterviewDetailPage (es decir, ya con el orden nuevo): tests/unit/recording/RecordingSection.test.tsx::RecordingSection::recording::starts the capture associated to the interview showing chronometer, both meters and a destructive Detener + tests/unit/recording/RecordingSection.test.tsx::RecordingSection::live transcription::shows live lines with source badge and speaker label plus the \"Transcribiendo\" status badge (asistente proactivo en vivo: suites SPEC-016 sobre los mismos componentes; grabación física real: MANUAL como en SPEC-015)",
+      "AC-03": "tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::sections::mounts the Nota/Guión disposition after the header and Grabación last for a capture with transcript (co-cubre SPEC-020 · AC-15 adaptado)",
+      "AC-04": "CO-COBERTURA — contenido íntegro de la sección, montada VÍA InterviewDetailPage con el orden nuevo: tests/unit/recording/RecordingSection.test.tsx::RecordingSection::after recording::shows the summary with paths, the latency row and a working \"Mostrar en Finder\" + tests/unit/recording/RecordingSection.test.tsx::RecordingSection::after recording::asks to overwrite in the \"Sobrescribir grabación\" dialog and returns to preparation on confirm + tests/unit/degradation/RecordingSection.degraded.test.tsx::RecordingSection (degradación SPEC-022)::shows the informative degraded alert with the literal copy while the degraded session lasts and hides it when the recording stops (Alert de modo degradado)",
+      "AC-05": "CO-COBERTURA — refresco de las secciones superiores sin recargar (onInterviewUpdated compartido): tests/unit/recording/RecordingSection.test.tsx::RecordingSection::recording::stops associating wav/transcript to the interview, flips the badge to \"Grabada\" and toasts \"Grabación guardada\" (el Badge de la cabecera, por encima de la Grabación, se actualiza sin recargar) + tests/unit/objectives/ObjectivesSection.test.tsx::ObjectivesSection::live tracking::marks live-covered objectives with the green check while pending ones keep the Target icon (la sección Objetivos superior reacciona a la sesión de grabación en vivo)"
+    },
+    "notes": "Derogación aplicada: el test de SPEC-020 · AC-15 asertaba el orden antiguo (Grabación primero) y se adaptó citando SPEC-030 (ver AC-03). El test de SPEC-025 · AC-01 (Objetivos entre la cabecera y la Grabación) sigue siendo válido sin cambios: solo aserta que los Objetivos van tras la cabecera y ANTES de la Grabación, y ambas cosas siguen siendo ciertas con la Grabación al final. El orden interno Nota↔Guión de NoteScriptSections (tests/unit/markdown) no se ve afectado.",
     "created_at": "2026-07-12",
     "updated_at": "2026-07-12T00:00:00.000Z"
   }

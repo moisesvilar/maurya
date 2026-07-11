@@ -9,6 +9,8 @@
  * garantizado por sus propias suites (SPEC-015/016/017/019): aquí se verifica
  * el contrato del detalle de captura (cabecera, orden de secciones, error
  * state y asignación de empresa reflejada sin recargar).
+ * SPEC-030: la sección Grabación pasa al final (cabecera → Nota/Guión →
+ * Grabación); el orden antiguo "Grabación primero" queda derogado.
  */
 import { render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -150,12 +152,12 @@ describe('CaptureDetailPage', () => {
   })
 
   describe('sections', () => {
-    // SPEC-020 · AC-15, adaptado por SPEC-027: las mismas secciones montadas
-    // tal cual tras la Grabación, pero la disposición Nota/Guión ahora es
-    // condicional (NoteScriptSections) — con transcripción y sin guión ni nota
-    // se apilan Guión + controles de generación de la nota; la disposición
-    // completa la cubre tests/unit/markdown/NoteScriptSections.test.tsx
-    it('mounts Grabación first and the SPEC-027 Nota/Guión disposition for a capture with transcript', async () => {
+    // SPEC-020 · AC-15, adaptado por SPEC-027 (disposición Nota/Guión
+    // condicional vía NoteScriptSections) y por SPEC-030 · AC-03: el orden
+    // "Grabación primero" queda derogado — ahora es cabecera → Nota/Guión →
+    // Grabación al final. La disposición completa Nota/Guión la cubre
+    // tests/unit/markdown/NoteScriptSections.test.tsx
+    it('mounts the Nota/Guión disposition after the header and Grabación last for a capture with transcript', async () => {
       setInterview(
         capture({
           wavPath: '/tmp/maurya-recordings/captura.wav',
@@ -165,15 +167,20 @@ describe('CaptureDetailPage', () => {
       )
       renderDetail()
 
-      await screen.findByRole('heading', { level: 1, name: 'Captura sin empresa' })
-      const headings = await screen.findAllByRole('heading', { level: 3 })
-      const titles = headings.map((heading) => heading.textContent)
-      const grabacion = titles.indexOf('Grabación')
-      const guion = titles.indexOf('Guión')
-      const nota = titles.indexOf('Nota')
-      expect(grabacion).toBeGreaterThanOrEqual(0)
-      expect(guion).toBeGreaterThan(grabacion)
-      expect(nota).toBeGreaterThan(guion)
+      const title = await screen.findByRole('heading', { level: 1, name: 'Captura sin empresa' })
+      // Asíncronos (lección SPEC-029): "Guión"/"Nota" solo renderizan cuando
+      // NoteScriptSections resuelve getNoteByInterview — findByRole siempre
+      const guion = await screen.findByRole('heading', { name: 'Guión' })
+      const nota = await screen.findByRole('heading', { name: 'Nota' })
+      const grabacion = await screen.findByRole('heading', { name: 'Grabación' })
+
+      /** a precede a b en el orden del documento. */
+      const expectBefore = (a: HTMLElement, b: HTMLElement): void => {
+        expect(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      }
+      expectBefore(title, guion)
+      expectBefore(guion, nota)
+      expectBefore(nota, grabacion)
       // Las secciones reciben la captura real: la Grabación está en estado
       // "Grabada" y muestra la ruta del WAV del fixture (con wavPath ya no
       // ofrece el CTA "Iniciar grabación")

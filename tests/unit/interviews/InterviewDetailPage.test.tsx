@@ -3,6 +3,8 @@
  * entrevista + empresa con getInterview/getCompany y los nombres de
  * contacto/template con los listados ya cargados (fallbacks "Sin contacto"/
  * "Sin template" con referencias null).
+ * SPEC-030: el orden de secciones pasa a cabecera → Objetivos → Nota/Guión →
+ * Grabación al final (describe 'section order').
  */
 import { render, screen, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -107,6 +109,32 @@ describe('InterviewDetailPage', () => {
       expect(
         screen.queryByText('La generación con IA llegará en la siguiente fase')
       ).not.toBeInTheDocument()
+    })
+  })
+
+  describe('section order (SPEC-030)', () => {
+    // SPEC-030 · AC-01 (deroga la posición de «Grabación» fijada por
+    // SPEC-015/025: los Objetivos siguen tras la cabecera; la Grabación
+    // pasa al final, después de la zona Nota/Guión)
+    it('renders the sections in order: header, Objetivos, Nota/Guión and Grabación last', async () => {
+      renderAt('/discoveries/d-1/companies/c-1/interviews/i-1')
+
+      const title = await screen.findByRole('heading', { name: 'Discovery con Acme', level: 1 })
+      const objetivos = await screen.findByRole('heading', { name: 'Objetivos' })
+      // Asíncronos (lección SPEC-029): los headings de la zona Nota/Guión solo
+      // renderizan cuando NoteScriptSections resuelve getNoteByInterview —
+      // findByRole SIEMPRE, nunca getByRole síncrono. "Grabación" también se
+      // espera con findBy por robustez (mismo render ready).
+      const guion = await screen.findByRole('heading', { name: 'Guión' })
+      const grabacion = await screen.findByRole('heading', { name: 'Grabación' })
+
+      /** a precede a b en el orden del documento. */
+      const expectBefore = (a: HTMLElement, b: HTMLElement): void => {
+        expect(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+      }
+      expectBefore(title, objetivos)
+      expectBefore(objetivos, guion)
+      expectBefore(guion, grabacion)
     })
   })
 
