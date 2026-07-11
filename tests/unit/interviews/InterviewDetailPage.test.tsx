@@ -100,7 +100,9 @@ describe('InterviewDetailPage', () => {
       renderAt('/discoveries/d-1/companies/c-1/interviews/i-1')
 
       await screen.findByRole('heading', { name: 'Discovery con Acme', level: 1 })
-      expect(screen.getByRole('heading', { name: 'Guión' })).toBeInTheDocument()
+      // Asíncrono: desde SPEC-027 el heading "Guión" solo renderiza cuando
+      // NoteScriptSections resuelve getNoteByInterview (Skeleton mientras)
+      expect(await screen.findByRole('heading', { name: 'Guión' })).toBeInTheDocument()
       expect(await screen.findByText('Aún no hay guión')).toBeInTheDocument()
       expect(
         screen.queryByText('La generación con IA llegará en la siguiente fase')
