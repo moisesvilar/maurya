@@ -25,10 +25,11 @@ export type BridgeApi = MauryaApi & {
 }
 
 /**
- * Mock tipado de api.llm (SPEC-014/017/025). getStatus resuelve por defecto
- * SIN clave de Anthropic (estado conservador); generateScript/generateNote/
- * evaluateObjectives se configuran por test. onObjectiveEvaluation registra
- * el callback para inyectar eventos con emitObjectiveEvaluation (SPEC-025).
+ * Mock tipado de api.llm (SPEC-014/017/025/028). getStatus resuelve por
+ * defecto SIN clave de Anthropic (estado conservador); generateScript/
+ * generateNote/evaluateObjectives/overrideObjective se configuran por test.
+ * onObjectiveEvaluation registra el callback para inyectar eventos con
+ * emitObjectiveEvaluation (SPEC-025).
  */
 function createMockLlmApi(
   objectiveEvaluationCallbacks: Array<(event: ObjectiveEvaluationEvent) => void>
@@ -41,6 +42,8 @@ function createMockLlmApi(
     generateScript: vi.fn<LlmApi['generateScript']>(),
     generateNote: vi.fn<LlmApi['generateNote']>(),
     evaluateObjectives: vi.fn<LlmApi['evaluateObjectives']>(),
+    // SPEC-028: marca manual de cumplimiento con reescritura (se configura por test)
+    overrideObjective: vi.fn<LlmApi['overrideObjective']>(),
     onObjectiveEvaluation: vi.fn<LlmApi['onObjectiveEvaluation']>((callback) => {
       objectiveEvaluationCallbacks.push(callback)
       return () => {
