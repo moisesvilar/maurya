@@ -109,6 +109,9 @@ const llm: LlmApi = {
     ipcRenderer.invoke('llm:generate-note', interviewId, noteTemplateId),
   // Evaluación de objetivos (SPEC-025): canal manual + eventos del camino automático
   evaluateObjectives: (interviewId) => ipcRenderer.invoke('llm:evaluate-objectives', interviewId),
+  // Marca manual de cumplimiento con reescritura de la explicación (SPEC-028)
+  overrideObjective: (interviewId, objectiveIndex, met, comment) =>
+    ipcRenderer.invoke('llm:override-objective', interviewId, objectiveIndex, met, comment),
   onObjectiveEvaluation: (callback: (event: ObjectiveEvaluationEvent) => void): (() => void) => {
     const listener = (_event: IpcRendererEvent, payload: ObjectiveEvaluationEvent): void =>
       callback(payload)

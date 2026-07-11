@@ -18,6 +18,7 @@ import type {
   InterviewTemplate,
   Note,
   NoteTemplate,
+  ObjectiveOverride,
   ObjectiveResult,
   UpdateCompanyPatch,
   UpdateContactPatch,
@@ -442,14 +443,20 @@ export function updateInterview(id: string, patch: UpdateInterviewPatch): Interv
       interview.scriptMarkdown = patch.scriptMarkdown
     }
     if (patch.objectives !== undefined) {
-      // Invariante SPEC-025: cualquier cambio en la lista de objetivos
-      // (texto, orden, altas o bajas) invalida la evaluación persistida —
-      // los resultados están alineados por índice y dejarían de corresponder.
+      // Invariante SPEC-025 (extendida por SPEC-028): cualquier cambio en la
+      // lista de objetivos (texto, orden, altas o bajas) invalida la
+      // evaluación persistida Y las marcas manuales — ambas están alineadas
+      // por índice y dejarían de corresponder.
       const changed =
         patch.objectives.length !== interview.objectives.length ||
         patch.objectives.some((objective, index) => objective !== interview.objectives[index])
       if (changed && interview.objectiveResults != null) {
         interview.objectiveResults = null
+      }
+      // Condición independiente de la anterior: puede haber marcas manuales
+      // sin evaluación persistida (SPEC-028, "Marcado sin evaluación previa").
+      if (changed && interview.objectiveOverrides != null) {
+        interview.objectiveOverrides = null
       }
       interview.objectives = patch.objectives
     }
@@ -786,6 +793,35 @@ export function setInterviewObjectiveResults(id: string, results: ObjectiveResul
       throw validationError('La evaluación no se corresponde con los objetivos de la entrevista')
     }
     interview.objectiveResults = results
+    return interview
+  })
+}
+
+/**
+ * Persiste la marca manual de cumplimiento de UN objetivo (SPEC-028). NO toca
+ * `updatedAt` (patrón setInterviewObjectiveResults/addInterviewAiUsage: no
+ * reordena el listado de capturas). No se expone por IPC como escritura de
+ * patch — solo lo usa main desde el servicio de reescritura. El array se
+ * rebasea siempre a la longitud vigente de `objectives` (defensivo: queda
+ * alineado por índice aunque el dato previo estuviera desalineado).
+ */
+export function setInterviewObjectiveOverride(
+  id: string,
+  index: number,
+  override: ObjectiveOverride
+): Interview {
+  return mutate((draft) => {
+    const interview = findOrThrow(draft.interviews, id, 'entrevista')
+    if (!Number.isInteger(index) || index < 0 || index >= interview.objectives.length) {
+      throw validationError('El objetivo indicado no existe en la entrevista')
+    }
+    // Rebase defensivo: el array siempre queda alineado en longitud con objectives
+    const overrides = Array.from(
+      { length: interview.objectives.length },
+      (_, i) => interview.objectiveOverrides?.[i] ?? null
+    )
+    overrides[index] = override
+    interview.objectiveOverrides = overrides
     return interview
   })
 }

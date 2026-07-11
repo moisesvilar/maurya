@@ -59,6 +59,13 @@ export interface LlmApi {
   ) => Promise<LlmResult<NoteGenerationResult>>
   /** Evalúa el cumplimiento de los objetivos contra el transcript (SPEC-025). */
   evaluateObjectives: (interviewId: string) => Promise<LlmResult<Interview>>
+  /** Marca manual de cumplimiento con reescritura de la explicación (SPEC-028). */
+  overrideObjective: (
+    interviewId: string,
+    objectiveIndex: number,
+    met: boolean,
+    comment: string
+  ) => Promise<LlmResult<Interview>>
   /** Suscripción a la evaluación automática post-grabación (SPEC-025). */
   onObjectiveEvaluation: (callback: (event: ObjectiveEvaluationEvent) => void) => () => void
 }

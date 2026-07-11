@@ -51,6 +51,7 @@ import {
   evaluateInterviewObjectives,
   maybeEvaluateAfterRecording
 } from './objectiveEvaluationService'
+import { overrideInterviewObjective } from './objectiveOverrideService'
 import { recordInterviewUsage } from './aiCost'
 import type { AssistantVote } from '../renderer/src/types/assistant'
 
@@ -129,6 +130,12 @@ export function registerIpcHandlers(): void {
   // pista de seguimiento en vivo (no hay sesión del asistente en este camino).
   handleLlm('llm:evaluate-objectives', (interviewId: string) =>
     evaluateInterviewObjectives(interviewId)
+  )
+  // Marca manual de cumplimiento (SPEC-028): mismo envelope LlmResult.
+  handleLlm(
+    'llm:override-objective',
+    (interviewId: string, objectiveIndex: number, met: boolean, comment: string) =>
+      overrideInterviewObjective(interviewId, objectiveIndex, met, comment)
   )
 
   /**

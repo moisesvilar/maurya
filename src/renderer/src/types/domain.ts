@@ -96,6 +96,17 @@ export interface ObjectiveResult {
   reason: string
 }
 
+/**
+ * Marca manual de cumplimiento de UN objetivo (SPEC-028). `comment` es el
+ * literal del humano; `text` la explicación reescrita por el LLM (o el
+ * comentario literal si no hay clave de Anthropic).
+ */
+export interface ObjectiveOverride {
+  met: boolean
+  comment: string
+  text: string
+}
+
 export interface Interview {
   id: string
   /**
@@ -134,6 +145,15 @@ export interface Interview {
    * cambio en `objectives` la descarta (invariante del repositorio).
    */
   objectiveResults?: ObjectiveResult[] | null
+  /**
+   * Marcas manuales de cumplimiento (SPEC-028), alineadas por índice con
+   * `objectives` (entrada `null` = objetivo sin marca manual). Opcional y sin
+   * bump de schemaVersion (patrón aiUsage/objectiveResults): ausente = sin
+   * marcas. Solo lo escribe main vía `setInterviewObjectiveOverride`; nunca es
+   * escribible por patch, y cualquier cambio en `objectives` lo descarta
+   * (invariante del repositorio).
+   */
+  objectiveOverrides?: Array<ObjectiveOverride | null> | null
   createdAt: string
   updatedAt: string
 }
