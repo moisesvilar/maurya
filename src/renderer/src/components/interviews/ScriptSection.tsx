@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { FileText, Loader2, Plus, RefreshCw, Sparkles, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -49,6 +49,9 @@ export function ScriptSection({
 }: ScriptSectionProps): React.ReactElement {
   const [keyStatus, setKeyStatus] = useState<KeyStatus>('loading')
   const [generating, setGenerating] = useState(false)
+  // Autogeneración al crear la captura (SPEC-033): estado gobernado por los
+  // eventos `llm:script-generation` de main, nunca por el invoke manual.
+  const [autoGenerating, setAutoGenerating] = useState(false)
   // null = prístino: el editor/lista no han recibido ninguna edición real
   // desde el último reset; mientras tanto la UI sigue a la prop `interview`.
   const [scriptDraft, setScriptDraft] = useState<string | null>(null)
@@ -68,9 +71,46 @@ export function ScriptSection({
     })
   }, [])
 
+  // Autogeneración (SPEC-033): la identidad del callback del padre no debe
+  // re-suscribir (ref, patrón ObjectivesSection).
+  const onInterviewUpdatedRef = useRef(onInterviewUpdated)
+  useEffect(() => {
+    onInterviewUpdatedRef.current = onInterviewUpdated
+  }, [onInterviewUpdated])
+
+  const interviewId = interview.id
+  useEffect(() => {
+    // Carrera aceptada (plan, decisión 6): si `done` llega antes del mount, el
+    // getInterview inicial ya trae el guión (autoGenerating arranca false); si
+    // el mount cae entre `generating` y `done`, el spinner no aparece en esa
+    // ventana de ms pero done/error llegan igualmente — jamás queda colgado.
+    return window.api.llm.onScriptGeneration((event) => {
+      if (event.interviewId !== interviewId) {
+        return
+      }
+      if (event.status === 'generating') {
+        setAutoGenerating(true)
+        return
+      }
+      setAutoGenerating(false)
+      if (event.status === 'done') {
+        // NO se tocan editorResetKey ni drafts: el done automático solo ocurre
+        // sin guión previo (guard de main), con el editor aún sin montar y los
+        // drafts prístinos. Sin Toast de éxito: el guión apareciendo es el
+        // feedback (criterio SPEC-025).
+        onInterviewUpdatedRef.current(event.interview)
+        return
+      }
+      toast.error(event.message)
+    })
+  }, [interviewId])
+
   const hasTemplate = interview.templateId !== null
   const hasScript = interview.scriptMarkdown !== null
-  const canGenerate = hasTemplate && keyStatus === 'ok' && !generating
+  // Un solo indicador visual para la generación manual (invoke) y la
+  // automática (eventos, SPEC-033).
+  const isGenerating = generating || autoGenerating
+  const canGenerate = hasTemplate && keyStatus === 'ok' && !isGenerating
 
   const persistedScript = interview.scriptMarkdown ?? ''
   const scriptDirty = scriptDraft !== null && scriptDraft !== persistedScript
@@ -155,8 +195,8 @@ export function ScriptSection({
   const generateButton = (label: string): React.ReactElement =>
     withTooltip(
       <Button disabled={!canGenerate} onClick={() => void handleGenerate()}>
-        {generating ? <Loader2 className="animate-spin" /> : <Sparkles />}
-        {generating ? 'Generando guión…' : label}
+        {isGenerating ? <Loader2 className="animate-spin" /> : <Sparkles />}
+        {isGenerating ? 'Generando guión…' : label}
       </Button>,
       disabledReason
     )
@@ -167,7 +207,7 @@ export function ScriptSection({
         <h3 className="text-lg font-semibold">Guión</h3>
         {!hasScript && generateButton('Generar guión')}
         {hasScript &&
-          (generating ? (
+          (isGenerating ? (
             <Button variant="outline" disabled data-testid="script-regenerate-button">
               <Loader2 className="animate-spin" />
               Generando guión…
@@ -205,11 +245,22 @@ export function ScriptSection({
         <div className="flex flex-col items-center gap-3 py-12 text-center">
           <FileText className="size-8 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">Aún no hay guión</p>
-          {canGenerate && (
-            <Button onClick={() => void handleGenerate()}>
-              <Sparkles />
-              Generar guión
+          {autoGenerating ? (
+            // Autogeneración en curso (SPEC-033): el indicador sustituye al
+            // botón del empty state (mismo Loader2 que la generación manual).
+            // Solo para la automática: en la manual el CTA del empty state
+            // desaparece (canGenerate), exactamente igual que hasta ahora (AC).
+            <Button disabled>
+              <Loader2 className="animate-spin" />
+              Generando guión…
             </Button>
+          ) : (
+            canGenerate && (
+              <Button onClick={() => void handleGenerate()}>
+                <Sparkles />
+                Generar guión
+              </Button>
+            )
           )}
         </div>
       )}

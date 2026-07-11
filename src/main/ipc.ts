@@ -52,6 +52,7 @@ import {
   maybeEvaluateAfterRecording
 } from './objectiveEvaluationService'
 import { overrideInterviewObjective } from './objectiveOverrideService'
+import { autoGenerateInterviewScript } from './scriptAutoGenerationService'
 import { recordInterviewUsage } from './aiCost'
 import type { AssistantVote } from '../renderer/src/types/assistant'
 
@@ -137,6 +138,11 @@ export function registerIpcHandlers(): void {
     (interviewId: string, objectiveIndex: number, met: boolean, comment: string) =>
       overrideInterviewObjective(interviewId, objectiveIndex, met, comment)
   )
+  // Autogeneración del guión al crear la captura (SPEC-033): fire-and-forget,
+  // el handler resuelve tras los guards síncronos y jamás espera al LLM.
+  handleLlm('llm:auto-generate-script', (interviewId: string) => {
+    autoGenerateInterviewScript(interviewId)
+  })
 
   /**
    * Exportación a Markdown (SPEC-017): handler ad-hoc (no handleLlm) porque el

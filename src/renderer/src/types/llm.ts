@@ -48,6 +48,18 @@ export type ObjectiveEvaluationEvent =
   | { interviewId: string; status: 'done'; interview: Interview }
   | { interviewId: string; status: 'error'; error: LlmError }
 
+/**
+ * Evento push main → renderer de la autogeneración del guión al crear la
+ * captura (SPEC-033, canal `llm:script-generation`). La generación manual no
+ * emite eventos: su resultado viaja en la respuesta del invoke. El error viaja
+ * como string (`message`, literal de la spec) a diferencia del LlmError de
+ * ObjectiveEvaluationEvent — divergencia documentada en el plan.
+ */
+export type ScriptGenerationEvent =
+  | { interviewId: string; status: 'generating' }
+  | { interviewId: string; status: 'done'; interview: Interview }
+  | { interviewId: string; status: 'error'; message: string }
+
 /** API expuesta por el preload en `window.api.llm`. */
 export interface LlmApi {
   getStatus: () => Promise<LlmResult<LlmStatus>>
@@ -68,4 +80,11 @@ export interface LlmApi {
   ) => Promise<LlmResult<Interview>>
   /** Suscripción a la evaluación automática post-grabación (SPEC-025). */
   onObjectiveEvaluation: (callback: (event: ObjectiveEvaluationEvent) => void) => () => void
+  /**
+   * Disparo fire-and-forget de la autogeneración del guión al crear la captura
+   * (SPEC-033): resuelve tras los guards síncronos, nunca espera al LLM.
+   */
+  autoGenerateScript: (interviewId: string) => Promise<LlmResult<void>>
+  /** Suscripción a la autogeneración del guión (SPEC-033). */
+  onScriptGeneration: (callback: (event: ScriptGenerationEvent) => void) => () => void
 }

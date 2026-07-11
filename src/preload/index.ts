@@ -12,7 +12,11 @@ import type {
 } from '../renderer/src/types/audio'
 import type { DbApi } from '../renderer/src/types/domain'
 import type { SecretsApi } from '../renderer/src/types/secrets'
-import type { LlmApi, ObjectiveEvaluationEvent } from '../renderer/src/types/llm'
+import type {
+  LlmApi,
+  ObjectiveEvaluationEvent,
+  ScriptGenerationEvent
+} from '../renderer/src/types/llm'
 import type { NotesApi } from '../renderer/src/types/notes'
 import type { AssistantApi, AssistantUpdateEvent } from '../renderer/src/types/assistant'
 
@@ -118,6 +122,17 @@ const llm: LlmApi = {
     ipcRenderer.on('llm:objective-evaluation', listener)
     return (): void => {
       ipcRenderer.removeListener('llm:objective-evaluation', listener)
+    }
+  },
+  // Autogeneración del guión al crear la captura (SPEC-033): disparo
+  // fire-and-forget + eventos del progreso/resultado
+  autoGenerateScript: (interviewId) => ipcRenderer.invoke('llm:auto-generate-script', interviewId),
+  onScriptGeneration: (callback: (event: ScriptGenerationEvent) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, payload: ScriptGenerationEvent): void =>
+      callback(payload)
+    ipcRenderer.on('llm:script-generation', listener)
+    return (): void => {
+      ipcRenderer.removeListener('llm:script-generation', listener)
     }
   }
 }

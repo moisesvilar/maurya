@@ -96,6 +96,10 @@ export function CapturesPage(): React.ReactElement {
     if (interview === null) {
       return false
     }
+    // SPEC-033: disparo fire-and-forget de la autogeneración del guión. Main
+    // aplica los guards (sin plantilla / sin clave / guión presente) en silencio;
+    // el renderer llama siempre y nunca espera (la navegación no se bloquea).
+    void window.api.llm.autoGenerateScript(interview.id)
     void navigate(`/captures/${interview.id}`)
     return true
   }
