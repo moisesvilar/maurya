@@ -144,7 +144,7 @@ Añadido por decisión humana 2026-07-10 (docs/drafts/prompt-externalizar-prompt
 Peticiones directas del humano recogidas en [drafts/improvements-20260711.md](drafts/improvements-20260711.md). Dependen de H8 y de Post-MVP · Config. IA.
 
 - [x] 🟡 **Marcar/desmarcar objetivos como cumplidos con comentario**: toggle manual cumplido/no-cumplido por objetivo; la evaluación LLM previa se conserva **tachada** y, debajo, un texto reescrito por el LLM a partir del comentario que el humano introduce en un textarea (evoluciona RF-GUION-004, RF-ASIS-005) — §«Marcar y desmarcar objetivos como cumplidos» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md) — SPEC-028, unit 507/507 PASS (18/18 ACs; precedencia manual > evaluación > vivo, degradable sin clave)
-- [ ] 🟡 **Edición markdown por defecto en Nota y Guión**: mostrar el editor WYSIWYG directamente (sin botón «Editar»); «Guardar»/«Descartar» aparecen solo al haber cambios; «Exportar», «Ver transcripción» y «Regenerar» siempre visibles; unificar el botón «Regenerar» entre Nota y Guión y renombrar «Cancelar»→«Descartar» en Guión (RF-NOTE-004, RF-GUION-005) — §«Edición markdown por defecto» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md)
+- [x] 🟡 **Edición markdown por defecto en Nota y Guión**: mostrar el editor WYSIWYG directamente (sin botón «Editar»); «Guardar»/«Descartar» aparecen solo al haber cambios; «Exportar», «Ver transcripción» y «Regenerar» siempre visibles; unificar el botón «Regenerar» entre Nota y Guión y renombrar «Cancelar»→«Descartar» en Guión (RF-NOTE-004, RF-GUION-005) — §«Edición markdown por defecto» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md) — SPEC-029, unit 510/510 PASS (18 ACs, 15 automatizados; deroga modo lectura de SPEC-014/017/027)
 - [ ] 🟢 **Mover la sección «Grabación» al final** del detalle de entrevista (latencia STT + rutas WAV/transcript + «Mostrar en Finder»/«Nueva grabación») — §«Mover sección Grabación al final» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md)
 - [ ] 🟡 **Prompts personalizados en acordeón**: en Ajustes cada prompt colapsado de inicio; el lápiz expande in-place el editor WYSIWYG (sin side panel); sin sección «Reglas fijas (no editables)»; expandir/colapsar **no solidario** (varios abiertos a la vez); + mitigación de *prompt injection* al aplicar prompts en guión/nota/asistente (ignorar instrucciones ajenas al objetivo de la app, p. ej. «olvida tus instrucciones») (RF-CFG-001) — §«Cambios en la edición de prompts personalizados» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md)
 - [ ] 🟡 **Nombre por defecto de captura** «Captura dd-mmmm-yyyy hh:mm» (fecha/hora de inicio) cuando el nombre esté vacío — §«Mejoras en las capturas» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md)
@@ -180,8 +180,8 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H7 · Pulido | 7 | 6 |
 | H8 · Post-MVP | 2 | 2 |
 | Post-MVP · Config. IA | 1 | 1 |
-| H9 · Mejoras UX/captura | 9 | 1 |
+| H9 · Mejoras UX/captura | 9 | 2 |
 | Validación | 4 | 0 |
-| **Total** | **68** | **55** |
+| **Total** | **68** | **56** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
