@@ -147,7 +147,7 @@ Peticiones directas del humano recogidas en [drafts/improvements-20260711.md](dr
 - [x] 🟡 **Edición markdown por defecto en Nota y Guión**: mostrar el editor WYSIWYG directamente (sin botón «Editar»); «Guardar»/«Descartar» aparecen solo al haber cambios; «Exportar», «Ver transcripción» y «Regenerar» siempre visibles; unificar el botón «Regenerar» entre Nota y Guión y renombrar «Cancelar»→«Descartar» en Guión (RF-NOTE-004, RF-GUION-005) — §«Edición markdown por defecto» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md) — SPEC-029, unit 510/510 PASS (18 ACs, 15 automatizados; deroga modo lectura de SPEC-014/017/027)
 - [x] 🟢 **Mover la sección «Grabación» al final** del detalle de entrevista (latencia STT + rutas WAV/transcript + «Mostrar en Finder»/«Nueva grabación») — §«Mover sección Grabación al final» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md) — SPEC-030, unit 511/511 PASS a la primera (aplica también a /captures/:id)
 - [x] 🟡 **Prompts personalizados en acordeón**: en Ajustes cada prompt colapsado de inicio; el lápiz expande in-place el editor WYSIWYG (sin side panel); sin sección «Reglas fijas (no editables)»; expandir/colapsar **no solidario** (varios abiertos a la vez); + mitigación de *prompt injection* al aplicar prompts en guión/nota/asistente (ignorar instrucciones ajenas al objetivo de la app, p. ej. «olvida tus instrucciones») (RF-CFG-001) — §«Cambios en la edición de prompts personalizados» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md) — SPEC-031, unit 522/522 PASS (18/18 ACs; salvaguarda estática byte-estable; eficacia real de la mitigación pendiente de humo con clave)
-- [ ] 🟡 **Nombre por defecto de captura** «Captura dd-mmmm-yyyy hh:mm» (fecha/hora de inicio) cuando el nombre esté vacío — §«Mejoras en las capturas» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md)
+- [x] 🟡 **Nombre por defecto de captura** «Captura dd-mmmm-yyyy hh:mm» (fecha/hora de inicio) cuando el nombre esté vacío — §«Mejoras en las capturas» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md) — SPEC-032, unit 528/528 PASS a la primera (7/7 ACs; título opcional solo al crear)
 - [ ] 🟡 **Autogeneración del guión al crear la captura**, sin pulsar «Generar guión» (RF-GUION-002) — §«Mejoras en las capturas» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md)
 - [ ] 🟡 **Reubicar controles de grabación en la Captura**: opciones (permisos mic/sistema + selección de micrófono) a la top bar, en pequeño y horizontal; «Iniciar grabación» (primary) junto a «Asignar empresa» (secondary) — §«Mejoras en las capturas» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md)
 - [ ] 🟢 **Limpiar UI de Captura**: quitar el mensaje «Nota / Graba la entrevista para poder generar la nota» y eliminar el componente de transcripción en tiempo real — §«Mejoras en las capturas» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md)
@@ -180,8 +180,8 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H7 · Pulido | 7 | 6 |
 | H8 · Post-MVP | 2 | 2 |
 | Post-MVP · Config. IA | 1 | 1 |
-| H9 · Mejoras UX/captura | 9 | 4 |
+| H9 · Mejoras UX/captura | 9 | 5 |
 | Validación | 4 | 0 |
-| **Total** | **68** | **58** |
+| **Total** | **68** | **59** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
