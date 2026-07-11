@@ -1,15 +1,21 @@
 /**
  * Tests de la sección Nota y del Sheet de transcripción (SPEC-017, mitad UI;
- * lectura/edición adaptadas por SPEC-027 al render markdown enriquecido +
- * editor WYSIWYG, con sus ACs nuevos en el describe "wysiwyg (SPEC-027)"),
- * montados vía InterviewDetailPage con rutas reales (mocks del spike, patrón
- * SPEC-015/016).
- * Lecciones aplicadas: "Ver transcripción"/"Editar"/"Guardar" pueden colisionar
- * con otras secciones → within(section) anclado al heading "Nota" (y fixtures
+ * adaptados por SPEC-027 al editor WYSIWYG y por SPEC-029 a la edición
+ * markdown por defecto: con nota, el editor está SIEMPRE montado — sin modo
+ * lectura ni botón "Editar" — y la barra Guardar/Descartar solo existe con
+ * cambios; los ACs propios de SPEC-029 viven en los describes "always-on
+ * editing (SPEC-029)" y "header actions (SPEC-029)"), montados vía
+ * InterviewDetailPage con rutas reales (mocks del spike, patrón SPEC-015/016).
+ * Lecciones aplicadas: "Ver transcripción"/"Guardar" pueden colisionar con
+ * otras secciones → within(section) anclado al heading "Nota" (y fixtures
  * sin guión para minimizar dobles); el Sheet de radix es un Dialog (portal +
  * fondo aria-hidden); toasts sonner duplicados → getAllBy; máx 1 hover de
  * tooltip por render. jsdom+ProseMirror: cambios vía toolbar (API TipTap);
  * documento intacto = sin onChange → dirty-check y round-trip deterministas.
+ * OJO (SPEC-029): el "Regenerar" deshabilitado va envuelto en TooltipTrigger y
+ * se REMONTA al habilitarse (getStatus/templates async) → esperar
+ * toBeEnabled() por testid y re-consultar el elemento antes de clicar (nunca
+ * clicar la referencia stale previa).
  * SPEC-027 (disposición): sin guión/nota/transcripción la sección Nota NO se
  * monta → el fixture del record-first lleva guión; y tras generar la nota la
  * sección se remonta reordenada → re-anclar el section y encadenar el mock de
@@ -300,7 +306,8 @@ describe('NoteSection', () => {
       expect(within(sectionAfter).getByText('El CTO gestiona todo a mano.')).toBeInTheDocument()
     })
 
-    // SPEC-017 · AC-08
+    // SPEC-017 · AC-08 (botón unificado "Regenerar" por SPEC-029; el disabled
+    // envuelto en tooltip se remonta al habilitarse → esperar y re-consultar)
     it('opens the "Regenerar nota" AlertDialog warning that edits will be replaced, with Cancelar and Regenerar', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
@@ -308,7 +315,10 @@ describe('NoteSection', () => {
       renderDetail()
       const section = await noteSection()
 
-      await user.click(await within(section).findByRole('button', { name: 'Regenerar nota' }))
+      await waitFor(() =>
+        expect(within(section).getByTestId('note-regenerate-button')).toBeEnabled()
+      )
+      await user.click(within(section).getByTestId('note-regenerate-button'))
 
       const dialog = await screen.findByRole('alertdialog')
       expect(within(dialog).getByRole('heading', { name: 'Regenerar nota' })).toBeInTheDocument()
@@ -324,7 +334,8 @@ describe('NoteSection', () => {
       expect(vi.mocked(mockApi.api.llm.generateNote)).not.toHaveBeenCalled()
     })
 
-    // SPEC-017 · AC-09
+    // SPEC-017 · AC-09 (botón unificado "Regenerar" por SPEC-029; el contenido
+    // regenerado se muestra en el editor, no en un modo lectura)
     it('regenerates on confirm replacing the note and toasting "Nota generada"', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
@@ -337,7 +348,10 @@ describe('NoteSection', () => {
       renderDetail()
       const section = await noteSection()
 
-      await user.click(await within(section).findByRole('button', { name: 'Regenerar nota' }))
+      await waitFor(() =>
+        expect(within(section).getByTestId('note-regenerate-button')).toBeEnabled()
+      )
+      await user.click(within(section).getByTestId('note-regenerate-button'))
       const dialog = await screen.findByRole('alertdialog')
       await user.click(within(dialog).getByRole('button', { name: 'Regenerar' }))
 
@@ -348,7 +362,8 @@ describe('NoteSection', () => {
       expect(within(section).queryByText('El CTO gestiona todo a mano.')).not.toBeInTheDocument()
     })
 
-    // SPEC-017 · AC-10
+    // SPEC-017 · AC-10 (botón unificado "Regenerar" por SPEC-029; la nota
+    // previa queda intacta en el editor siempre montado)
     it('shows a destructive alert with the mapped message and keeps interview and previous note intact on LLM error', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
@@ -363,7 +378,10 @@ describe('NoteSection', () => {
       renderDetail()
       const section = await noteSection()
 
-      await user.click(await within(section).findByRole('button', { name: 'Regenerar nota' }))
+      await waitFor(() =>
+        expect(within(section).getByTestId('note-regenerate-button')).toBeEnabled()
+      )
+      await user.click(within(section).getByTestId('note-regenerate-button'))
       const dialog = await screen.findByRole('alertdialog')
       await user.click(within(dialog).getByRole('button', { name: 'Regenerar' }))
 
@@ -377,137 +395,174 @@ describe('NoteSection', () => {
     })
   })
 
-  describe('reading and editing', () => {
-    // SPEC-017 · AC-11
-    it('shows the note in read mode with Editar, Exportar, Ver transcripción and Regenerar nota', async () => {
+  describe('always-on editing (SPEC-029)', () => {
+    const EDITED = '### Dolores\n\nEl CTO gestiona todo a mano.\n\n## Citas\n\n«Nos lleva dos días»'
+
+    // SPEC-029 · AC-01 (deroga SPEC-017 · AC-11/AC-12 y SPEC-027 · AC-22: sin
+    // modo lectura ni botón "Editar"; el editor está siempre montado y la
+    // barra Guardar/Descartar no existe sin cambios)
+    it('shows the WYSIWYG editor directly with the note content, without Editar and without the Guardar/Descartar bar', async () => {
       setInterview(SUMMARIZED)
       setNote(NOTE)
       renderDetail()
       const section = await noteSection()
 
-      expect(await within(section).findByRole('button', { name: 'Editar' })).toBeInTheDocument()
-      expect(within(section).getByRole('button', { name: 'Exportar' })).toBeInTheDocument()
-      expect(within(section).getByRole('button', { name: 'Ver transcripción' })).toBeInTheDocument()
-      expect(within(section).getByRole('button', { name: 'Regenerar nota' })).toBeInTheDocument()
-      expect(within(section).getByRole('heading', { name: 'Citas', level: 2 })).toBeInTheDocument()
-      expect(within(section).getByText('«Nos lleva dos días»')).toBeInTheDocument()
-    })
-
-    // SPEC-017 · AC-12 (editor adaptado por SPEC-027) + SPEC-027 · AC-22
-    it('switches to the WYSIWYG editor with rendered content, Guardar and Descartar when Editar is clicked', async () => {
-      const user = userEvent.setup()
-      setInterview(SUMMARIZED)
-      setNote(NOTE)
-      renderDetail()
-      const section = await noteSection()
-
-      await user.click(await within(section).findByRole('button', { name: 'Editar' }))
-
-      const editor = within(section).getByTestId('note-markdown-editor')
+      const editor = await within(section).findByTestId('note-markdown-editor')
       const area = within(editor).getByLabelText('Nota')
       expect(area).toHaveAttribute('contenteditable', 'true')
       expect(within(area).getByText('Dolores').closest('h2')).not.toBeNull()
       expect(within(area).getByText('El CTO gestiona todo a mano.')).toBeInTheDocument()
       expect(within(editor).getByRole('toolbar', { name: 'Formato' })).toBeInTheDocument()
-      expect(within(section).getByRole('button', { name: 'Guardar' })).toBeInTheDocument()
-      expect(within(section).getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
+      expect(within(section).queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument()
+      expect(within(section).queryByTestId('note-editor-actions')).not.toBeInTheDocument()
+      expect(within(section).queryByRole('button', { name: 'Guardar' })).not.toBeInTheDocument()
+      expect(within(section).queryByRole('button', { name: 'Descartar' })).not.toBeInTheDocument()
     })
 
-    // SPEC-017 · AC-13 (edición vía toolbar por SPEC-027) + SPEC-027 · AC-23
-    it('persists the edit, returns to read mode and toasts "Nota guardada" on Guardar', async () => {
+    // SPEC-029 · AC-02
+    it('shows the Guardar (default) and Descartar (outline) bar when the user makes a real edit', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
       setNote(NOTE)
-      const edited =
-        '### Dolores\n\nEl CTO gestiona todo a mano.\n\n## Citas\n\n«Nos lleva dos días»'
+      renderDetail()
+      const section = await noteSection()
+
+      const editor = await within(section).findByTestId('note-markdown-editor')
+      await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
+
+      const actions = await within(section).findByTestId('note-editor-actions')
+      expect(within(actions).getByRole('button', { name: 'Guardar' })).toHaveAttribute(
+        'data-variant',
+        'default'
+      )
+      expect(within(actions).getByRole('button', { name: 'Descartar' })).toHaveAttribute(
+        'data-variant',
+        'outline'
+      )
+    })
+
+    // SPEC-029 · AC-03 (y absorbe la intención del round-trip semántico de
+    // SPEC-027 · AC-24: sin diferencias con lo persistido no hay barra)
+    it('hides the Guardar/Descartar bar when the edit is undone back to the persisted content', async () => {
+      const user = userEvent.setup()
+      setInterview(SUMMARIZED)
+      setNote(NOTE)
+      renderDetail()
+      const section = await noteSection()
+
+      const editor = await within(section).findByTestId('note-markdown-editor')
+      await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
+      await within(section).findByTestId('note-editor-actions')
+
+      // Deshacer: el primer bloque vuelve a Encabezado 2 → el markdown
+      // serializado iguala el persistido y la barra desaparece
+      await user.click(within(editor).getByRole('button', { name: 'Encabezado 2' }))
+      await waitFor(() =>
+        expect(within(section).queryByTestId('note-editor-actions')).not.toBeInTheDocument()
+      )
+    })
+
+    // SPEC-029 · AC-04 (+ SPEC-017 · AC-13 y SPEC-027 · AC-23 adaptados: ya no
+    // hay modo lectura al que volver — el editor sigue montado con lo guardado)
+    it('persists on Guardar, toasts "Nota guardada" and hides the bar keeping the editor mounted with the saved content', async () => {
+      const user = userEvent.setup()
+      setInterview(SUMMARIZED)
+      setNote(NOTE)
       vi.mocked(mockApi.api.db.updateNote).mockResolvedValue({
         ok: true,
-        data: { ...NOTE, contentMarkdown: edited }
+        data: { ...NOTE, contentMarkdown: EDITED }
       })
       renderDetail()
       const section = await noteSection()
 
-      await user.click(await within(section).findByRole('button', { name: 'Editar' }))
       // Cambio real vía toolbar: el primer bloque (h2 Dolores) pasa a Encabezado 3
-      const editor = within(section).getByTestId('note-markdown-editor')
+      const editor = await within(section).findByTestId('note-markdown-editor')
       await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
-      await user.click(within(section).getByRole('button', { name: 'Guardar' }))
+      await user.click(await within(section).findByRole('button', { name: 'Guardar' }))
 
       expect(vi.mocked(mockApi.api.db.updateNote)).toHaveBeenCalledWith('n-1', {
-        contentMarkdown: edited
+        contentMarkdown: EDITED
       })
       const toasts = await screen.findAllByText('Nota guardada')
       expect(toasts.length).toBeGreaterThanOrEqual(1)
       await waitFor(() =>
-        expect(within(section).queryByTestId('note-markdown-editor')).not.toBeInTheDocument()
+        expect(within(section).queryByTestId('note-editor-actions')).not.toBeInTheDocument()
       )
-      // La lectura muestra la nota actualizada (Dolores ahora es h3)
-      expect(
-        within(section).getByRole('heading', { name: 'Dolores', level: 3 })
-      ).toBeInTheDocument()
+      // El editor sigue montado con el contenido guardado (Dolores como h3)
+      const editorAfter = within(section).getByTestId('note-markdown-editor')
+      expect(within(editorAfter).getByText('Dolores').closest('h3')).not.toBeNull()
     })
 
-    // SPEC-017 · AC-14 (edición vía toolbar por SPEC-027) + SPEC-027 · AC-25
-    it('asks to discard changes and restores the persisted content on confirm', async () => {
+    // SPEC-029 · AC-05 (+ SPEC-017 · AC-14 y SPEC-027 · AC-25 adaptados: el
+    // descarte confirmado remonta el editor con el contenido persistido)
+    it('opens the "Descartar cambios" AlertDialog on Descartar and restores the persisted content on confirm', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
       setNote(NOTE)
       renderDetail()
       const section = await noteSection()
 
-      await user.click(await within(section).findByRole('button', { name: 'Editar' }))
-      const editor = within(section).getByTestId('note-markdown-editor')
+      const editor = await within(section).findByTestId('note-markdown-editor')
       await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
-      await user.click(within(section).getByRole('button', { name: 'Descartar' }))
+      const actions = await within(section).findByTestId('note-editor-actions')
+      await user.click(within(actions).getByRole('button', { name: 'Descartar' }))
 
       const dialog = await screen.findByRole('alertdialog')
       expect(within(dialog).getByRole('heading', { name: 'Descartar cambios' })).toBeInTheDocument()
       expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toBeInTheDocument()
-      await user.click(within(dialog).getByRole('button', { name: 'Descartar' }))
+      const confirm = within(dialog).getByRole('button', { name: 'Descartar' })
+      expect(confirm).toHaveAttribute('data-variant', 'destructive')
+      await user.click(confirm)
 
       await waitFor(() =>
-        expect(within(section).queryByTestId('note-markdown-editor')).not.toBeInTheDocument()
+        expect(within(section).queryByTestId('note-editor-actions')).not.toBeInTheDocument()
       )
-      // Se restaura el contenido persistido, sin el cambio (Dolores sigue h2)
-      expect(
-        within(section).getByRole('heading', { name: 'Dolores', level: 2 })
-      ).toBeInTheDocument()
-      expect(
-        within(section).queryByRole('heading', { name: 'Dolores', level: 3 })
-      ).not.toBeInTheDocument()
+      // El editor se remonta con el contenido persistido (Dolores vuelve a h2)
+      const editorAfter = within(section).getByTestId('note-markdown-editor')
+      expect(within(editorAfter).getByText('Dolores').closest('h2')).not.toBeNull()
+      expect(within(editorAfter).getByText('Dolores').closest('h3')).toBeNull()
       expect(vi.mocked(mockApi.api.db.updateNote)).not.toHaveBeenCalled()
     })
 
-    // SPEC-017 · AC-15 + SPEC-027 · AC-26
-    it('returns to read mode directly without any dialog when discarding with no changes', async () => {
+    // SPEC-029 · AC-06 (+ SPEC-027 · AC-28 adaptado)
+    it('toasts the storage error and keeps the changes with the bar visible when saving fails', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
       setNote(NOTE)
+      vi.mocked(mockApi.api.db.updateNote).mockResolvedValue({
+        ok: false,
+        error: { kind: 'storage', message: 'No se pudo escribir la base de datos' }
+      })
       renderDetail()
       const section = await noteSection()
 
-      await user.click(await within(section).findByRole('button', { name: 'Editar' }))
-      await user.click(within(section).getByRole('button', { name: 'Descartar' }))
+      const editor = await within(section).findByTestId('note-markdown-editor')
+      await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
+      await user.click(await within(section).findByRole('button', { name: 'Guardar' }))
 
-      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
-      await waitFor(() =>
-        expect(within(section).queryByTestId('note-markdown-editor')).not.toBeInTheDocument()
-      )
+      const toasts = await screen.findAllByText('No se pudo escribir la base de datos')
+      expect(toasts.length).toBeGreaterThanOrEqual(1)
+      // El editor conserva el cambio (Dolores pasó a h3) y la barra sigue
+      const editorStill = within(section).getByTestId('note-markdown-editor')
+      expect(within(editorStill).getByText('Dolores').closest('h3')).not.toBeNull()
+      expect(within(section).getByTestId('note-editor-actions')).toBeInTheDocument()
     })
 
-    // SPEC-017 · AC-16 (edición vía toolbar por SPEC-027)
+    // SPEC-017 · AC-16 (adaptado por SPEC-029: la edición ya no pasa por "Editar")
     it('saves only contentMarkdown so the interview status stays "Resumida"', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
       setNote(NOTE)
-      vi.mocked(mockApi.api.db.updateNote).mockResolvedValue({ ok: true, data: NOTE })
+      vi.mocked(mockApi.api.db.updateNote).mockResolvedValue({
+        ok: true,
+        data: { ...NOTE, contentMarkdown: EDITED }
+      })
       renderDetail()
       const section = await noteSection()
 
-      await user.click(await within(section).findByRole('button', { name: 'Editar' }))
-      const editor = within(section).getByTestId('note-markdown-editor')
+      const editor = await within(section).findByTestId('note-markdown-editor')
       await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
-      await user.click(within(section).getByRole('button', { name: 'Guardar' }))
+      await user.click(await within(section).findByRole('button', { name: 'Guardar' }))
 
       await waitFor(() => expect(vi.mocked(mockApi.api.db.updateNote)).toHaveBeenCalledTimes(1))
       // La edición usa updateNote (nunca updateInterview): el estado no cambia
@@ -518,6 +573,68 @@ describe('NoteSection', () => {
     })
   })
 
+  describe('header actions (SPEC-029)', () => {
+    // SPEC-029 · AC-07 (cabecera persistente: Exportar, Ver transcripción y el
+    // "Regenerar" unificado — outline + RefreshCw — visibles también con cambios)
+    it('keeps Exportar, Ver transcripción and the unified outline "Regenerar" visible while there are unsaved changes', async () => {
+      const user = userEvent.setup()
+      setInterview(SUMMARIZED)
+      setNote(NOTE)
+      renderDetail()
+      const section = await noteSection()
+
+      // Siempre visibles sin cambios…
+      const editor = await within(section).findByTestId('note-markdown-editor')
+      expect(within(section).getByRole('button', { name: 'Exportar' })).toBeInTheDocument()
+      expect(within(section).getByRole('button', { name: 'Ver transcripción' })).toBeInTheDocument()
+      const regenerate = within(section).getByTestId('note-regenerate-button')
+      expect(regenerate).toHaveTextContent('Regenerar')
+      expect(regenerate).toHaveAttribute('data-variant', 'outline')
+      expect(regenerate.querySelector('svg.lucide-refresh-cw')).not.toBeNull()
+
+      // …y también con cambios sin guardar
+      await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
+      await within(section).findByTestId('note-editor-actions')
+      expect(within(section).getByRole('button', { name: 'Exportar' })).toBeInTheDocument()
+      expect(within(section).getByRole('button', { name: 'Ver transcripción' })).toBeInTheDocument()
+      expect(within(section).getByTestId('note-regenerate-button')).toBeInTheDocument()
+    })
+
+    // SPEC-029 · AC-08
+    it('replaces the editor content and clears the bar when regenerating with unsaved changes', async () => {
+      const user = userEvent.setup()
+      setInterview(SUMMARIZED)
+      setNote(NOTE)
+      const regenerated: Note = { ...NOTE, contentMarkdown: '## Dolores\n\nContenido regenerado' }
+      vi.mocked(mockApi.api.llm.generateNote).mockResolvedValue({
+        ok: true,
+        data: { interview: SUMMARIZED, note: regenerated }
+      })
+      renderDetail()
+      const section = await noteSection()
+
+      // Cambios sin guardar → barra visible
+      const editor = await within(section).findByTestId('note-markdown-editor')
+      await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
+      await within(section).findByTestId('note-editor-actions')
+
+      // Regenerar (elemento fresco tras habilitarse) y confirmar
+      await waitFor(() =>
+        expect(within(section).getByTestId('note-regenerate-button')).toBeEnabled()
+      )
+      await user.click(within(section).getByTestId('note-regenerate-button'))
+      const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByRole('button', { name: 'Regenerar' }))
+
+      // La nota regenerada sustituye el contenido del editor y la barra se va
+      expect(await within(section).findByText('Contenido regenerado')).toBeInTheDocument()
+      expect(within(section).queryByText('El CTO gestiona todo a mano.')).not.toBeInTheDocument()
+      await waitFor(() =>
+        expect(within(section).queryByTestId('note-editor-actions')).not.toBeInTheDocument()
+      )
+    })
+  })
+
   describe('wysiwyg (SPEC-027)', () => {
     const RICH_NOTE: Note = {
       ...NOTE,
@@ -525,43 +642,34 @@ describe('NoteSection', () => {
         '## Dolores\n\n### Detalle\n\nTexto con **negrita** y *cursiva*.\n\n- primer dolor\n- segundo dolor'
     }
 
-    // SPEC-027 · AC-20
+    // SPEC-027 · AC-20 (adaptado por SPEC-029: el render enriquecido vive en
+    // el editor siempre montado — ya no existe la vista de lectura)
     it('renders the note as fully rich markdown: headings of any level, bold, italics and lists', async () => {
       setInterview(SUMMARIZED)
       setNote(RICH_NOTE)
       renderDetail()
       const section = await noteSection()
 
-      const view = await within(section).findByTestId('note-markdown-view')
-      expect(within(view).getByRole('heading', { name: 'Dolores', level: 2 })).toBeInTheDocument()
-      expect(within(view).getByRole('heading', { name: 'Detalle', level: 3 })).toBeInTheDocument()
-      expect(within(view).getByText('negrita').closest('strong')).not.toBeNull()
-      expect(within(view).getByText('cursiva').closest('em')).not.toBeNull()
-      const items = within(view).getAllByRole('listitem')
+      const editor = await within(section).findByTestId('note-markdown-editor')
+      const area = within(editor).getByLabelText('Nota')
+      expect(within(area).getByRole('heading', { name: 'Dolores', level: 2 })).toBeInTheDocument()
+      expect(within(area).getByRole('heading', { name: 'Detalle', level: 3 })).toBeInTheDocument()
+      expect(within(area).getByText('negrita').closest('strong')).not.toBeNull()
+      expect(within(area).getByText('cursiva').closest('em')).not.toBeNull()
+      const items = within(area).getAllByRole('listitem')
       expect(items.map((item) => item.textContent)).toEqual(['primer dolor', 'segundo dolor'])
       // Sin sintaxis markdown en crudo
-      expect(view.textContent).not.toContain('#')
-      expect(view.textContent).not.toContain('**')
+      expect(area.textContent).not.toContain('#')
+      expect(area.textContent).not.toContain('**')
     })
 
-    // SPEC-027 · AC-24
-    it('persists the exact original markdown when saving without touching the editor (semantic round-trip)', async () => {
-      const user = userEvent.setup()
-      setInterview(SUMMARIZED)
-      setNote(NOTE)
-      vi.mocked(mockApi.api.db.updateNote).mockResolvedValue({ ok: true, data: NOTE })
-      renderDetail()
-      const section = await noteSection()
+    // SPEC-027 · AC-24 DEROGADO por construcción (SPEC-029): sin tocar el
+    // editor no hay botón "Guardar". La intención (round-trip sin
+    // normalización espuria) queda cubierta por SPEC-029 · AC-01 (sin barra al
+    // montar) y AC-03 (deshacer hasta igualar el persistido oculta la barra).
 
-      await user.click(await within(section).findByRole('button', { name: 'Editar' }))
-      await user.click(within(section).getByRole('button', { name: 'Guardar' }))
-
-      expect(vi.mocked(mockApi.api.db.updateNote)).toHaveBeenCalledWith('n-1', {
-        contentMarkdown: NOTE.contentMarkdown
-      })
-    })
-
-    // SPEC-027 · AC-27 (vaciado vía atajos de ProseMirror: Ctrl+A + Backspace)
+    // SPEC-027 · AC-27 (vaciado vía atajos de ProseMirror: Ctrl+A + Backspace;
+    // adaptado por SPEC-029: la barra aparece al vaciar, sin paso por "Editar")
     it('saves an empty note without errors when the editor is fully cleared', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
@@ -573,14 +681,13 @@ describe('NoteSection', () => {
       renderDetail()
       const section = await noteSection()
 
-      await user.click(await within(section).findByRole('button', { name: 'Editar' }))
-      const editor = within(section).getByTestId('note-markdown-editor')
+      const editor = await within(section).findByTestId('note-markdown-editor')
       within(editor).getByLabelText('Nota').focus()
       await user.keyboard('{Control>}a{/Control}{Backspace}')
       await waitFor(() =>
         expect(within(editor).queryByText('El CTO gestiona todo a mano.')).not.toBeInTheDocument()
       )
-      await user.click(within(section).getByRole('button', { name: 'Guardar' }))
+      await user.click(await within(section).findByRole('button', { name: 'Guardar' }))
 
       await waitFor(() => expect(vi.mocked(mockApi.api.db.updateNote)).toHaveBeenCalledTimes(1))
       const payload = vi.mocked(mockApi.api.db.updateNote).mock.calls[0][1]
@@ -589,33 +696,13 @@ describe('NoteSection', () => {
       expect(toasts.length).toBeGreaterThanOrEqual(1)
     })
 
-    // SPEC-027 · AC-28
-    it('toasts the storage error and stays in edit mode with the change intact when saving fails', async () => {
-      const user = userEvent.setup()
-      setInterview(SUMMARIZED)
-      setNote(NOTE)
-      vi.mocked(mockApi.api.db.updateNote).mockResolvedValue({
-        ok: false,
-        error: { kind: 'storage', message: 'No se pudo escribir la base de datos' }
-      })
-      renderDetail()
-      const section = await noteSection()
-
-      await user.click(await within(section).findByRole('button', { name: 'Editar' }))
-      const editor = within(section).getByTestId('note-markdown-editor')
-      await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
-      await user.click(within(section).getByRole('button', { name: 'Guardar' }))
-
-      const toasts = await screen.findAllByText('No se pudo escribir la base de datos')
-      expect(toasts.length).toBeGreaterThanOrEqual(1)
-      // Sigue en edición y con el cambio aplicado (Dolores pasó a h3)
-      const editorStill = within(section).getByTestId('note-markdown-editor')
-      expect(within(editorStill).getByText('Dolores').closest('h3')).not.toBeNull()
-    })
+    // SPEC-027 · AC-28: absorbido por SPEC-029 · AC-06 en el describe
+    // "always-on editing (SPEC-029)" (mismo escenario, sin paso por "Editar").
 
     // SPEC-027 · AC-29 (mitad UI: la equivalencia del fichero exportado con lo
     // persistido la garantiza el export de main de SPEC-017, que vuelca
-    // contentMarkdown tal cual)
+    // contentMarkdown tal cual; adaptado por SPEC-029: tras guardar el editor
+    // permanece — se espera a que desaparezca la barra, no al modo lectura)
     it('exports the note through the same export path after a WYSIWYG edit was saved', async () => {
       const user = userEvent.setup()
       setInterview(SUMMARIZED)
@@ -629,12 +716,11 @@ describe('NoteSection', () => {
       renderDetail()
       const section = await noteSection()
 
-      await user.click(await within(section).findByRole('button', { name: 'Editar' }))
-      const editor = within(section).getByTestId('note-markdown-editor')
+      const editor = await within(section).findByTestId('note-markdown-editor')
       await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
-      await user.click(within(section).getByRole('button', { name: 'Guardar' }))
+      await user.click(await within(section).findByRole('button', { name: 'Guardar' }))
       await waitFor(() =>
-        expect(within(section).queryByTestId('note-markdown-editor')).not.toBeInTheDocument()
+        expect(within(section).queryByTestId('note-editor-actions')).not.toBeInTheDocument()
       )
 
       await user.click(within(section).getByRole('button', { name: 'Exportar' }))
