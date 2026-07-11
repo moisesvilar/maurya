@@ -28,14 +28,18 @@ import type { Discovery, InterviewTemplate } from '@/types/domain'
  */
 const NONE = 'none'
 
-/** Placeholder del título: "Captura dd/mm/aaaa" con la fecha local. */
-function defaultTitlePlaceholder(): string {
-  const date = new Date().toLocaleDateString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
-  return `Captura ${date}`
+/**
+ * Nombre por defecto de la captura (SPEC-032): "Captura dd-mmmm-yyyy hh:mm"
+ * con fecha y hora locales — día/hora/minutos con cero inicial, mes completo
+ * en español en minúsculas (es-ES) y hora en formato 24 h. Alimenta el
+ * placeholder del Título y el nombre aplicado al crear con título vacío.
+ */
+function defaultCaptureTitle(date: Date): string {
+  const dd = String(date.getDate()).padStart(2, '0')
+  const month = date.toLocaleDateString('es-ES', { month: 'long' })
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  return `Captura ${dd}-${month}-${date.getFullYear()} ${hh}:${mm}`
 }
 
 export interface NewCaptureDialogProps {
@@ -73,7 +77,6 @@ function NewCaptureForm({
   // '' = sin elegir (muestra el placeholder del SelectValue); requerido.
   const [discoveryId, setDiscoveryId] = useState('')
   const [templateId, setTemplateId] = useState(NONE)
-  const [showTitleError, setShowTitleError] = useState(false)
   const [showDiscoveryError, setShowDiscoveryError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -81,18 +84,17 @@ function NewCaptureForm({
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault()
-    // Validación inline on submit, ambos campos independientes (AC).
+    // Validación inline on submit: solo el Discovery es requerido (SPEC-032
+    // deroga la obligatoriedad del Título; vacío → nombre por defecto).
     const trimmedTitle = title.trim()
-    const titleMissing = trimmedTitle === ''
     const discoveryMissing = discoveryId === ''
-    setShowTitleError(titleMissing)
     setShowDiscoveryError(discoveryMissing)
-    if (titleMissing || discoveryMissing) {
+    if (discoveryMissing) {
       return
     }
     setSubmitting(true)
     void onSubmit({
-      title: trimmedTitle,
+      title: trimmedTitle === '' ? defaultCaptureTitle(new Date()) : trimmedTitle,
       discoveryId,
       templateId: templateId === NONE ? null : templateId
     }).then((succeeded) => {
@@ -112,15 +114,10 @@ function NewCaptureForm({
         <Input
           ref={titleInputRef}
           id="capture-title"
-          placeholder={defaultTitlePlaceholder()}
+          placeholder={defaultCaptureTitle(new Date())}
           value={title}
-          onChange={(event) => {
-            setTitle(event.target.value)
-            setShowTitleError(false)
-          }}
-          aria-invalid={showTitleError || undefined}
+          onChange={(event) => setTitle(event.target.value)}
         />
-        {showTitleError && <p className="text-sm text-destructive">Campo requerido</p>}
       </div>
       <div className="flex flex-col gap-2">
         <label htmlFor="capture-discovery" className="text-sm font-medium">
@@ -194,11 +191,12 @@ function NewCaptureForm({
 }
 
 /**
- * Dialog "Nueva captura" (SPEC-020): captura nueva con solo título, discovery
- * y plantilla (la empresa/contacto se asignan después). Calco del patrón
- * InterviewFormDialog: form real (Enter = submit nativo), remonte por key,
- * foco al Título al abrir vía onOpenAutoFocus, errores inline "Campo
- * requerido" sin pasar por el bridge.
+ * Dialog "Nueva captura" (SPEC-020, SPEC-032): captura nueva con solo título,
+ * discovery y plantilla (la empresa/contacto se asignan después). Calco del
+ * patrón InterviewFormDialog: form real (Enter = submit nativo), remonte por
+ * key, foco al Título al abrir vía onOpenAutoFocus, error inline "Campo
+ * requerido" del Discovery sin pasar por el bridge. El Título es opcional
+ * (SPEC-032): vacío/blanco → nombre por defecto con fecha y hora locales.
  */
 export function NewCaptureDialog({
   open,
