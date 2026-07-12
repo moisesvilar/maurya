@@ -151,7 +151,7 @@ Peticiones directas del humano recogidas en [drafts/improvements-20260711.md](dr
 - [x] 🟡 **Autogeneración del guión al crear la captura**, sin pulsar «Generar guión» (RF-GUION-002) — §«Mejoras en las capturas» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md) — SPEC-033, unit 541/541 PASS (10/10 ACs; fire-and-forget en main con guards silenciosos + eventos llm:script-generation)
 - [x] 🟡 **Reubicar controles de grabación en la Captura**: opciones (permisos mic/sistema + selección de micrófono) a la top bar, en pequeño y horizontal; «Iniciar grabación» (primary) junto a «Asignar empresa» (secondary) — §«Mejoras en las capturas» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md) — SPEC-034, unit 554/554 PASS a la primera (13/13 ACs; useRecordingController extraído + TopBarPortal; detalle de entrevista intacto)
 - [x] 🟢 **Limpiar UI de Captura**: quitar el mensaje «Nota / Graba la entrevista para poder generar la nota» y eliminar el componente de transcripción en tiempo real — §«Mejoras en las capturas» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md) — SPEC-035, unit 558/558 PASS (9/9 ACs; transcripción en vivo retirada solo en captura, badge/NoKeyAlert conservados)
-- [ ] 🟡 **Cola persistente de preguntas sugeridas (anti-descarte)** en el asistente en vivo: quitar 👍/👎; mantener una **cola de preguntas pendientes que persisten** hasta resolverse (no se pisan al generar la siguiente), con **tamaño configurable en Ajustes (default 3)**; **supresión por similitud** contra toda la cola; **resolución automática** cuando el tema se cubre; **anclado manual (chincheta) opcional** como red de seguridad, sección oculta si no hay ancladas (RF-ASIS-002, RF-ASIS-004) — §«Enfoque acordado: cola persistente + supresión por similitud» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md)
+- [x] 🟡 **Cola persistente de preguntas sugeridas (anti-descarte)** en el asistente en vivo: quitar 👍/👎; mantener una **cola de preguntas pendientes que persisten** hasta resolverse (no se pisan al generar la siguiente), con **tamaño configurable en Ajustes (default 3)**; **supresión por similitud** contra toda la cola; **resolución automática** cuando el tema se cubre; **anclado manual (chincheta) opcional** como red de seguridad, sección oculta si no hay ancladas (RF-ASIS-002, RF-ASIS-004) — §«Enfoque acordado: cola persistente + supresión por similitud» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md) — SPEC-036, unit 587/587 PASS a la primera (23/23 ACs; cola en main con snapshot de ids, doble barrera de similitud, systemBlocks byte-estables; deroga 👍/👎 de SPEC-016)
 
 ---
 
@@ -180,8 +180,8 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H7 · Pulido | 7 | 6 |
 | H8 · Post-MVP | 2 | 2 |
 | Post-MVP · Config. IA | 1 | 1 |
-| H9 · Mejoras UX/captura | 9 | 8 |
+| H9 · Mejoras UX/captura | 9 | 9 |
 | Validación | 4 | 0 |
-| **Total** | **68** | **62** |
+| **Total** | **68** | **63** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
