@@ -14,7 +14,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { generateInterviewScript, LlmOperationError } from '../../../src/main/llmService'
 import * as repository from '../../../src/main/db/repository'
 import { initStore } from '../../../src/main/db/store'
-import type { Discovery, Interview, InterviewTemplate } from '../../../src/renderer/src/types/domain'
+import type {
+  Discovery,
+  Interview,
+  InterviewTemplate
+} from '../../../src/renderer/src/types/domain'
 
 const harness = vi.hoisted(() => {
   /** Jerarquía espejo de la del SDK: instanceof debe funcionar en mapSdkError. */
@@ -81,9 +85,7 @@ function seedCapture(options: { withTemplate?: boolean } = {}): SeededCapture {
   const template = repository.createInterviewTemplate({
     name: 'Entrevista de problema',
     phase: 'problem',
-    blocks: [
-      { title: 'Contexto', questions: [{ text: '¿Quién lleva el regulatorio?' }] }
-    ]
+    blocks: [{ title: 'Contexto', questions: [{ text: '¿Quién lleva el regulatorio?' }] }]
   })
   const capture = repository.createInterview({
     discoveryId: discovery.id,

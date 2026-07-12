@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Download, FileText, Loader2, Pencil, RefreshCw, Sparkles } from 'lucide-react'
+import { Download, FileText, Loader2, RefreshCw, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -30,7 +30,6 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MarkdownEditor } from '@/components/markdown/MarkdownEditor'
-import { MarkdownView } from '@/components/markdown/MarkdownView'
 import { TranscriptSheet } from '@/components/interviews/TranscriptSheet'
 import { useNoteTemplates } from '@/hooks/useNoteTemplates'
 import type { Interview, Note } from '@/types/domain'
@@ -49,17 +48,24 @@ interface NoteSectionProps {
 
 /**
  * Sección Nota del detalle de entrevista (SPEC-017): generación del resumen
- * con Claude según el note-template elegido (main process), lectura de la nota
- * renderizada como Markdown (MarkdownView) y edición manual con editor WYSIWYG
- * (MarkdownEditor, SPEC-027; Riesgo #6: control humano), consulta de la
- * transcripción en Sheet y exportación a Markdown vía save dialog del SO.
- * Patrón ScriptSection (SPEC-014): estado local sin hook aparte;
- * prerrequisitos (transcripción, note-template y clave de Anthropic)
- * deshabilitan la generación con Tooltip/Alert; regenerar y descartar cambios
- * piden confirmación con AlertDialog; los errores del LLM son un Alert
- * destructive persistente. El editor solo emite onChange en ediciones reales,
- * así el dirty-check compara contra el string persistido sin falsos positivos
- * por normalización.
+ * con Claude según el note-template elegido (main process) y edición siempre
+ * activa (SPEC-029): con nota, el editor WYSIWYG (MarkdownEditor, SPEC-027;
+ * Riesgo #6: control humano) está siempre visible y editable, sin modo lectura
+ * ni botón "Editar". "Guardar"/"Descartar" solo aparecen con cambios: el editor
+ * solo emite onChange en ediciones reales, así el dirty-check compara contra el
+ * string persistido sin falsos positivos por normalización (draft null =
+ * prístino, nunca inicializado en efectos). El contenido del editor solo se
+ * resetea remontándolo (key por contador) en descarte confirmado y regeneración
+ * con éxito; tras "Guardar" NO se remonta — el contenido ya es el persistido y
+ * así se conservan foco y caret. Incluye consulta de la transcripción en Sheet
+ * y exportación a Markdown vía save dialog del SO. Patrón ScriptSection
+ * (SPEC-014): estado local sin hook aparte; prerrequisitos (transcripción,
+ * note-template y clave de Anthropic) deshabilitan la generación con
+ * Tooltip/Alert; regenerar y descartar cambios piden confirmación con
+ * AlertDialog; los errores del LLM son un Alert destructive persistente.
+ * SPEC-035: el estado vacío «Graba la entrevista para poder generar la
+ * nota.» (SPEC-017) queda derogado — sin nota y sin transcripción esta
+ * sección ya ni se monta (NoteScriptSections), así que la rama se eliminó.
  */
 export function NoteSection({
   interview,
@@ -72,8 +78,12 @@ export function NoteSection({
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [generating, setGenerating] = useState(false)
   const [generationError, setGenerationError] = useState<string | null>(null)
-  const [mode, setMode] = useState<'read' | 'edit'>('read')
-  const [draft, setDraft] = useState('')
+  // null = prístino: el editor no ha recibido ninguna edición real desde el
+  // último reset; el dirty-check es por comparación con el persistido.
+  const [draft, setDraft] = useState<string | null>(null)
+  // Key del MarkdownEditor: incrementarla remonta el editor con el contenido
+  // persistido (única forma de resetear TipTap). Solo en descarte/regeneración.
+  const [editorResetKey, setEditorResetKey] = useState(0)
   const [saving, setSaving] = useState(false)
   const [confirmRegenerate, setConfirmRegenerate] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
@@ -109,6 +119,8 @@ export function NoteSection({
       : (templates[0]?.id ?? '')
   const canGenerate = hasTranscript && hasTemplates && keyStatus === 'ok' && !generating
 
+  const dirty = note !== null && draft !== null && draft !== note.contentMarkdown
+
   /** Motivo de deshabilitado de la generación (Tooltip); null si está habilitada. */
   const disabledReason = !hasTranscript
     ? 'Graba la entrevista para regenerar la nota'
@@ -130,6 +142,11 @@ export function NoteSection({
         setNoteState({ status: 'ready', note: result.data.note })
         onNoteChange?.(result.data.note)
         onInterviewUpdated(result.data.interview)
+        // Reset a prístino + remontaje del editor con la nota nueva (mismo
+        // callback → un solo re-render por batching de React 19). Inofensivo
+        // en la generación inicial.
+        setDraft(null)
+        setEditorResetKey((key) => key + 1)
         toast('Nota generada')
       } else {
         // Alert destructive persistente (regla 5.4); la nota previa queda intacta
@@ -140,22 +157,8 @@ export function NoteSection({
     }
   }
 
-  const handleStartEdit = (): void => {
-    setDraft(note?.contentMarkdown ?? '')
-    setMode('edit')
-  }
-
-  const handleDiscard = (): void => {
-    // Sin cambios se vuelve a lectura directamente, sin AlertDialog (AC)
-    if (draft !== (note?.contentMarkdown ?? '')) {
-      setConfirmDiscard(true)
-      return
-    }
-    setMode('read')
-  }
-
   const handleSave = async (): Promise<void> => {
-    if (note === null) {
+    if (note === null || draft === null) {
       return
     }
     setSaving(true)
@@ -164,8 +167,10 @@ export function NoteSection({
       const result = await window.api.db.updateNote(note.id, { contentMarkdown: draft })
       if (result.ok) {
         setNoteState({ status: 'ready', note: result.data })
+        // Ni setDraft(null) ni remontaje: el dirty por comparación ya da false
+        // y el editor conserva foco y caret (incluso si el usuario teclea
+        // durante el guardado en vuelo, ese onChange vuelve a marcar dirty).
         toast('Nota guardada')
-        setMode('read')
       } else {
         toast.error(result.error.message)
       }
@@ -227,14 +232,10 @@ export function NoteSection({
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold">Nota</h3>
-        {note !== null && mode === 'read' && (
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleStartEdit}>
-              <Pencil />
-              Editar
-            </Button>
+        {note !== null && (
+          <div className="flex flex-wrap items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline">
@@ -255,19 +256,20 @@ export function NoteSection({
             </DropdownMenu>
             {viewTranscriptButton}
             {generating ? (
-              <Button variant="ghost" disabled>
+              <Button variant="outline" disabled data-testid="note-regenerate-button">
                 <Loader2 className="animate-spin" />
                 Generando nota…
               </Button>
             ) : (
               withTooltip(
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   disabled={!canGenerate}
+                  data-testid="note-regenerate-button"
                   onClick={() => setConfirmRegenerate(true)}
                 >
                   <RefreshCw />
-                  Regenerar nota
+                  Regenerar
                 </Button>,
                 disabledReason
               )
@@ -277,12 +279,6 @@ export function NoteSection({
       </div>
 
       {noteState.status === 'loading' && <Skeleton className="h-24 w-full" />}
-
-      {noteState.status === 'ready' && note === null && !hasTranscript && (
-        <p className="text-sm text-muted-foreground">
-          Graba la entrevista para poder generar la nota.
-        </p>
-      )}
 
       {noteState.status === 'ready' && note === null && hasTranscript && (
         <div className="flex flex-col gap-3">
@@ -328,35 +324,35 @@ export function NoteSection({
         </div>
       )}
 
-      {note !== null && mode === 'read' && (
-        <div className="flex flex-col gap-3">
+      {note !== null && (
+        <div className="flex flex-col gap-4">
           {generationError !== null && (
             <Alert variant="destructive">
               <AlertDescription>{generationError}</AlertDescription>
             </Alert>
           )}
           {templateSelect !== null && hasTranscript && <div>{templateSelect}</div>}
-          <MarkdownView markdown={note.contentMarkdown} testId="note-markdown-view" />
-        </div>
-      )}
-
-      {note !== null && mode === 'edit' && (
-        <div className="flex flex-col gap-4">
           <MarkdownEditor
+            key={editorResetKey}
             initialMarkdown={note.contentMarkdown}
             onChange={setDraft}
             ariaLabel="Nota"
             testId="note-markdown-editor"
           />
-          <div className="sticky bottom-0 flex items-center justify-end gap-2 border-t bg-background py-3">
-            <Button disabled={saving} onClick={() => void handleSave()}>
-              {saving && <Loader2 className="animate-spin" />}
-              Guardar
-            </Button>
-            <Button variant="outline" disabled={saving} onClick={handleDiscard}>
-              Descartar
-            </Button>
-          </div>
+          {dirty && (
+            <div
+              data-testid="note-editor-actions"
+              className="sticky bottom-0 flex items-center justify-end gap-2 border-t bg-background py-3"
+            >
+              <Button variant="outline" disabled={saving} onClick={() => setConfirmDiscard(true)}>
+                Descartar
+              </Button>
+              <Button disabled={saving} onClick={() => void handleSave()}>
+                {saving && <Loader2 className="animate-spin" />}
+                Guardar
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -404,7 +400,8 @@ export function NoteSection({
               variant="destructive"
               onClick={() => {
                 setConfirmDiscard(false)
-                setMode('read')
+                setDraft(null)
+                setEditorResetKey((key) => key + 1)
               }}
             >
               Descartar

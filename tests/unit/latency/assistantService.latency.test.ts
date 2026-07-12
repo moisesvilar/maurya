@@ -275,12 +275,18 @@ describe('assistantService (latencia SPEC-023)', () => {
     expect(second.messages[0].content).not.toMatch(/\[(cubierto|pendiente)\]/)
     expect(second.messages[0].content).not.toContain('## Guión de la entrevista')
     expect(second.messages[0].content).not.toContain('Objetivo cero')
-    // Las secciones variables conservan su forma histórica
+    // Las secciones variables conservan su forma (SPEC-036 deroga la sección
+    // «## Tu sugerencia anterior»: la cola de preguntas viaja numerada en el
+    // user y NUNCA en el prefijo cacheado)
     expect(second.messages[0].content).toContain(
       '## Conversación reciente (mic = entrevistador, system = interlocutor)'
     )
-    expect(second.messages[0].content).toContain('## Tu sugerencia anterior (no la repitas)')
-    expect(second.messages[0].content).toContain('¿Cuándo fue la última vez que pasó?')
+    expect(first.messages[0].content).toContain('## Preguntas en cola (índices 0-based)\nninguna')
+    expect(second.messages[0].content).toContain(
+      '## Preguntas en cola (índices 0-based)\n0. ¿Cuándo fue la última vez que pasó?'
+    )
+    const systemText = JSON.stringify(second.system)
+    expect(systemText).not.toContain('Preguntas en cola')
     expect(second.messages[0].content).toContain('## Tarea')
   })
 

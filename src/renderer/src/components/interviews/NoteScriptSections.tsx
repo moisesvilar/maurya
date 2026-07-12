@@ -13,9 +13,12 @@ interface NoteScriptSectionsProps {
 }
 
 /**
- * Disposición de las secciones Nota y Guión en el detalle (SPEC-027):
- * - Sin guión, sin nota y sin transcripción → solo la sección Guión.
- * - Sin nota pero con transcripción o guión → Guión + controles de generación
+ * Disposición de las secciones Nota y Guión en el detalle (SPEC-027,
+ * ajustada por SPEC-035):
+ * - Sin nota y sin transcripción → solo la sección Guión, haya guión o no
+ *   (SPEC-035: sin transcripción no hay acción posible sobre la Nota, así
+ *   que la sección no se muestra).
+ * - Sin nota pero con transcripción → Guión + controles de generación
  *   de la nota, apilados.
  * - Con nota y sin guión → Nota completa primero y Guión debajo, apilados.
  * - Con guión y nota → Tabs "Notas" / "Guión" (Notas activa por defecto); los
@@ -73,8 +76,9 @@ export function NoteScriptSections({
   }
 
   // Sin nota, la sección Nota (controles de generación) solo se muestra si hay
-  // transcripción o guión: con la entrevista vacía queda solo el Guión.
-  const showNoteSection = hasNote || hasTranscript || hasScript
+  // transcripción (SPEC-035): sin ella no hay nada que hacer con la Nota y
+  // queda solo el Guión, haya guión o no.
+  const showNoteSection = hasNote || hasTranscript
 
   const noteSection = showNoteSection ? (
     <NoteSection

@@ -1,7 +1,10 @@
 /**
  * Tests de la sección Guión del detalle de entrevista (SPEC-014, mitad UI;
- * lectura/edición adaptadas por SPEC-027 al render markdown enriquecido +
- * editor WYSIWYG, con sus ACs nuevos en el describe "wysiwyg (SPEC-027)").
+ * adaptados por SPEC-027 al editor WYSIWYG y por SPEC-029 a la edición
+ * markdown por defecto: con guión, el editor y la lista editable de objetivos
+ * están SIEMPRE montados — sin modo lectura ni botón "Editar" — y la barra
+ * Guardar/Descartar solo existe con cambios; ACs propios de SPEC-029 en el
+ * describe "always-on editing (SPEC-029)").
  * Frontera de mocking: api.llm + api.db. Montado vía InterviewDetailPage con
  * rutas reales (el Badge de estado vive en la cabecera de la página y se
  * actualiza con onInterviewUpdated).
@@ -10,9 +13,12 @@
  * foco síncrono innecesarios. jsdom+ProseMirror: los cambios en el editor se
  * hacen vía toolbar (API de TipTap, sin beforeinput nativo); con el documento
  * intacto el editor no emite onChange, así el dirty-check y el round-trip son
- * deterministas.
+ * deterministas. OJO (SPEC-029): el "Regenerar" deshabilitado va envuelto en
+ * TooltipTrigger y se REMONTA al habilitarse (getStatus async) → esperar
+ * toBeEnabled() por testid y re-consultar antes de clicar (nunca la
+ * referencia stale).
  */
-import { render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
+import { act, render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -173,14 +179,16 @@ describe('ScriptSection', () => {
       expect(screen.getByRole('button', { name: 'Generar guión' })).toBeDisabled()
     })
 
-    // SPEC-014 · AC-05
+    // SPEC-014 · AC-05 (adaptado por SPEC-029: el "Regenerar" deshabilitado va
+    // envuelto en tooltip y se remonta al habilitarse → esperar y re-consultar)
     it('asks for confirmation in the "Regenerar guión" AlertDialog and regenerates on confirm', async () => {
       const user = userEvent.setup()
       setInterview(WITH_SCRIPT)
       vi.mocked(mockApi.api.llm.generateScript).mockResolvedValue({ ok: true, data: GENERATED })
       renderDetail()
 
-      await user.click(await screen.findByRole('button', { name: 'Regenerar' }))
+      await waitFor(() => expect(screen.getByTestId('script-regenerate-button')).toBeEnabled())
+      await user.click(screen.getByTestId('script-regenerate-button'))
 
       const dialog = await screen.findByRole('alertdialog')
       expect(within(dialog).getByRole('heading', { name: 'Regenerar guión' })).toBeInTheDocument()
@@ -225,22 +233,25 @@ describe('ScriptSection', () => {
   })
 
   describe('reading', () => {
-    // SPEC-014 · AC-07 (render adaptado por SPEC-027 · AC-10, sin bloque de
-    // objetivos por SPEC-025 · AC-03: el modo lectura muestra SOLO el guión y
-    // los objetivos viven en la sección superior ObjectivesSection, h3)
-    it('renders the script as rich markdown (real headings, no raw syntax) without an objectives block inside Guión', async () => {
+    // SPEC-014 · AC-07 (adaptado por SPEC-027 · AC-10 al render enriquecido y
+    // por SPEC-029 al editor siempre montado: el guión se muestra en el
+    // MarkdownEditor y el bloque de edición de objetivos —h4— vive siempre
+    // debajo; la sección superior ObjectivesSection —h3, SPEC-025— sigue
+    // siendo la vista de estado)
+    it('renders the script as rich markdown (real headings, no raw syntax) in the always-mounted editor with the objectives edit block below', async () => {
       setInterview(WITH_SCRIPT)
       renderDetail()
 
-      const view = await screen.findByTestId('script-markdown-view')
-      expect(within(view).getByText('Guión adaptado').closest('h1')).not.toBeNull()
-      expect(within(view).getByText('Bloque 1').closest('h2')).not.toBeNull()
-      expect(within(view).getByText('Pregunta adaptada a Acme')).toBeInTheDocument()
+      const editor = await screen.findByTestId('script-markdown-editor')
+      const area = within(editor).getByLabelText('Guión')
+      expect(within(area).getByText('Guión adaptado').closest('h1')).not.toBeNull()
+      expect(within(area).getByText('Bloque 1').closest('h2')).not.toBeNull()
+      expect(within(area).getByText('Pregunta adaptada a Acme')).toBeInTheDocument()
       // Sin sintaxis markdown en crudo
-      expect(view.textContent).not.toContain('#')
-      // Sin bloque de objetivos dentro del Guión (SPEC-025); la sección
-      // superior los muestra con su propio heading h3
-      expect(screen.queryByRole('heading', { name: 'Objetivos', level: 4 })).not.toBeInTheDocument()
+      expect(area.textContent).not.toContain('#')
+      // Bloque de edición de objetivos dentro del Guión (h4, SPEC-029) y
+      // sección superior de estado con su propio heading h3 (SPEC-025 intacto)
+      expect(screen.getByRole('heading', { name: 'Objetivos', level: 4 })).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: 'Objetivos', level: 3 })).toBeInTheDocument()
     })
 
@@ -264,23 +275,23 @@ describe('ScriptSection', () => {
     })
   })
 
-  describe('editing', () => {
-    // SPEC-014 · AC-09 (editor adaptado por SPEC-027) + SPEC-027 · AC-12 y AC-19
-    it('switches to the WYSIWYG editor with rendered content plus editable objectives with add/remove controls', async () => {
+  describe('always-on editing (SPEC-029)', () => {
+    // SPEC-029 · AC-09 (deroga SPEC-014 · AC-09 y SPEC-027 · AC-12/AC-19 en su
+    // disparador: editor y lista de objetivos siempre activos, sin "Editar")
+    it('shows the always-mounted WYSIWYG editor and the editable objectives with add/remove controls, without an Editar button', async () => {
       const user = userEvent.setup()
       setInterview(WITH_SCRIPT)
       renderDetail()
 
-      await user.click(await screen.findByRole('button', { name: 'Editar' }))
-
-      // Editor WYSIWYG con el contenido renderizado (no sintaxis cruda) y editable
-      const editor = screen.getByTestId('script-markdown-editor')
+      // Editor WYSIWYG montado directamente, con contenido renderizado y editable
+      const editor = await screen.findByTestId('script-markdown-editor')
       const area = within(editor).getByLabelText('Guión')
       expect(area).toHaveAttribute('contenteditable', 'true')
       expect(within(area).getByText('Guión adaptado').closest('h1')).not.toBeNull()
       expect(within(area).getByText('Bloque 1').closest('h2')).not.toBeNull()
       expect(within(editor).getByRole('toolbar', { name: 'Formato' })).toBeInTheDocument()
-      // Los objetivos siguen siendo Inputs de texto plano (SPEC-027 · AC-19)
+      expect(screen.queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument()
+      // Los objetivos son Inputs de texto plano (estructura SPEC-014 intacta)
       expect(screen.getByLabelText('Objetivo 1')).toHaveValue('Objetivo A')
       expect(screen.getByLabelText('Objetivo 2')).toHaveValue('Objetivo B')
 
@@ -295,9 +306,42 @@ describe('ScriptSection', () => {
       expect(screen.queryByLabelText('Objetivo 3')).not.toBeInTheDocument()
     })
 
-    // SPEC-014 · AC-10 + AC-12 (guardado con filtrado de objetivos vacíos, sin
-    // status; edición vía toolbar por SPEC-027) + SPEC-027 · AC-14
-    it('saves via updateInterview without status, silently dropping empty objectives, and returns to read mode', async () => {
+    // SPEC-029 · AC-10 (dirty combinado: texto del guión y objetivos —texto,
+    // alta y baja—; la barra desaparece si la lista vuelve a igualar la
+    // persistida, mismo criterio de comparación que el editor)
+    it('shows the Guardar/Descartar bar when the script or any objective changes and hides it when the draft matches the persisted values', async () => {
+      const user = userEvent.setup()
+      setInterview(WITH_SCRIPT)
+      renderDetail()
+
+      await screen.findByTestId('script-markdown-editor')
+      expect(screen.queryByTestId('script-editor-actions')).not.toBeInTheDocument()
+
+      // Alta de objetivo → barra visible con Guardar y Descartar
+      await user.click(screen.getByRole('button', { name: 'Añadir objetivo' }))
+      const actions = await screen.findByTestId('script-editor-actions')
+      expect(within(actions).getByRole('button', { name: 'Guardar' })).toBeInTheDocument()
+      expect(within(actions).getByRole('button', { name: 'Descartar' })).toBeInTheDocument()
+
+      // Texto de un objetivo → sigue sucia
+      await user.type(screen.getByLabelText('Objetivo 3'), 'Objetivo C')
+      expect(screen.getByTestId('script-editor-actions')).toBeInTheDocument()
+
+      // Baja del añadido → la lista iguala la persistida y la barra desaparece
+      await user.click(screen.getAllByRole('button', { name: 'Eliminar objetivo' })[2])
+      await waitFor(() =>
+        expect(screen.queryByTestId('script-editor-actions')).not.toBeInTheDocument()
+      )
+
+      // Cambio del texto del guión → la barra reaparece
+      const editor = screen.getByTestId('script-markdown-editor')
+      await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
+      expect(await screen.findByTestId('script-editor-actions')).toBeInTheDocument()
+    })
+
+    // SPEC-029 · AC-11 (+ SPEC-014 · AC-10/AC-12 y SPEC-027 · AC-14 adaptados:
+    // sin vuelta a modo lectura — el editor sigue montado y la barra se va)
+    it('saves script and objectives via updateInterview without status, silently dropping empty objectives, and hides the bar keeping the editor', async () => {
       const user = userEvent.setup()
       const savedMarkdown = '### Guión adaptado\n\n## Bloque 1\n\nPregunta adaptada a Acme'
       setInterview(WITH_SCRIPT)
@@ -311,9 +355,8 @@ describe('ScriptSection', () => {
       })
       renderDetail()
 
-      await user.click(await screen.findByRole('button', { name: 'Editar' }))
       // Cambio real vía toolbar: el primer bloque (h1) pasa a Encabezado 3
-      const editor = screen.getByTestId('script-markdown-editor')
+      const editor = await screen.findByTestId('script-markdown-editor')
       await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
       // Un objetivo nuevo que se queda vacío y otro con solo espacios
       await user.click(screen.getByRole('button', { name: 'Añadir objetivo' }))
@@ -331,59 +374,49 @@ describe('ScriptSection', () => {
 
       const toasts = await screen.findAllByText('Cambios guardados')
       expect(toasts.length).toBeGreaterThanOrEqual(1)
-      // Vuelta al modo lectura
+      // La barra desaparece; el editor sigue montado con el contenido guardado
       await waitFor(() =>
-        expect(screen.queryByTestId('script-markdown-editor')).not.toBeInTheDocument()
+        expect(screen.queryByTestId('script-editor-actions')).not.toBeInTheDocument()
       )
-      expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument()
+      const editorStill = screen.getByTestId('script-markdown-editor')
+      expect(within(editorStill).getByText('Guión adaptado').closest('h3')).not.toBeNull()
+      // Los objetivos vacíos descartados desaparecen de la lista editable
+      expect(screen.queryByLabelText('Objetivo 3')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument()
     })
 
-    // SPEC-014 · AC-11 (interacción vía toolbar por SPEC-027) + SPEC-027 · AC-16 y AC-17
-    it('asks to discard unsaved changes on cancel, and returns directly when clean', async () => {
+    // SPEC-029 · AC-12 (+ SPEC-014 · AC-11 y SPEC-027 · AC-16 adaptados:
+    // "Cancelar"→"Descartar" y siempre con AlertDialog; el caso "sin cambios,
+    // sin diálogo" queda derogado por construcción — sin cambios no hay botón)
+    it('opens the "Descartar cambios" AlertDialog on Descartar and restores editor and objectives to the persisted values on confirm', async () => {
       const user = userEvent.setup()
       setInterview(WITH_SCRIPT)
       renderDetail()
 
-      // Con cambios (toolbar: h1 → Encabezado 2) → AlertDialog "Descartar cambios"
-      await user.click(await screen.findByRole('button', { name: 'Editar' }))
-      const editor = screen.getByTestId('script-markdown-editor')
+      // Cambios en guión (toolbar: h1 → Encabezado 2) y en un objetivo
+      const editor = await screen.findByTestId('script-markdown-editor')
       await user.click(within(editor).getByRole('button', { name: 'Encabezado 2' }))
-      await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+      await user.type(screen.getByLabelText('Objetivo 1'), ' bis')
+
+      const actions = await screen.findByTestId('script-editor-actions')
+      await user.click(within(actions).getByRole('button', { name: 'Descartar' }))
       const dialog = await screen.findByRole('alertdialog')
       expect(within(dialog).getByRole('heading', { name: 'Descartar cambios' })).toBeInTheDocument()
+      expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toBeInTheDocument()
       await user.click(within(dialog).getByRole('button', { name: 'Descartar' }))
+
+      // La barra desaparece y editor + objetivos restauran lo persistido
       await waitFor(() =>
-        expect(screen.queryByTestId('script-markdown-editor')).not.toBeInTheDocument()
+        expect(screen.queryByTestId('script-editor-actions')).not.toBeInTheDocument()
       )
-
-      // Sin cambios → vuelta directa sin diálogo
-      await user.click(screen.getByRole('button', { name: 'Editar' }))
-      await user.click(screen.getByRole('button', { name: 'Cancelar' }))
-      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('script-markdown-editor')).not.toBeInTheDocument()
-    })
-  })
-
-  describe('wysiwyg (SPEC-027)', () => {
-    // SPEC-027 · AC-15
-    it('persists the exact original markdown when saving without touching the editor (semantic round-trip)', async () => {
-      const user = userEvent.setup()
-      setInterview(WITH_SCRIPT)
-      vi.mocked(mockApi.api.db.updateInterview).mockResolvedValue({ ok: true, data: WITH_SCRIPT })
-      renderDetail()
-
-      await user.click(await screen.findByRole('button', { name: 'Editar' }))
-      await user.click(screen.getByRole('button', { name: 'Guardar' }))
-
-      // Sin ediciones el borrador es el string persistido: estructura intacta
-      expect(vi.mocked(mockApi.api.db.updateInterview)).toHaveBeenCalledWith('i-1', {
-        scriptMarkdown: '# Guión adaptado\n\n## Bloque 1\nPregunta adaptada a Acme',
-        objectives: ['Objetivo A', 'Objetivo B']
-      })
+      const editorAfter = screen.getByTestId('script-markdown-editor')
+      expect(within(editorAfter).getByText('Guión adaptado').closest('h1')).not.toBeNull()
+      expect(screen.getByLabelText('Objetivo 1')).toHaveValue('Objetivo A')
+      expect(vi.mocked(mockApi.api.db.updateInterview)).not.toHaveBeenCalled()
     })
 
-    // SPEC-027 · AC-18
-    it('toasts the storage error and stays in edit mode with the change intact when saving fails', async () => {
+    // SPEC-029 · AC-13 (+ SPEC-027 · AC-18 adaptado)
+    it('toasts the storage error and keeps the changes with the bar visible when saving fails', async () => {
       const user = userEvent.setup()
       setInterview(WITH_SCRIPT)
       vi.mocked(mockApi.api.db.updateInterview).mockResolvedValue({
@@ -392,35 +425,230 @@ describe('ScriptSection', () => {
       })
       renderDetail()
 
-      await user.click(await screen.findByRole('button', { name: 'Editar' }))
-      const editor = screen.getByTestId('script-markdown-editor')
+      const editor = await screen.findByTestId('script-markdown-editor')
       await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
-      await user.click(screen.getByRole('button', { name: 'Guardar' }))
+      await user.click(await screen.findByRole('button', { name: 'Guardar' }))
 
       const toasts = await screen.findAllByText('No se pudo escribir la base de datos')
       expect(toasts.length).toBeGreaterThanOrEqual(1)
-      // Sigue en edición y con el cambio aplicado (el h1 pasó a h3)
+      // El editor conserva el cambio (el h1 pasó a h3) y la barra sigue
       const editorStill = screen.getByTestId('script-markdown-editor')
       expect(within(editorStill).getByText('Guión adaptado').closest('h3')).not.toBeNull()
+      expect(screen.getByTestId('script-editor-actions')).toBeInTheDocument()
     })
 
-    // SPEC-027 · AC-30
-    it('replaces the edited script on confirmed regeneration and renders the new one as rich markdown', async () => {
+    // SPEC-029 · AC-14 (botón "Regenerar" unificado con el de la Nota: outline
+    // + RefreshCw, siempre visible, deshabilitado con Tooltip explicativo si
+    // faltan prerrequisitos — Tooltip nuevo en el Guión por esta spec)
+    it('shows the always-visible unified outline "Regenerar" header button, disabled with an explanatory tooltip when the template is missing', async () => {
+      const user = userEvent.setup()
+      setInterview(
+        interview({
+          scriptMarkdown: '# Guión adaptado\n\n## Bloque 1\nPregunta adaptada a Acme',
+          objectives: ['Objetivo A', 'Objetivo B'],
+          status: 'prepared',
+          templateId: null
+        })
+      )
+      renderDetail()
+
+      const regenerate = await screen.findByTestId('script-regenerate-button')
+      expect(regenerate).toHaveTextContent('Regenerar')
+      expect(regenerate).toHaveAttribute('data-variant', 'outline')
+      expect(regenerate.querySelector('svg.lucide-refresh-cw')).not.toBeNull()
+      expect(regenerate).toBeDisabled()
+
+      // Tooltip explicativo sobre el wrapper del botón deshabilitado
+      const wrapper = regenerate.parentElement
+      if (wrapper === null) {
+        throw new Error('El botón deshabilitado debe estar envuelto por el TooltipTrigger')
+      }
+      await user.hover(wrapper)
+      expect(
+        (await screen.findAllByText('Asigna un template para generar el guión')).length
+      ).toBeGreaterThanOrEqual(1)
+    })
+
+    // SPEC-029 · AC-15 (mitad Guión→página: la sección "Objetivos" superior
+    // refleja la lista guardada sin recargar; la otra mitad —render de la
+    // sección de estado— vive en ObjectivesSection.test.tsx, SPEC-025 · AC-04)
+    it('updates the upper Objetivos section with the saved list after editing objectives from the Guión section', async () => {
+      const user = userEvent.setup()
+      setInterview(WITH_SCRIPT)
+      vi.mocked(mockApi.api.db.updateInterview).mockResolvedValue({
+        ok: true,
+        data: { ...WITH_SCRIPT, objectives: ['Objetivo A revisado', 'Objetivo B'] }
+      })
+      renderDetail()
+
+      await screen.findByTestId('script-markdown-editor')
+      await user.type(screen.getByLabelText('Objetivo 1'), ' revisado')
+      await user.click(await screen.findByRole('button', { name: 'Guardar' }))
+
+      // La sección de estado superior (SPEC-025) muestra la lista actualizada
+      await waitFor(() => {
+        const items = screen.getAllByTestId('objective-item')
+        expect(items.map((item) => item.textContent)).toEqual(['Objetivo A revisado', 'Objetivo B'])
+      })
+    })
+  })
+
+  describe('wysiwyg (SPEC-027)', () => {
+    // SPEC-027 · AC-15 DEROGADO por construcción (SPEC-029): sin tocar el
+    // editor no hay botón "Guardar". La intención (round-trip sin
+    // normalización espuria) queda cubierta por SPEC-029 · AC-10 (sin
+    // ediciones reales la barra no existe y reaparece/desaparece por
+    // comparación con lo persistido).
+
+    // SPEC-027 · AC-18: absorbido por SPEC-029 · AC-13 en el describe
+    // "always-on editing (SPEC-029)" (mismo escenario, sin paso por "Editar").
+
+    // SPEC-027 · AC-30 (desenlace adaptado por SPEC-029: el guión regenerado
+    // se muestra en el editor remontado, no en un modo lectura; se regenera
+    // con cambios sin guardar y la barra desaparece)
+    it('replaces the edited script on confirmed regeneration showing the new one in the editor and clearing the bar', async () => {
       const user = userEvent.setup()
       setInterview(WITH_SCRIPT)
       vi.mocked(mockApi.api.llm.generateScript).mockResolvedValue({ ok: true, data: GENERATED })
       renderDetail()
 
-      await user.click(await screen.findByRole('button', { name: 'Regenerar' }))
+      // Guión con cambios sin guardar
+      const editor = await screen.findByTestId('script-markdown-editor')
+      await user.click(within(editor).getByRole('button', { name: 'Encabezado 3' }))
+      await screen.findByTestId('script-editor-actions')
+
+      await waitFor(() => expect(screen.getByTestId('script-regenerate-button')).toBeEnabled())
+      await user.click(screen.getByTestId('script-regenerate-button'))
       const dialog = await screen.findByRole('alertdialog')
       await user.click(within(dialog).getByRole('button', { name: 'Regenerar' }))
 
-      const view = await screen.findByTestId('script-markdown-view')
+      // El editor remontado muestra el guión nuevo como markdown enriquecido
       await waitFor(() => {
-        expect(within(view).getByText('Guión generado').closest('h1')).not.toBeNull()
+        const editorAfter = screen.getByTestId('script-markdown-editor')
+        expect(within(editorAfter).getByText('Guión generado').closest('h1')).not.toBeNull()
       })
-      expect(within(view).getByText('Contenido nuevo')).toBeInTheDocument()
-      expect(within(view).queryByText('Guión adaptado')).not.toBeInTheDocument()
+      const editorAfter = screen.getByTestId('script-markdown-editor')
+      expect(within(editorAfter).getByText('Contenido nuevo')).toBeInTheDocument()
+      expect(within(editorAfter).queryByText('Guión adaptado')).not.toBeInTheDocument()
+      await waitFor(() =>
+        expect(screen.queryByTestId('script-editor-actions')).not.toBeInTheDocument()
+      )
+    })
+  })
+
+  describe('auto-generation (SPEC-033)', () => {
+    // Los eventos llm:script-generation llegan por mockApi.emitScriptGeneration
+    // (patrón ObjectivesSection/SPEC-025); la suscripción filtra por interview.id.
+
+    // SPEC-033 · AC-02 (scoping del evento): la generación de OTRA entrevista
+    // no enciende el indicador de esta
+    it('ignores script-generation events of another interview keeping the enabled generate buttons', async () => {
+      renderDetail()
+      await waitFor(() =>
+        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+      )
+
+      act(() => {
+        mockApi.emitScriptGeneration({ interviewId: 'i-otra', status: 'generating' })
+      })
+
+      expect(screen.queryByRole('button', { name: 'Generando guión…' })).not.toBeInTheDocument()
+      const buttons = screen.getAllByRole('button', { name: 'Generar guión' })
+      expect(buttons).toHaveLength(2)
+      buttons.forEach((button) => expect(button).toBeEnabled())
+    })
+
+    // SPEC-033 · AC-02: en curso → «Generando guión…» disabled en la cabecera
+    // y sustituyendo al botón del empty state
+    it('shows the disabled "Generando guión…" indicator in the header and replacing the empty state CTA on its generating event', async () => {
+      renderDetail()
+      await waitFor(() =>
+        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+      )
+
+      act(() => {
+        mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })
+      })
+
+      const indicators = screen.getAllByRole('button', { name: 'Generando guión…' })
+      expect(indicators).toHaveLength(2)
+      indicators.forEach((indicator) => expect(indicator).toBeDisabled())
+      // «Generar guión» queda sustituido en ambas ubicaciones; el empty state
+      // («Aún no hay guión») sigue de fondo hasta que llegue el done
+      expect(screen.queryByRole('button', { name: 'Generar guión' })).not.toBeInTheDocument()
+      expect(screen.getByText('Aún no hay guión')).toBeInTheDocument()
+    })
+
+    // SPEC-033 · AC-03 (UI): done → guión en el editor, objetivos y Badge
+    // «Preparada» vía onInterviewUpdated, sin acción del usuario ni Toast de éxito
+    it('renders the generated script, objectives and "Preparada" badge on the done event without a success toast', async () => {
+      renderDetail()
+      await waitFor(() =>
+        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+      )
+
+      act(() => {
+        mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })
+      })
+      act(() => {
+        mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'done', interview: GENERATED })
+      })
+
+      // El guión aparece en el editor y la página refleja objetivos y estado
+      expect(await screen.findByText('Contenido nuevo')).toBeInTheDocument()
+      const editor = screen.getByTestId('script-markdown-editor')
+      expect(within(editor).getByText('Guión generado').closest('h1')).not.toBeNull()
+      expect(screen.getByText('Objetivo nuevo')).toBeInTheDocument()
+      expect(screen.getByText('Preparada')).toBeInTheDocument()
+      // Sin indicador residual y sin haber pasado por el invoke manual
+      expect(screen.queryByRole('button', { name: 'Generando guión…' })).not.toBeInTheDocument()
+      expect(vi.mocked(mockApi.api.llm.generateScript)).not.toHaveBeenCalled()
+      // Sin Toast de éxito: «Guión generado» solo existe como h1 del editor,
+      // nunca dentro de un toast de sonner (el texto coincide a propósito)
+      screen
+        .getAllByText('Guión generado')
+        .forEach((node) => expect(node.closest('[data-sonner-toast]')).toBeNull())
+    })
+
+    // SPEC-033 · AC-07 (UI): error → Toast con el mensaje del fallo y el botón
+    // «Generar guión» vuelve disponible como reintento manual
+    it('toasts the failure message on the error event and restores the enabled "Generar guión" button as manual retry', async () => {
+      const user = userEvent.setup()
+      vi.mocked(mockApi.api.llm.generateScript).mockReturnValue(
+        new Promise<LlmResult<Interview>>(() => {
+          // pendiente a propósito: solo se verifica el disparo del reintento
+        })
+      )
+      renderDetail()
+      await waitFor(() =>
+        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+      )
+
+      act(() => {
+        mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })
+      })
+      act(() => {
+        mockApi.emitScriptGeneration({
+          interviewId: 'i-1',
+          status: 'error',
+          message:
+            'No se pudo conectar con la API de Anthropic. Comprueba tu conexión e inténtalo de nuevo.'
+        })
+      })
+
+      const toasts = await screen.findAllByText(
+        'No se pudo conectar con la API de Anthropic. Comprueba tu conexión e inténtalo de nuevo.'
+      )
+      expect(toasts.length).toBeGreaterThanOrEqual(1)
+      // La captura sigue intacta sin guión y con el botón disponible
+      expect(screen.getByText('Aún no hay guión')).toBeInTheDocument()
+      const buttons = screen.getAllByRole('button', { name: 'Generar guión' })
+      expect(buttons).toHaveLength(2)
+      buttons.forEach((button) => expect(button).toBeEnabled())
+
+      // Reintento manual operativo (mecanismo de SPEC-014, invoke)
+      await user.click(buttons[0])
+      expect(vi.mocked(mockApi.api.llm.generateScript)).toHaveBeenCalledWith('i-1')
     })
   })
 })

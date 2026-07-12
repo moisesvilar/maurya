@@ -4,6 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AiCostCard } from '@/components/settings/AiCostCard'
 import { ApiKeyRow } from '@/components/settings/ApiKeyRow'
+import { AssistantSettingsCard } from '@/components/settings/AssistantSettingsCard'
 import { CustomPromptsTab } from '@/components/settings/CustomPromptsTab'
 import { NoteTemplatesTab } from '@/components/settings/NoteTemplatesTab'
 import { useSecrets } from '@/hooks/useSecrets'
@@ -80,6 +81,8 @@ export function SettingsPage(): React.ReactElement {
             />
             {/* Límite de coste de IA por entrevista (SPEC-021), bajo las claves */}
             <AiCostCard />
+            {/* Tamaño de la cola de preguntas del asistente (SPEC-036) */}
+            <AssistantSettingsCard />
           </section>
         </TabsContent>
         <TabsContent value="note-templates" className="pt-4">

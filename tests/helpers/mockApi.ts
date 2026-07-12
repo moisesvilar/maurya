@@ -7,7 +7,7 @@ import { vi } from 'vitest'
 import type { AssistantApi, AssistantUpdateEvent } from '@/types/assistant'
 import type { MauryaApi, TranscriptResultEvent, TranscriptionStatusEvent } from '@/types/audio'
 import type { DbApi } from '@/types/domain'
-import type { LlmApi, ObjectiveEvaluationEvent } from '@/types/llm'
+import type { LlmApi, ObjectiveEvaluationEvent, ScriptGenerationEvent } from '@/types/llm'
 import type { NotesApi } from '@/types/notes'
 import type { SecretsApi } from '@/types/secrets'
 
@@ -25,13 +25,17 @@ export type BridgeApi = MauryaApi & {
 }
 
 /**
- * Mock tipado de api.llm (SPEC-014/017/025). getStatus resuelve por defecto
- * SIN clave de Anthropic (estado conservador); generateScript/generateNote/
- * evaluateObjectives se configuran por test. onObjectiveEvaluation registra
- * el callback para inyectar eventos con emitObjectiveEvaluation (SPEC-025).
+ * Mock tipado de api.llm (SPEC-014/017/025/028/033). getStatus resuelve por
+ * defecto SIN clave de Anthropic (estado conservador); generateScript/
+ * generateNote/evaluateObjectives/overrideObjective se configuran por test.
+ * onObjectiveEvaluation registra el callback para inyectar eventos con
+ * emitObjectiveEvaluation (SPEC-025); onScriptGeneration hace lo propio con
+ * emitScriptGeneration (SPEC-033). autoGenerateScript resuelve ok por defecto
+ * (disparo fire-and-forget: main aplica los guards en silencio).
  */
 function createMockLlmApi(
-  objectiveEvaluationCallbacks: Array<(event: ObjectiveEvaluationEvent) => void>
+  objectiveEvaluationCallbacks: Array<(event: ObjectiveEvaluationEvent) => void>,
+  scriptGenerationCallbacks: Array<(event: ScriptGenerationEvent) => void>
 ): LlmApi {
   return {
     getStatus: vi.fn<LlmApi['getStatus']>().mockResolvedValue({
@@ -41,12 +45,27 @@ function createMockLlmApi(
     generateScript: vi.fn<LlmApi['generateScript']>(),
     generateNote: vi.fn<LlmApi['generateNote']>(),
     evaluateObjectives: vi.fn<LlmApi['evaluateObjectives']>(),
+    // SPEC-028: marca manual de cumplimiento con reescritura (se configura por test)
+    overrideObjective: vi.fn<LlmApi['overrideObjective']>(),
     onObjectiveEvaluation: vi.fn<LlmApi['onObjectiveEvaluation']>((callback) => {
       objectiveEvaluationCallbacks.push(callback)
       return () => {
         const index = objectiveEvaluationCallbacks.indexOf(callback)
         if (index >= 0) {
           objectiveEvaluationCallbacks.splice(index, 1)
+        }
+      }
+    }),
+    // SPEC-033: disparo fire-and-forget de la autogeneración del guión
+    autoGenerateScript: vi
+      .fn<LlmApi['autoGenerateScript']>()
+      .mockResolvedValue({ ok: true, data: undefined }),
+    onScriptGeneration: vi.fn<LlmApi['onScriptGeneration']>((callback) => {
+      scriptGenerationCallbacks.push(callback)
+      return () => {
+        const index = scriptGenerationCallbacks.indexOf(callback)
+        if (index >= 0) {
+          scriptGenerationCallbacks.splice(index, 1)
         }
       }
     })
@@ -100,6 +119,8 @@ export interface MockApiHandle {
   emitAssistantUpdate: (event: AssistantUpdateEvent) => void
   /** Simula un evento de la evaluación automática de objetivos (SPEC-025). */
   emitObjectiveEvaluation: (event: ObjectiveEvaluationEvent) => void
+  /** Simula un evento de la autogeneración del guión (SPEC-033). */
+  emitScriptGeneration: (event: ScriptGenerationEvent) => void
 }
 
 /**
@@ -179,6 +200,13 @@ function createMockDbApi(): DbApi {
       .mockResolvedValue({ ok: true, data: { limitUsd: null } }),
     setAiCostSettings: vi.fn<DbApi['setAiCostSettings']>(),
 
+    // SPEC-036: tamaño de la cola de preguntas del asistente (default de
+    // solo-lectura seguro: 3; el set se configura por test)
+    getAssistantSettings: vi
+      .fn<DbApi['getAssistantSettings']>()
+      .mockResolvedValue({ ok: true, data: { queueSize: 3 } }),
+    setAssistantSettings: vi.fn<DbApi['setAssistantSettings']>(),
+
     // SPEC-026: prompts de IA personalizables (default de solo-lectura seguro:
     // catálogo vacío; save/reset se configuran por test)
     listCustomPrompts: vi.fn<DbApi['listCustomPrompts']>().mockResolvedValue({
@@ -197,11 +225,12 @@ export function createMockApi(): MockApiHandle {
   const resultCallbacks: Array<(event: TranscriptResultEvent) => void> = []
   const assistantCallbacks: Array<(event: AssistantUpdateEvent) => void> = []
   const objectiveEvaluationCallbacks: Array<(event: ObjectiveEvaluationEvent) => void> = []
+  const scriptGenerationCallbacks: Array<(event: ScriptGenerationEvent) => void> = []
 
   const api: BridgeApi = {
     db: createMockDbApi(),
     secrets: createMockSecretsApi(),
-    llm: createMockLlmApi(objectiveEvaluationCallbacks),
+    llm: createMockLlmApi(objectiveEvaluationCallbacks, scriptGenerationCallbacks),
     notes: createMockNotesApi(),
     assistant: {
       onUpdate: vi.fn<AssistantApi['onUpdate']>((callback) => {
@@ -213,7 +242,9 @@ export function createMockApi(): MockApiHandle {
           }
         }
       }),
-      sendFeedback: vi.fn<AssistantApi['sendFeedback']>().mockResolvedValue(undefined),
+      // SPEC-036 (deroga el feedback 👍/👎 de SPEC-016): anclar/desanclar una
+      // pregunta de la cola, fire-and-forget
+      setPinned: vi.fn<AssistantApi['setPinned']>().mockResolvedValue(undefined),
       // SPEC-021: reanuda el asistente pausado por límite de coste
       resume: vi.fn<AssistantApi['resume']>().mockResolvedValue(undefined)
     },
@@ -305,6 +336,9 @@ export function createMockApi(): MockApiHandle {
     },
     emitObjectiveEvaluation: (event: ObjectiveEvaluationEvent): void => {
       objectiveEvaluationCallbacks.slice().forEach((callback) => callback(event))
+    },
+    emitScriptGeneration: (event: ScriptGenerationEvent): void => {
+      scriptGenerationCallbacks.slice().forEach((callback) => callback(event))
     }
   }
 }

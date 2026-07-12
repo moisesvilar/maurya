@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useState } from 'react'
 import { FolderOpen, Mic, Square } from 'lucide-react'
-import { toast } from 'sonner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,20 +23,20 @@ import { TranscriptionStatusBadge } from '@/components/recording/transcriptionSt
 import { CaptureErrorAlert } from '@/components/spike/CaptureErrorAlert'
 import { LevelMeter } from '@/components/spike/LevelMeter'
 import { StopOnCloseDialog } from '@/components/spike/StopOnCloseDialog'
-import { useAssistant } from '@/hooks/useAssistant'
-import { useAudioCapture } from '@/hooks/useAudioCapture'
-import { useAudioDevices } from '@/hooks/useAudioDevices'
-import { useCloseGuard } from '@/hooks/useCloseGuard'
-import { useConsentPreference } from '@/hooks/useConsentPreference'
-import { usePermissions } from '@/hooks/usePermissions'
-import { useTranscription } from '@/hooks/useTranscription'
+import { useRecordingController } from '@/hooks/useRecordingController'
+import type { RecordingController } from '@/hooks/useRecordingController'
 import { cn } from '@/lib/utils'
-import type { LatencyStats } from '@/types/audio'
 import type { Interview } from '@/types/domain'
 
 interface RecordingSectionProps {
   interview: Interview
   onInterviewUpdated: (interview: Interview) => void
+  /**
+   * Controller externo (SPEC-034, variante captura): lo crea el detalle de
+   * captura para compartirlo con la top bar y la cabecera. Sin él (detalle de
+   * entrevista clásico), la sección crea el suyo propio y no cambia nada.
+   */
+  controller?: RecordingController
 }
 
 function formatElapsed(totalSeconds: number): string {
@@ -51,196 +50,100 @@ function formatElapsed(totalSeconds: number): string {
  * spike al flujo real con tres estados DERIVADOS (sin máquina propia):
  * Grabando (status del hook ∈ starting/recording/stopping), Grabada
  * (interview.wavPath presente y sin "Nueva grabación" solicitada) y
- * Preparación (el resto). La asociación wavPath/transcriptPath/status ocurre
- * en main dentro de recording:stop, por lo que el auto-guardado al navegar
- * fuera (cleanup de desmontaje con stopRef) funciona aunque el componente ya
- * no esté montado; los setState del hook en desmontado son no-op y el Toast
- * "Grabación guardada" es visible por el Toaster global.
+ * Preparación (el resto). SPEC-034: el motor vive en useRecordingController;
+ * en modo entrevista lo crea la propia sección (comportamiento idéntico) y en
+ * modo captura llega por prop desde CaptureDetailPage. El branch es legal: los
+ * hooks viven en los hijos y la prop `controller` nunca alterna
+ * definido↔undefined durante la vida del componente.
  */
-export function RecordingSection({
+export function RecordingSection(props: RecordingSectionProps): React.ReactElement {
+  if (props.controller !== undefined) {
+    return (
+      <RecordingSectionView
+        controller={props.controller}
+        interview={props.interview}
+        variant="capture"
+      />
+    )
+  }
+  return (
+    <SelfControlledRecordingSection
+      interview={props.interview}
+      onInterviewUpdated={props.onInterviewUpdated}
+    />
+  )
+}
+
+interface SelfControlledRecordingSectionProps {
+  interview: Interview
+  onInterviewUpdated: (interview: Interview) => void
+}
+
+/** Variante entrevista (SPEC-015): la sección crea y posee su controller. */
+function SelfControlledRecordingSection({
   interview,
   onInterviewUpdated
-}: RecordingSectionProps): React.ReactElement {
-  const interviewId = interview.id
-  const { permissions, refresh } = usePermissions()
-  const { devices, selectedDeviceId, setSelectedDeviceId } = useAudioDevices()
-  const {
-    status: transcriptionStatus,
-    lines,
-    partials,
-    error: transcriptionError,
-    degraded: transcriptionDegraded,
-    reset: resetTranscription
-  } = useTranscription()
-  const {
-    state: assistantState,
-    suggestion: assistantSuggestion,
-    error: assistantError,
-    vote: assistantVote,
-    usage: assistantUsage,
-    pauseLimitUsd: assistantPauseLimitUsd,
-    sendFeedback,
-    resume: resumeAssistant,
-    reset: resetAssistant
-  } = useAssistant()
+}: SelfControlledRecordingSectionProps): React.ReactElement {
+  const controller = useRecordingController(interview, onInterviewUpdated)
+  return <RecordingSectionView controller={controller} interview={interview} variant="interview" />
+}
 
-  const [newRecordingRequested, setNewRecordingRequested] = useState(false)
+interface RecordingSectionViewProps {
+  controller: RecordingController
+  interview: Interview
+  variant: 'interview' | 'capture'
+}
+
+/**
+ * JSX de la sección. Condicionales por variante: el bloque «Estado 1 —
+ * Preparación» solo se pinta en modo entrevista (en la captura esos controles
+ * viven en la top bar y la cabecera, SPEC-034), y el área de transcripción en
+ * vivo del bloque Grabando también es solo de la entrevista (SPEC-035: en la
+ * captura se retira la UI, no la transcripción). Los Alerts de error y los
+ * diálogos (consentimiento, close guard, sobrescribir) se renderizan en ambas.
+ */
+function RecordingSectionView({
+  controller,
+  interview,
+  variant
+}: RecordingSectionViewProps): React.ReactElement {
   const [confirmOverwrite, setConfirmOverwrite] = useState(false)
-  /** Diálogo "Aviso de grabación" (SPEC-019), previo al arranque salvo preferencia activa. */
-  const [consentDialogOpen, setConsentDialogOpen] = useState(false)
-  const { dismissed: consentDismissed, persistDismiss: persistConsentDismiss } =
-    useConsentPreference()
-  /** Latencia leída del .transcript.json persistido (Estado 3 tras recarga). */
-  const [persistedLatency, setPersistedLatency] = useState<LatencyStats | null>(null)
-
-  // Toast al guardarse por acción del usuario (Detener, auto-guardado al
-  // navegar, close guard); la parada por error muestra el Alert de causa.
-  const handleSaved = useCallback((): void => {
-    toast('Grabación guardada')
-  }, [])
-
-  const { status, elapsedSeconds, levels, error, result, start, stop, clearError } =
-    useAudioCapture(handleSaved)
-
-  const { closeDialogOpen, cancelClose, confirmClose } = useCloseGuard(stop)
-
-  // La identidad del callback del padre no debe re-disparar los efectos
-  const onInterviewUpdatedRef = useRef(onInterviewUpdated)
-  useEffect(() => {
-    onInterviewUpdatedRef.current = onInterviewUpdated
-  }, [onInterviewUpdated])
-
-  // Cualquier parada con resultado (Detener, desconexión, close guard) refleja
-  // la entrevista asociada por main; fallback defensivo: refetch si viene null.
-  // Diferido para no hacer setState síncrono dentro del cuerpo del efecto
-  // (patrón usePermissions / react-hooks/set-state-in-effect).
-  useEffect(() => {
-    if (result === null) {
-      return
-    }
-    const timer = window.setTimeout(() => {
-      setNewRecordingRequested(false)
-      setPersistedLatency(null)
-      if (result.interview !== null && result.interview !== undefined) {
-        onInterviewUpdatedRef.current(result.interview)
-        return
-      }
-      void window.api.db.getInterview(interviewId).then((refetched) => {
-        if (refetched.ok) {
-          onInterviewUpdatedRef.current(refetched.data)
-        }
-      })
-    }, 0)
-    return (): void => {
-      window.clearTimeout(timer)
-    }
-  }, [result, interviewId])
-
-  // Resumen tras recarga: sin result en memoria, la latencia se lee del
-  // transcript persistido (canal recording:get-transcript-stats)
-  const transcriptPath = interview.transcriptPath
-  useEffect(() => {
-    if (result !== null || transcriptPath === null) {
-      return
-    }
-    let cancelled = false
-    void window.api.recording.getTranscriptStats(transcriptPath).then((stats) => {
-      if (!cancelled) {
-        setPersistedLatency(stats)
-      }
-    })
-    return (): void => {
-      cancelled = true
-    }
-  }, [result, transcriptPath])
-
-  // Auto-guardado al desmontar (navegar fuera del detalle): detener-y-guardar
-  // sin diálogo; finalize es idempotente (stoppingRef) y no-op si no hay
-  // grabación activa. Hueco conocido: desmontar durante 'starting' (ms) deja
-  // la grabación huérfana en main, recuperable por su guard en el próximo start.
-  const stopRef = useRef(stop)
-  useEffect(() => {
-    stopRef.current = stop
-  }, [stop])
-  useEffect(() => {
-    return (): void => {
-      void stopRef.current()
-    }
-  }, [])
-
-  /**
-   * Arranque real de la captura (flujo SPEC-015 intacto). El timestamp del
-   * consentimiento (SPEC-019) se genera aquí, en el renderer, en el momento
-   * del inicio con el aviso confirmado o previamente desactivado; viaja a main
-   * con recording:start y se persiste en el transcript.json al detener.
-   */
-  const startCapture = useCallback((): void => {
-    clearError()
-    resetTranscription()
-    resetAssistant()
-    // El bloqueo por permisos no concedidos lo aplica el propio hook (Alert
-    // destructive con los literales del spike, sin arrancar la captura)
-    void start(selectedDeviceId, interviewId, new Date().toISOString()).then(() => {
-      // El intento de inicio puede haber disparado prompts TCC: refrescar Badges
-      void refresh()
-    })
-  }, [
-    clearError,
-    resetTranscription,
-    resetAssistant,
-    start,
+  const {
+    permissions,
+    devices,
     selectedDeviceId,
-    interviewId,
-    refresh
-  ])
-
-  // "Iniciar grabación" (SPEC-019): con la preferencia de no mostrar activa
-  // arranca directamente; si no, abre el aviso y la grabación espera
-  const handleStart = useCallback((): void => {
-    if (consentDismissed) {
-      startCapture()
-      return
-    }
-    setConsentDialogOpen(true)
-  }, [consentDismissed, startCapture])
-
-  // Cancelar/Escape/click fuera: cierra sin arrancar y sin persistir nada
-  const handleConsentCancel = useCallback((): void => {
-    setConsentDialogOpen(false)
-  }, [])
-
-  // Confirmación informada: persiste la casilla SOLO aquí y arranca
-  const handleConsentConfirm = useCallback(
-    (dontShowAgain: boolean): void => {
-      if (dontShowAgain) {
-        persistConsentDismiss()
-      }
-      setConsentDialogOpen(false)
-      startCapture()
-    },
-    [persistConsentDismiss, startCapture]
-  )
-
-  const handleShowInFinder = useCallback((): void => {
-    if (interview.wavPath !== null) {
-      void window.api.recording.showInFinder(interview.wavPath)
-    }
-  }, [interview.wavPath])
-
-  // Estados derivados (plan §3): Grabando > Grabada > Preparación
-  const capturing = status === 'starting' || status === 'recording' || status === 'stopping'
-  const recorded = !capturing && interview.wavPath !== null && !newRecordingRequested
-  const displayLatency = result?.latency ?? persistedLatency
+    setSelectedDeviceId,
+    handleStart,
+    capturing,
+    recorded,
+    status,
+    elapsedSeconds,
+    levels,
+    error,
+    result,
+    stop,
+    displayLatency,
+    requestNewRecording,
+    handleShowInFinder,
+    transcription,
+    assistant,
+    consentDialogOpen,
+    handleConsentCancel,
+    handleConsentConfirm,
+    closeDialogOpen,
+    cancelClose,
+    confirmClose
+  } = controller
 
   return (
     <section className="flex flex-col gap-4">
       <h3 className="text-lg font-semibold">Grabación</h3>
 
       {error !== null && <CaptureErrorAlert error={error} />}
-      {transcriptionError !== null && <CaptureErrorAlert error={transcriptionError} />}
+      {transcription.error !== null && <CaptureErrorAlert error={transcription.error} />}
       {/* Modo degradado sin diarización (SPEC-022): informativo, persistente
           durante la sesión; el gate `capturing` lo retira al terminar */}
-      {capturing && transcriptionDegraded && <DegradedTranscriptionAlert />}
+      {capturing && transcription.degraded && <DegradedTranscriptionAlert />}
 
       {/* Estado 2 — Grabando */}
       {capturing && (
@@ -261,19 +164,18 @@ export function RecordingSection({
             >
               <Square /> Detener
             </Button>
-            <TranscriptionStatusBadge status={transcriptionStatus} />
+            <TranscriptionStatusBadge status={transcription.status} />
           </div>
           {/* Asistente (SPEC-016): entre la fila superior y los medidores —
               lo que el entrevistador debe ver de un vistazo */}
           <AssistantPanel
-            state={assistantState}
-            suggestion={assistantSuggestion}
-            error={assistantError}
-            vote={assistantVote}
-            usage={assistantUsage}
-            pauseLimitUsd={assistantPauseLimitUsd}
-            onVote={sendFeedback}
-            onResume={resumeAssistant}
+            state={assistant.state}
+            queue={assistant.queue}
+            error={assistant.error}
+            usage={assistant.usage}
+            pauseLimitUsd={assistant.pauseLimitUsd}
+            onSetPinned={assistant.setPinned}
+            onResume={assistant.resume}
           />
           {/* SPEC-025: el seguimiento en vivo de objetivos se pinta en la
               sección "Objetivos" superior del detalle, no aquí */}
@@ -281,8 +183,19 @@ export function RecordingSection({
             <LevelMeter label="Micrófono" value={levels.microphone} />
             <LevelMeter label="Sistema" value={levels.system} />
           </div>
-          <TranscriptArea status={transcriptionStatus} lines={lines} partials={partials} />
-          {transcriptionStatus === 'no-key' && <NoKeyAlert />}
+          {/* SPEC-035: el área de transcripción en vivo solo se pinta en el
+              detalle de entrevista clásico; en la captura el foco durante la
+              llamada son el asistente y los objetivos. La transcripción sigue
+              corriendo igual: badge de estado, asistente y persistencia
+              (transcript.json) intactos. */}
+          {variant === 'interview' && (
+            <TranscriptArea
+              status={transcription.status}
+              lines={transcription.lines}
+              partials={transcription.partials}
+            />
+          )}
+          {transcription.status === 'no-key' && <NoKeyAlert />}
           <MicSelect
             devices={devices}
             selectedDeviceId={selectedDeviceId}
@@ -320,8 +233,9 @@ export function RecordingSection({
         </div>
       )}
 
-      {/* Estado 1 — Preparación */}
-      {!capturing && !recorded && (
+      {/* Estado 1 — Preparación: solo en el detalle de entrevista clásico; en
+          la captura estos controles viven en la top bar y la cabecera (SPEC-034) */}
+      {variant === 'interview' && !capturing && !recorded && (
         <div className="flex flex-col gap-4">
           <PermissionBadges permissions={permissions} />
           <MicSelect
@@ -366,7 +280,7 @@ export function RecordingSection({
                 // Los archivos antiguos NO se borran del disco (MVP): quedan
                 // huérfanos en recordings/ hasta que la nueva grabación
                 // sustituya las referencias al detener
-                setNewRecordingRequested(true)
+                requestNewRecording()
               }}
             >
               Sobrescribir

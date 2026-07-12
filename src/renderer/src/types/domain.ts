@@ -87,6 +87,15 @@ export interface AiCostSettings {
 }
 
 /**
+ * Ajustes del asistente en vivo (SPEC-036), singleton en db.json (patrón
+ * aiCostSettings). `queueSize` es el máximo de preguntas pendientes visibles
+ * a la vez en la cola del asistente: entero 1–5, default 3.
+ */
+export interface AssistantSettings {
+  queueSize: number
+}
+
+/**
  * Evaluación de cumplimiento de UN objetivo (SPEC-025), generada por el LLM
  * tras la grabación. `reason` es el motivo corto (≤50 palabras) de por qué el
  * objetivo se cumplió o no.
@@ -94,6 +103,17 @@ export interface AiCostSettings {
 export interface ObjectiveResult {
   met: boolean
   reason: string
+}
+
+/**
+ * Marca manual de cumplimiento de UN objetivo (SPEC-028). `comment` es el
+ * literal del humano; `text` la explicación reescrita por el LLM (o el
+ * comentario literal si no hay clave de Anthropic).
+ */
+export interface ObjectiveOverride {
+  met: boolean
+  comment: string
+  text: string
 }
 
 export interface Interview {
@@ -134,6 +154,15 @@ export interface Interview {
    * cambio en `objectives` la descarta (invariante del repositorio).
    */
   objectiveResults?: ObjectiveResult[] | null
+  /**
+   * Marcas manuales de cumplimiento (SPEC-028), alineadas por índice con
+   * `objectives` (entrada `null` = objetivo sin marca manual). Opcional y sin
+   * bump de schemaVersion (patrón aiUsage/objectiveResults): ausente = sin
+   * marcas. Solo lo escribe main vía `setInterviewObjectiveOverride`; nunca es
+   * escribible por patch, y cualquier cambio en `objectives` lo descarta
+   * (invariante del repositorio).
+   */
+  objectiveOverrides?: Array<ObjectiveOverride | null> | null
   createdAt: string
   updatedAt: string
 }
@@ -389,6 +418,10 @@ export interface DbApi {
   /** Ajustes de coste de IA (SPEC-021): límite por entrevista del asistente. */
   getAiCostSettings: () => Promise<DbResult<AiCostSettings>>
   setAiCostSettings: (settings: AiCostSettings) => Promise<DbResult<AiCostSettings>>
+
+  /** Ajustes del asistente en vivo (SPEC-036): tamaño de la cola de preguntas. */
+  getAssistantSettings: () => Promise<DbResult<AssistantSettings>>
+  setAssistantSettings: (settings: AssistantSettings) => Promise<DbResult<AssistantSettings>>
 
   /** Prompts de IA personalizables (SPEC-026): catálogo fijo con override→default. */
   listCustomPrompts: () => Promise<DbResult<CustomPrompt[]>>

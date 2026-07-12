@@ -15,7 +15,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   MIN_INTERVAL_MS,
   MIN_NEW_FINAL_LINES,
-  sendAssistantFeedback,
   startAssistant,
   stopAssistant
 } from '../../../src/main/assistantService'
@@ -228,10 +227,16 @@ describe('assistantService', () => {
       await waitForActive()
 
       const events = assistantEvents(send)
-      expect(events[0]).toEqual({ state: 'idle', objectivesMet: [] })
+      // SPEC-036: todo evento transporta la cola completa (sustituye a suggestion)
+      expect(events[0]).toEqual({
+        state: 'idle',
+        queue: { pending: [], pinned: [] },
+        objectivesMet: []
+      })
       expect(events.at(-2)?.state).toBe('analyzing')
       const active = events.at(-1)
-      expect(active?.suggestion).toEqual({
+      expect(active?.queue.pending).toHaveLength(1)
+      expect(active?.queue.pending[0]).toMatchObject({
         action: 'continue',
         suggestedQuestion: '¿Cuándo fue la última vez que pasó?',
         reason: 'Ya hay material concreto para avanzar',
@@ -286,7 +291,9 @@ describe('assistantService', () => {
       const { sender, send: noKeySend } = createSender()
       startAssistant(sender, interviewId)
 
-      expect(assistantEvents(noKeySend)).toEqual([{ state: 'no-key', objectivesMet: [] }])
+      expect(assistantEvents(noKeySend)).toEqual([
+        { state: 'no-key', queue: { pending: [], pinned: [] }, objectivesMet: [] }
+      ])
       feedFinal()
       feedFinal()
       feedFinal()
@@ -344,21 +351,23 @@ describe('assistantService', () => {
     })
   })
 
-  describe('feedback and persistence', () => {
-    // SPEC-016 · AC-11 (servicio) + AC-12 (persistTranscript escribe el campo assistant)
-    it('registers mutable votes per suggestion and persists the session summary in the transcript', async () => {
-      harness.create.mockResolvedValue(sdkResponse(analysisPayload()))
+  describe('session summary persistence', () => {
+    // SPEC-016 · AC-11/AC-12 adaptados: SPEC-036 deroga el feedback 👍/👎
+    // (sendAssistantFeedback eliminado; el summary pierde los contadores) y
+    // suggestionCount pasa a contar candidatas ACEPTADAS en cola — por eso la
+    // segunda sugerencia debe ser distinta (una idéntica se suprimiría).
+    it('persists the session summary without feedback counters in the transcript', async () => {
+      harness.create.mockResolvedValueOnce(sdkResponse(analysisPayload()))
       feedFinal()
       feedFinal()
       feedFinal()
       await waitForCreateCalls(1)
       await waitForActive()
 
-      // Voto mutable hasta la siguiente sugerencia: up → down corrige contadores
-      sendAssistantFeedback('up')
-      sendAssistantFeedback('down')
-
-      // Segunda sugerencia: el voto vigente se resetea y se vota up
+      // Segunda sugerencia (distinta: las casi-duplicadas se suprimen, SPEC-036)
+      harness.create.mockResolvedValueOnce(
+        sdkResponse(analysisPayload({ suggestedQuestion: '¿Quién más participó?' }))
+      )
       vi.setSystemTime(BASE_TIME_MS + MIN_INTERVAL_MS + 1000)
       feedFinal()
       feedFinal()
@@ -367,18 +376,18 @@ describe('assistantService', () => {
       await vi.waitFor(() => {
         expect(assistantEvents(send).filter((event) => event.state === 'active')).toHaveLength(2)
       })
-      sendAssistantFeedback('up')
 
       const summary = stopAssistant()
       // SPEC-021: el summary gana el usage de la sesión (las respuestas del
-      // SDK mockeado no traen bloque usage → 2 llamadas con 0 tokens)
+      // SDK mockeado no traen bloque usage → 2 llamadas con 0 tokens).
+      // SPEC-036: sin contadores de feedback (toEqual fija su ausencia).
       expect(summary).toEqual({
         suggestionCount: 2,
-        feedback: { up: 1, down: 1 },
         usage: { calls: 2, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }
       })
 
-      // AC-12: el transcript.json persiste el registro de la sesión
+      // AC-12 (vigente en lo no derogado): el transcript.json persiste el
+      // registro de la sesión — nº de sugerencias + uso de IA, sin feedback
       const dir = mkdtempSync(join(tmpdir(), 'maurya-assistant-transcript-'))
       const { transcriptPath } = persistTranscript(join(dir, 'entrevista.wav'), summary)
       if (transcriptPath === null) {
@@ -389,9 +398,9 @@ describe('assistantService', () => {
       }
       expect(persisted.assistant).toEqual({
         suggestionCount: 2,
-        feedback: { up: 1, down: 1 },
         usage: { calls: 2, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }
       })
+      expect(persisted.assistant).not.toHaveProperty('feedback')
     })
   })
 
@@ -411,9 +420,9 @@ describe('assistantService', () => {
 
       const summary = stopAssistant()
       // SPEC-021: sin análisis completados el usage viaja a ceros
+      // (SPEC-036 deroga los contadores de feedback del summary)
       expect(summary).toEqual({
         suggestionCount: 0,
-        feedback: { up: 0, down: 0 },
         usage: { calls: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }
       })
       const eventsAtStop = assistantEvents(send).length

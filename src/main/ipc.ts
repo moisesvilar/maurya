@@ -43,7 +43,7 @@ import {
 import {
   peekAssistantObjectivesMet,
   resumeAssistantLimit,
-  sendAssistantFeedback,
+  setAssistantPinned,
   startAssistant,
   stopAssistant
 } from './assistantService'
@@ -51,8 +51,9 @@ import {
   evaluateInterviewObjectives,
   maybeEvaluateAfterRecording
 } from './objectiveEvaluationService'
+import { overrideInterviewObjective } from './objectiveOverrideService'
+import { autoGenerateInterviewScript } from './scriptAutoGenerationService'
 import { recordInterviewUsage } from './aiCost'
-import type { AssistantVote } from '../renderer/src/types/assistant'
 
 /**
  * Registra un canal secrets:* que SIEMPRE resuelve con el envelope
@@ -130,6 +131,17 @@ export function registerIpcHandlers(): void {
   handleLlm('llm:evaluate-objectives', (interviewId: string) =>
     evaluateInterviewObjectives(interviewId)
   )
+  // Marca manual de cumplimiento (SPEC-028): mismo envelope LlmResult.
+  handleLlm(
+    'llm:override-objective',
+    (interviewId: string, objectiveIndex: number, met: boolean, comment: string) =>
+      overrideInterviewObjective(interviewId, objectiveIndex, met, comment)
+  )
+  // Autogeneración del guión al crear la captura (SPEC-033): fire-and-forget,
+  // el handler resuelve tras los guards síncronos y jamás espera al LLM.
+  handleLlm('llm:auto-generate-script', (interviewId: string) => {
+    autoGenerateInterviewScript(interviewId)
+  })
 
   /**
    * Exportación a Markdown (SPEC-017): handler ad-hoc (no handleLlm) porque el
@@ -284,9 +296,10 @@ export function registerIpcHandlers(): void {
     shell.showItemInFolder(filePath)
   })
 
-  // Valoración 👍/👎 de la sugerencia vigente del asistente (SPEC-016)
-  ipcMain.handle('assistant:feedback', (_event, vote: AssistantVote) => {
-    sendAssistantFeedback(vote)
+  // Anclar/desanclar una pregunta de la cola del asistente (SPEC-036):
+  // fire-and-forget que nunca falla (no-ops en el servicio), patrón resume
+  ipcMain.handle('assistant:set-pinned', (_event, itemId: string, pinned: boolean) => {
+    setAssistantPinned(itemId, pinned)
   })
 
   // Reanudar el asistente pausado por límite de coste (SPEC-021)

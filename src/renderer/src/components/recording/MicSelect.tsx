@@ -15,6 +15,12 @@ interface MicSelectProps {
   selectedDeviceId: string
   onSelectDevice: (deviceId: string) => void
   disabled: boolean
+  /**
+   * Variante compacta para la top bar (SPEC-034): sin label apilado (el
+   * SelectTrigger ya lleva aria-label «Micrófono»), trigger size="sm" y ancho
+   * fijo w-48. Por defecto false: cero cambios para el spike y la sección.
+   */
+  compact?: boolean
 }
 
 /**
@@ -26,13 +32,18 @@ export function MicSelect({
   devices,
   selectedDeviceId,
   onSelectDevice,
-  disabled
+  disabled,
+  compact = false
 }: MicSelectProps): React.ReactElement {
   const enumerated = devices.filter((device) => device.deviceId !== DEFAULT_DEVICE_ID)
 
   const select = (
     <Select value={selectedDeviceId} onValueChange={onSelectDevice} disabled={disabled}>
-      <SelectTrigger className="w-full" aria-label="Micrófono">
+      <SelectTrigger
+        className={compact ? 'w-48' : 'w-full'}
+        size={compact ? 'sm' : 'default'}
+        aria-label="Micrófono"
+      >
         <SelectValue placeholder="Micrófono del sistema" />
       </SelectTrigger>
       <SelectContent>
@@ -46,19 +57,25 @@ export function MicSelect({
     </Select>
   )
 
+  const wrapped = disabled ? (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className={compact ? 'w-48' : 'w-full'}>{select}</div>
+      </TooltipTrigger>
+      <TooltipContent>No se puede cambiar de dispositivo durante la captura</TooltipContent>
+    </Tooltip>
+  ) : (
+    select
+  )
+
+  if (compact) {
+    return wrapped
+  }
+
   return (
     <div className="space-y-1.5">
       <span className="text-sm">Micrófono</span>
-      {disabled ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="w-full">{select}</div>
-          </TooltipTrigger>
-          <TooltipContent>No se puede cambiar de dispositivo durante la captura</TooltipContent>
-        </Tooltip>
-      ) : (
-        select
-      )}
+      {wrapped}
     </div>
   )
 }

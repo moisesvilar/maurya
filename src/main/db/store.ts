@@ -4,6 +4,7 @@ import { join } from 'path'
 import { writeFileAtomicSync } from '../atomicFile'
 import type {
   AiCostSettings,
+  AssistantSettings,
   Company,
   Contact,
   CustomPromptOverride,
@@ -33,6 +34,13 @@ export interface DbData {
    * conserva). La lectura se normaliza defensivamente en el repositorio.
    */
   aiCostSettings?: AiCostSettings
+  /**
+   * Ajustes del asistente en vivo (SPEC-036): singleton opcional, sin bump de
+   * schemaVersion (ausente = tamaño de cola por defecto; isDbData lo tolera y
+   * persist lo conserva). La lectura se normaliza defensivamente en el
+   * repositorio.
+   */
+  assistantSettings?: AssistantSettings
   /**
    * Overrides de prompts de IA (SPEC-026): colección opcional, sin bump de
    * schemaVersion (ausente = todos los prompts en default; isDbData lo tolera

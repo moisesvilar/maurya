@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, Building2 } from 'lucide-react'
+import { ArrowLeft, Building2, Mic } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -7,9 +7,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { AssignCompanySheet } from '@/components/captures/AssignCompanySheet'
 import { AiCostInline } from '@/components/interviews/AiCostInline'
 import { NoteScriptSections } from '@/components/interviews/NoteScriptSections'
+import { TopBarPortal } from '@/components/layout/TopBarSlot'
+import { CaptureTopBarControls } from '@/components/recording/CaptureTopBarControls'
 import { RecordingSection } from '@/components/recording/RecordingSection'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
 import { useInterviewTemplates } from '@/hooks/useInterviewTemplates'
+import { useRecordingController } from '@/hooks/useRecordingController'
 import type { AssignCompanyResult } from '@/types/captures'
 import type { Company, Contact, Discovery, Interview } from '@/types/domain'
 
@@ -26,12 +29,18 @@ type CaptureDetailState =
 
 /**
  * Detalle de una captura (SPEC-020, ruta /captures/:id — Layout 2 detalle):
- * misma experiencia que el detalle de entrevista de Discoveries — la sección
- * Grabación (RecordingSection) y las secciones Nota y Guión compuestas por
- * NoteScriptSections (SPEC-027: apiladas o en pestañas "Notas"/"Guión"), con
- * el mismo onInterviewUpdated compartido. La diferencia es el contexto: la captura
+ * misma experiencia que el detalle de entrevista de Discoveries — las secciones
+ * Nota y Guión compuestas por NoteScriptSections (SPEC-027: apiladas o en
+ * pestañas "Notas"/"Guión") y, al final, la sección Grabación (RecordingSection,
+ * SPEC-030: material de archivo tras el flujo end-to-end), con el mismo
+ * onInterviewUpdated compartido. La diferencia es el contexto: la captura
  * puede no tener empresa todavía; en ese caso la cabecera muestra el botón
  * "Asignar empresa" que abre el Sheet de asignación diferida.
+ * SPEC-034: los controles de preparación de la grabación suben — permisos y
+ * micrófono a la top bar (portal al slot del Layout) y «Iniciar grabación» a
+ * la cabecera — solo en estado Preparación; el estado lo posee el
+ * useRecordingController creado en el ready-branch (CaptureDetailContent) y
+ * compartido con la sección Grabación por prop.
  * Carga encadenada: getInterview y, con el resultado, getDiscovery +
  * condicionales getCompany/getContact — los fallos de estas resoluciones de
  * contexto degradan a "Sin empresa"/"Sin contacto", nunca a error state; el
@@ -42,7 +51,6 @@ export function CaptureDetailPage(): React.ReactElement {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [state, setState] = useState<CaptureDetailState>({ status: 'loading' })
-  const [assignOpen, setAssignOpen] = useState(false)
   const { state: templatesState } = useInterviewTemplates()
 
   // No marca loading por sí mismo: el estado inicial ya lo es y el efecto de
@@ -129,50 +137,108 @@ export function CaptureDetailPage(): React.ReactElement {
       )}
 
       {state.status === 'ready' && (
-        <>
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-semibold">{state.interview.title}</h1>
-                <Badge variant="secondary">{STATUS_LABELS[state.interview.status]}</Badge>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {state.discovery?.name ?? ''} · {state.company?.name ?? 'Sin empresa'} ·{' '}
-                {state.contact?.name ?? 'Sin contacto'} · {templateLabel(state.interview)} ·{' '}
-                <AiCostInline aiUsage={state.interview.aiUsage} />
-              </p>
-            </div>
-            {state.interview.companyId === null && (
-              <Button
-                data-testid="assign-company-button"
-                variant="outline"
-                onClick={() => setAssignOpen(true)}
-              >
-                <Building2 />
-                Asignar empresa
-              </Button>
-            )}
-          </div>
-
-          <RecordingSection
-            interview={state.interview}
-            onInterviewUpdated={handleInterviewUpdated}
-          />
-
-          <NoteScriptSections
-            interview={state.interview}
-            onInterviewUpdated={handleInterviewUpdated}
-          />
-
-          <AssignCompanySheet
-            open={assignOpen}
-            onOpenChange={setAssignOpen}
-            interview={state.interview}
-            discoveryName={state.discovery?.name ?? ''}
-            onAssigned={handleAssigned}
-          />
-        </>
+        <CaptureDetailContent
+          interview={state.interview}
+          discovery={state.discovery}
+          company={state.company}
+          contact={state.contact}
+          templateLabel={templateLabel(state.interview)}
+          onInterviewUpdated={handleInterviewUpdated}
+          onAssigned={handleAssigned}
+        />
       )}
     </div>
+  )
+}
+
+interface CaptureDetailContentProps {
+  interview: Interview
+  discovery: Discovery | null
+  company: Company | null
+  contact: Contact | null
+  templateLabel: string
+  onInterviewUpdated: (interview: Interview) => void
+  onAssigned: (result: AssignCompanyResult) => void
+}
+
+/**
+ * Ready-branch del detalle de captura (SPEC-034): crea el controller de
+ * grabación — mismo ciclo de vida que tenía la sección en esta página, con el
+ * auto-guardado al desmontar y el close guard dentro — y lo comparte con la
+ * top bar (portal), la cabecera y la sección Grabación.
+ */
+function CaptureDetailContent({
+  interview,
+  discovery,
+  company,
+  contact,
+  templateLabel,
+  onInterviewUpdated,
+  onAssigned
+}: CaptureDetailContentProps): React.ReactElement {
+  const [assignOpen, setAssignOpen] = useState(false)
+  const controller = useRecordingController(interview, onInterviewUpdated)
+  const preparation = !controller.capturing && !controller.recorded
+
+  return (
+    <>
+      {/* La condición vive FUERA del portal: fuera de Preparación el testid
+          desaparece del DOM de la top bar (sin controles muertos) */}
+      {preparation && (
+        <TopBarPortal>
+          <CaptureTopBarControls controller={controller} />
+        </TopBarPortal>
+      )}
+
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold">{interview.title}</h1>
+            <Badge variant="secondary">{STATUS_LABELS[interview.status]}</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {discovery?.name ?? ''} · {company?.name ?? 'Sin empresa'} ·{' '}
+            {contact?.name ?? 'Sin contacto'} · {templateLabel} ·{' '}
+            <AiCostInline aiUsage={interview.aiUsage} />
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {preparation && (
+            <Button data-testid="capture-start-button" onClick={controller.handleStart}>
+              <Mic />
+              Iniciar grabación
+            </Button>
+          )}
+          {interview.companyId === null && (
+            <Button
+              data-testid="assign-company-button"
+              variant="outline"
+              onClick={() => setAssignOpen(true)}
+            >
+              <Building2 />
+              Asignar empresa
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <NoteScriptSections interview={interview} onInterviewUpdated={onInterviewUpdated} />
+
+      {/* SPEC-030: la Grabación cierra la página — tras el flujo end-to-end
+          es material de archivo (rutas WAV/transcript, latencia) */}
+      <RecordingSection
+        interview={interview}
+        onInterviewUpdated={onInterviewUpdated}
+        controller={controller}
+      />
+
+      <AssignCompanySheet
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+        interview={interview}
+        discoveryName={discovery?.name ?? ''}
+        onAssigned={onAssigned}
+      />
+    </>
   )
 }

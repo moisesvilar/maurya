@@ -1,13 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { CheckCircle2, Loader2, Sparkles, Target } from 'lucide-react'
+import { CheckCircle2, Loader2, Pencil, Sparkles, Target } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { ObjectiveOverrideDialog } from '@/components/interviews/ObjectiveOverrideDialog'
+import { cn } from '@/lib/utils'
 import type { Interview } from '@/types/domain'
 
 type KeyStatus = 'loading' | 'ok' | 'missing'
 
-/** Estado visual de un objetivo: sin evaluar / cumplido / evaluado y no cumplido. */
+/** Estado visual de un objetivo: sin evaluar / cumplido / evaluado (o marcado) y no cumplido. */
 type ObjectiveState = 'pending' | 'met' | 'unmet'
 
 interface ObjectivesSectionProps {
@@ -28,8 +30,12 @@ const EVALUATION_ERROR_TOAST = 'No se pudieron evaluar los objetivos'
  * éxito en la automática: el resultado en la sección es el feedback y ya
  * existe "Grabación guardada").
  * Indicador de cumplido con cambio de forma ADEMÁS de color (Target →
- * CheckCircle2 verde): el color nunca es el único indicador (a11y). Sin
- * tachado: con el motivo debajo, el texto tachado perjudica la lectura.
+ * CheckCircle2 verde): el color nunca es el único indicador (a11y).
+ * Marca manual de cumplimiento (SPEC-028): el lápiz por objetivo abre el
+ * diálogo de cumplimiento; la precedencia visual es marca manual > evaluación
+ * final > seguimiento en vivo. Con marca manual, la explicación de la
+ * evaluación previa queda tachada como historial (nunca es el único canal:
+ * coexiste con la explicación reescrita debajo y con `data-overridden`).
  */
 export function ObjectivesSection({
   interview,
@@ -42,6 +48,8 @@ export function ObjectivesSection({
   const [autoEvaluating, setAutoEvaluating] = useState(false)
   /** Evaluación manual en curso (invoke del botón). */
   const [manualEvaluating, setManualEvaluating] = useState(false)
+  /** Índice del objetivo con el diálogo de cumplimiento abierto (SPEC-028); null = cerrado. */
+  const [overrideIndex, setOverrideIndex] = useState<number | null>(null)
 
   const interviewId = interview.id
 
@@ -89,6 +97,7 @@ export function ObjectivesSection({
 
   const objectives = interview.objectives
   const results = interview.objectiveResults ?? null
+  const overrides = interview.objectiveOverrides ?? null
   const hasTranscript = interview.transcriptPath !== null
   const evaluating = autoEvaluating || manualEvaluating
   const showEvaluateButton =
@@ -110,12 +119,39 @@ export function ObjectivesSection({
     }
   }
 
-  /** Estado visual del objetivo `index`: la evaluación final prevalece sobre el vivo. */
+  /**
+   * Estado visual del objetivo `index` con la precedencia de SPEC-028:
+   * marca manual > evaluación final > seguimiento en vivo.
+   */
   const objectiveState = (index: number): ObjectiveState => {
+    const override = overrides?.[index] ?? null
+    if (override !== null) {
+      return override.met ? 'met' : 'unmet'
+    }
     if (results !== null) {
       return results[index]?.met === true ? 'met' : 'unmet'
     }
     return liveMet.includes(index) ? 'met' : 'pending'
+  }
+
+  /**
+   * Marca manual con reescritura (SPEC-028). El envelope nunca rechaza: sin
+   * try/catch. Devuelve true en éxito (el diálogo se cierra) y false en fallo
+   * (queda abierto conservando selección y comentario).
+   */
+  const handleOverrideSubmit = async (
+    index: number,
+    met: boolean,
+    comment: string
+  ): Promise<boolean> => {
+    const result = await window.api.llm.overrideObjective(interviewId, index, met, comment)
+    if (result.ok) {
+      onInterviewUpdatedRef.current(result.data)
+      toast('Objetivo actualizado')
+      return true
+    }
+    toast.error('No se pudo actualizar el objetivo')
+    return false
   }
 
   /** Botón Evaluar; con Tooltip explicativo cuando falta la clave de Anthropic. */
@@ -172,6 +208,7 @@ export function ObjectivesSection({
         <ul className="flex flex-col gap-2">
           {objectives.map((objective, index) => {
             const state = objectiveState(index)
+            const override = overrides?.[index] ?? null
             return (
               <li
                 key={index}
@@ -190,18 +227,62 @@ export function ObjectivesSection({
                     aria-hidden="true"
                   />
                 )}
-                <div className="flex flex-col gap-0.5">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span>{objective}</span>
                   {results !== null && results[index] !== undefined && (
-                    <p className="text-sm text-muted-foreground" data-testid="objective-reason">
+                    <p
+                      className={cn(
+                        'text-sm text-muted-foreground',
+                        override !== null && 'line-through'
+                      )}
+                      data-testid="objective-reason"
+                      data-overridden={override !== null ? 'true' : undefined}
+                    >
                       {results[index].reason}
                     </p>
                   )}
+                  {override !== null && (
+                    <p
+                      className="text-sm text-muted-foreground"
+                      data-testid="objective-override-text"
+                    >
+                      {override.text}
+                    </p>
+                  )}
                 </div>
+                {/* Siempre habilitado: el camino sin clave es funcional (SPEC-028) */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Editar cumplimiento del objetivo"
+                  data-testid="objective-override-button"
+                  onClick={() => setOverrideIndex(index)}
+                >
+                  <Pencil />
+                </Button>
               </li>
             )
           })}
         </ul>
+      )}
+
+      {overrideIndex !== null && (
+        <ObjectiveOverrideDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setOverrideIndex(null)
+            }
+          }}
+          objectiveText={objectives[overrideIndex]}
+          initialMet={
+            overrides?.[overrideIndex] != null
+              ? overrides[overrideIndex].met // re-edición: la marca vigente
+              : objectiveState(overrideIndex) !== 'met' // sin marca: contrario al mostrado
+          }
+          initialComment={overrides?.[overrideIndex]?.comment ?? ''}
+          onSubmit={(met, comment) => handleOverrideSubmit(overrideIndex, met, comment)}
+        />
       )}
     </section>
   )

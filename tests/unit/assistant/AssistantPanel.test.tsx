@@ -19,7 +19,7 @@ import {
   listAudioInputDevices
 } from '@/services/captureService'
 import { getPermissionsStatus } from '@/services/permissionsService'
-import type { AssistantSuggestion } from '@/types/assistant'
+import type { AssistantQueue, AssistantQueueItem, AssistantSuggestion } from '@/types/assistant'
 import type { Company, Interview } from '@/types/domain'
 import type { StopResult } from '@/types/audio'
 import { createFakeAudioStream } from '../../helpers/fakeMediaStream'
@@ -103,6 +103,18 @@ function suggestion(overrides: Partial<AssistantSuggestion> = {}): AssistantSugg
     alarms: [],
     ...overrides
   }
+}
+
+// SPEC-036: los eventos transportan la cola completa en lugar de la
+// sugerencia única (AssistantUpdateEvent.suggestion derogado)
+const EMPTY_QUEUE: AssistantQueue = { pending: [], pinned: [] }
+
+function queueWith(...items: AssistantQueueItem[]): AssistantQueue {
+  return { pending: items, pinned: [] }
+}
+
+function queueItem(id: string, overrides: Partial<AssistantSuggestion> = {}): AssistantQueueItem {
+  return { id, ...suggestion(overrides) }
 }
 
 const STOP_RESULT: StopResult = {
@@ -190,7 +202,8 @@ describe('AssistantPanel', () => {
       expect(screen.getByText(INITIAL_TEXT)).toBeInTheDocument()
     })
 
-    // SPEC-016 · AC-02
+    // SPEC-016 · AC-02 (SPEC-036: la "sugerencia anterior" es ahora la cola,
+    // que viaja completa también en el evento 'analyzing')
     it('shows the discreet "Analizando…" indicator without hiding the previous suggestion', async () => {
       const user = userEvent.setup()
       renderDetail()
@@ -199,12 +212,16 @@ describe('AssistantPanel', () => {
       act(() => {
         mockApi.emitAssistantUpdate({
           state: 'active',
-          suggestion: suggestion(),
+          queue: queueWith(queueItem('q-1')),
           objectivesMet: []
         })
       })
       act(() => {
-        mockApi.emitAssistantUpdate({ state: 'analyzing', objectivesMet: [] })
+        mockApi.emitAssistantUpdate({
+          state: 'analyzing',
+          queue: queueWith(queueItem('q-1')),
+          objectivesMet: []
+        })
       })
 
       expect(await screen.findByText('Analizando…')).toBeInTheDocument()
@@ -219,7 +236,7 @@ describe('AssistantPanel', () => {
       await startRecording(user)
 
       act(() => {
-        mockApi.emitAssistantUpdate({ state: 'no-key', objectivesMet: [] })
+        mockApi.emitAssistantUpdate({ state: 'no-key', queue: EMPTY_QUEUE, objectivesMet: [] })
       })
 
       expect(
@@ -246,7 +263,7 @@ describe('AssistantPanel', () => {
   })
 
   describe('the suggestion', () => {
-    // SPEC-016 · AC-05
+    // SPEC-016 · AC-05 (SPEC-036: la sugerencia se pinta como ítem de la cola)
     it('shows exactly the action badge, the suggested question and the one-line reason — nothing else', async () => {
       const user = userEvent.setup()
       renderDetail()
@@ -255,7 +272,7 @@ describe('AssistantPanel', () => {
       act(() => {
         mockApi.emitAssistantUpdate({
           state: 'active',
-          suggestion: suggestion(),
+          queue: queueWith(queueItem('q-1')),
           objectivesMet: []
         })
       })
@@ -271,8 +288,11 @@ describe('AssistantPanel', () => {
       expect(screen.queryByText(INITIAL_TEXT)).not.toBeInTheDocument()
     })
 
-    // SPEC-016 · AC-06
-    it('replaces the previous suggestion when a new one arrives (only one visible)', async () => {
+    // SPEC-016 · AC-06 derogado por SPEC-036: la sustitución de la sugerencia
+    // única desaparece — las preguntas persisten en cola hasta resolverse,
+    // con la más reciente en primer lugar (cobertura completa del orden en
+    // AssistantPanel.queue.test.tsx).
+    it('keeps the previous question in the queue when a new one arrives (most recent first)', async () => {
       const user = userEvent.setup()
       renderDetail()
       await startRecording(user)
@@ -280,20 +300,27 @@ describe('AssistantPanel', () => {
       act(() => {
         mockApi.emitAssistantUpdate({
           state: 'active',
-          suggestion: suggestion({ suggestedQuestion: '¿Primera pregunta?' }),
+          queue: queueWith(queueItem('q-1', { suggestedQuestion: '¿Primera pregunta?' })),
           objectivesMet: []
         })
       })
       act(() => {
         mockApi.emitAssistantUpdate({
           state: 'active',
-          suggestion: suggestion({ suggestedQuestion: '¿Segunda pregunta?' }),
+          queue: queueWith(
+            queueItem('q-2', { suggestedQuestion: '¿Segunda pregunta?' }),
+            queueItem('q-1', { suggestedQuestion: '¿Primera pregunta?' })
+          ),
           objectivesMet: []
         })
       })
 
       expect(await screen.findByText('¿Segunda pregunta?')).toBeInTheDocument()
-      expect(screen.queryByText('¿Primera pregunta?')).not.toBeInTheDocument()
+      // SPEC-036 (anti-descarte): la anterior sigue visible en la cola
+      expect(screen.getByText('¿Primera pregunta?')).toBeInTheDocument()
+      const items = screen.getAllByTestId('assistant-queue-item')
+      expect(within(items[0]).getByText('¿Segunda pregunta?')).toBeInTheDocument()
+      expect(within(items[1]).getByText('¿Primera pregunta?')).toBeInTheDocument()
     })
 
     // SPEC-016 · AC-07
@@ -305,11 +332,13 @@ describe('AssistantPanel', () => {
       act(() => {
         mockApi.emitAssistantUpdate({
           state: 'active',
-          suggestion: suggestion({
-            action: 'dig_deeper',
-            suggestedQuestion: '¿Cuánto tiempo os llevó la última vez?',
-            reason: 'Falta evidencia concreta según The Mom Test: pide un caso real'
-          }),
+          queue: queueWith(
+            queueItem('q-1', {
+              action: 'dig_deeper',
+              suggestedQuestion: '¿Cuánto tiempo os llevó la última vez?',
+              reason: 'Falta evidencia concreta según The Mom Test: pide un caso real'
+            })
+          ),
           objectivesMet: []
         })
       })
@@ -329,10 +358,12 @@ describe('AssistantPanel', () => {
       act(() => {
         mockApi.emitAssistantUpdate({
           state: 'active',
-          suggestion: suggestion({
-            action: 'dig_deeper',
-            alarms: ['compliment', 'generic', 'hypothetical']
-          }),
+          queue: queueWith(
+            queueItem('q-1', {
+              action: 'dig_deeper',
+              alarms: ['compliment', 'generic', 'hypothetical']
+            })
+          ),
           objectivesMet: []
         })
       })
@@ -364,30 +395,24 @@ describe('AssistantPanel', () => {
   })
 
   describe('feedback', () => {
-    // SPEC-016 · AC-11 (UI)
-    it('sends the vote and highlights the chosen thumb, switchable until the next suggestion', async () => {
+    // SPEC-016 · AC-11 (UI) derogado por SPEC-036: los botones 👍/👎 se
+    // eliminan del panel (sendFeedback ya no existe en el bridge). El test
+    // adaptado fija su AUSENCIA con preguntas en cola — SPEC-036 · AC-13.
+    it('does not render the "Sugerencia útil" / "Sugerencia no útil" vote buttons anymore', async () => {
       const user = userEvent.setup()
       renderDetail()
       await startRecording(user)
       act(() => {
         mockApi.emitAssistantUpdate({
           state: 'active',
-          suggestion: suggestion(),
+          queue: queueWith(queueItem('q-1')),
           objectivesMet: []
         })
       })
 
-      const upButton = await screen.findByRole('button', { name: 'Sugerencia útil' })
-      const downButton = screen.getByRole('button', { name: 'Sugerencia no útil' })
-
-      await user.click(upButton)
-      expect(vi.mocked(mockApi.api.assistant.sendFeedback)).toHaveBeenCalledWith('up')
-      expect(upButton).toHaveClass('bg-accent')
-
-      await user.click(downButton)
-      expect(vi.mocked(mockApi.api.assistant.sendFeedback)).toHaveBeenCalledWith('down')
-      expect(downButton).toHaveClass('bg-accent')
-      expect(upButton).not.toHaveClass('bg-accent')
+      expect(await screen.findByText('¿Cuándo fue la última vez que pasó?')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Sugerencia útil' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Sugerencia no útil' })).not.toBeInTheDocument()
     })
   })
 
@@ -401,14 +426,16 @@ describe('AssistantPanel', () => {
       act(() => {
         mockApi.emitAssistantUpdate({
           state: 'active',
-          suggestion: suggestion(),
+          queue: queueWith(queueItem('q-1')),
           objectivesMet: []
         })
       })
+      // SPEC-036: el evento de error transporta la cola completa (la
+      // conservación es estructural, ya no una sugerencia condicional)
       act(() => {
         mockApi.emitAssistantUpdate({
           state: 'error',
-          suggestion: suggestion(),
+          queue: queueWith(queueItem('q-1')),
           objectivesMet: [],
           error: { kind: 'connection', message: 'sin conexión con la API' }
         })
@@ -417,7 +444,7 @@ describe('AssistantPanel', () => {
       expect(
         await screen.findByText('No se pudo analizar (se reintentará): sin conexión con la API')
       ).toBeInTheDocument()
-      // La última sugerencia válida se conserva visible
+      // La cola se conserva visible
       expect(screen.getByText('¿Cuándo fue la última vez que pasó?')).toBeInTheDocument()
     })
   })
@@ -431,7 +458,7 @@ describe('AssistantPanel', () => {
       act(() => {
         mockApi.emitAssistantUpdate({
           state: 'active',
-          suggestion: suggestion(),
+          queue: queueWith(queueItem('q-1')),
           objectivesMet: []
         })
       })

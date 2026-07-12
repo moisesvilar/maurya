@@ -490,13 +490,14 @@ describe('RecordingSection', () => {
       await startRecording(user)
 
       // Coexistencia: cronómetro de grabación + guión legible en la misma página.
-      // SPEC-025: los objetivos viven en la sección superior única (h3) — ya no
-      // hay ningún h4 "Objetivos" (ni panel del asistente ni bloque del Guión)
+      // SPEC-025: los objetivos de estado viven en la sección superior única
+      // (h3). SPEC-029: el bloque de EDICIÓN de objetivos (h4) vuelve a vivir
+      // siempre dentro del Guión, junto al editor siempre montado.
       expect(screen.getByText('00:00')).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: 'Guión' })).toBeInTheDocument()
       expect(screen.getByText(/Pregunta clave para la llamada/)).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: 'Objetivos', level: 3 })).toBeInTheDocument()
-      expect(screen.queryByRole('heading', { name: 'Objetivos', level: 4 })).not.toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Objetivos', level: 4 })).toBeInTheDocument()
     })
   })
 })

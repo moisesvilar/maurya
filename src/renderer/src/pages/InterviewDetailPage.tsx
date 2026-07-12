@@ -25,12 +25,14 @@ type InterviewDetailState =
  * back button "Volver" al detalle de la empresa, h1 con el título + Badge de
  * estado, fila muted de referencias (empresa · contacto · template, con
  * fallbacks "Sin contacto"/"Sin template"), la sección Objetivos destacada
- * (ObjectivesSection, SPEC-025: indicador de progreso principal, entre la
- * cabecera y la Grabación), la sección Grabación (RecordingSection, SPEC-015:
- * captura mic+sistema con transcripción en vivo, arriba para que durante la
- * llamada el estado quede visible) y, debajo, las secciones Nota y Guión compuestas por
+ * (ObjectivesSection, SPEC-025: indicador de progreso principal, inmediatamente
+ * tras la cabecera), las secciones Nota y Guión compuestas por
  * NoteScriptSections (SPEC-027): apiladas mientras falte una de las dos y en
- * pestañas "Notas"/"Guión" cuando coexisten. Resuelve entrevista y empresa con
+ * pestañas "Notas"/"Guión" cuando coexisten — y, al final, la sección Grabación
+ * (RecordingSection, SPEC-015: captura mic+sistema con transcripción en vivo;
+ * SPEC-030: va en último lugar porque tras el flujo end-to-end es material de
+ * archivo que se consulta poco, mientras la nota y el guión son el material de
+ * trabajo). Resuelve entrevista y empresa con
  * Promise.all(getInterview, getCompany); un id inexistente o un error del
  * bridge muestran el error state con enlace "Volver a Discoveries". Al generar
  * o editar el guión — o al asociarse una grabación —, onInterviewUpdated
@@ -140,19 +142,21 @@ export function InterviewDetailPage(): React.ReactElement {
             </p>
           </div>
 
-          {/* SPEC-025: los objetivos van arriba del todo, entre la cabecera y
-              la Grabación — son el indicador de progreso principal */}
+          {/* SPEC-025: los objetivos van arriba del todo, inmediatamente tras
+              la cabecera — son el indicador de progreso principal */}
           <ObjectivesSection
             interview={state.interview}
             onInterviewUpdated={handleInterviewUpdated}
           />
 
-          <RecordingSection
+          <NoteScriptSections
             interview={state.interview}
             onInterviewUpdated={handleInterviewUpdated}
           />
 
-          <NoteScriptSections
+          {/* SPEC-030: la Grabación cierra la página — tras el flujo end-to-end
+              es material de archivo (rutas WAV/transcript, latencia) */}
+          <RecordingSection
             interview={state.interview}
             onInterviewUpdated={handleInterviewUpdated}
           />

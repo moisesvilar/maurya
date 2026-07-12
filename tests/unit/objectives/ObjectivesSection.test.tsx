@@ -144,7 +144,9 @@ describe('ObjectivesSection', () => {
       expect(within(section).queryAllByTestId('objective-item')).toHaveLength(0)
     })
 
-    // SPEC-025 · AC-04 (la edición sigue en el modo edición del Guión, SPEC-014)
+    // SPEC-025 · AC-04 (la edición vive en la sección Guión; adaptado por
+    // SPEC-029: la lista editable está siempre activa — sin botón "Editar" —
+    // y "Guardar" solo aparece con cambios)
     it('reflects the updated objectives list after editing and saving in the Guión section', async () => {
       const user = userEvent.setup()
       const withScript = interview({
@@ -159,9 +161,8 @@ describe('ObjectivesSection', () => {
       })
       renderDetail()
 
-      await user.click(await screen.findByRole('button', { name: 'Editar' }))
-      await user.type(screen.getByLabelText('Objetivo 2'), ' editado')
-      await user.click(screen.getByRole('button', { name: 'Guardar' }))
+      await user.type(await screen.findByLabelText('Objetivo 2'), ' editado')
+      await user.click(await screen.findByRole('button', { name: 'Guardar' }))
 
       const section = screen.getByTestId('objectives-section')
       await waitFor(() =>
@@ -176,7 +177,11 @@ describe('ObjectivesSection', () => {
       const section = await findSection()
 
       act(() => {
-        mockApi.emitAssistantUpdate({ state: 'active', objectivesMet: [1] })
+        mockApi.emitAssistantUpdate({
+          state: 'active',
+          queue: { pending: [], pinned: [] },
+          objectivesMet: [1]
+        })
       })
 
       const items = within(section).getAllByTestId('objective-item')
@@ -272,7 +277,11 @@ describe('ObjectivesSection', () => {
 
       // El seguimiento en vivo marcó el objetivo 1 como cubierto…
       act(() => {
-        mockApi.emitAssistantUpdate({ state: 'active', objectivesMet: [1] })
+        mockApi.emitAssistantUpdate({
+          state: 'active',
+          queue: { pending: [], pinned: [] },
+          objectivesMet: [1]
+        })
       })
       const items = within(section).getAllByTestId('objective-item')
       await waitFor(() => expect(items[1]).toHaveAttribute('data-state', 'met'))

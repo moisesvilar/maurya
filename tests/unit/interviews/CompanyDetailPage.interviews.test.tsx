@@ -268,6 +268,31 @@ describe('CompanyDetailPage (entrevistas)', () => {
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     })
 
+    // SPEC-033 · AC-09: la autogeneración del guión es exclusiva del flujo de
+    // capturas — crear una entrevista desde la empresa NO dispara
+    // llm.autoGenerateScript (comportamiento SPEC-013 intacto, incluso con
+    // template asignado)
+    it('does not fire the script auto-generation when creating an interview from the company flow (SPEC-033)', async () => {
+      setContacts([CONTACT])
+      setTemplates([TEMPLATE])
+      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({
+        ok: true,
+        data: interview({ title: 'Entrevista con Jane' })
+      })
+      const user = userEvent.setup()
+      renderCompany()
+
+      const titleInput = await openCreateDialog(user)
+      await user.type(titleInput, 'Entrevista con Jane')
+      await user.click(screen.getByRole('combobox', { name: 'Template' }))
+      await user.click(await screen.findByRole('option', { name: 'Entrevista MDR (Problema)' }))
+      await user.click(screen.getByRole('button', { name: 'Crear' }))
+
+      await waitFor(() => expect(vi.mocked(mockApi.api.db.createInterview)).toHaveBeenCalled())
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      expect(vi.mocked(mockApi.api.llm.autoGenerateScript)).not.toHaveBeenCalled()
+    })
+
     // SPEC-013 · AC-06
     it('shows the inline "Campo requerido" error for an empty title without calling the bridge', async () => {
       const user = userEvent.setup()

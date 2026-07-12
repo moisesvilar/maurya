@@ -29,15 +29,33 @@ export interface AssistantSuggestion {
   alarms: AssistantAlarm[]
 }
 
+/** Pregunta encolada (SPEC-036): la candidata aceptada, identificable en la cola. */
+export interface AssistantQueueItem extends AssistantSuggestion {
+  /** uuid generado en main al aceptar la candidata; clave de pin/unpin y de React. */
+  id: string
+}
+
 /**
- * Evento push main → renderer. `suggestion` acompaña a 'active' (nueva
- * sugerencia) y a 'error' (se conserva la última válida); 'analyzing' viaja
- * sin sugerencia y el hook conserva la anterior. `objectivesMet` son índices
- * 0-based de los objetivos de la entrevista, acumulativos (nunca decrecen).
+ * Cola de preguntas del asistente (SPEC-036): estado de sesión en main, el
+ * renderer la refleja tal cual (main es la única fuente de verdad).
+ */
+export interface AssistantQueue {
+  /** Pendientes, la más reciente primero; acotadas por el tamaño configurado. */
+  pending: AssistantQueueItem[]
+  /** Ancladas por el usuario, en orden de anclado; no consumen hueco. */
+  pinned: AssistantQueueItem[]
+}
+
+/**
+ * Evento push main → renderer. `queue` viaja SIEMPRE completa (SPEC-036):
+ * el hook la refleja tal cual y la conservación en 'analyzing'/'error'/'paused'
+ * es estructural. `objectivesMet` son índices 0-based de los objetivos de la
+ * entrevista, acumulativos (nunca decrecen).
  */
 export interface AssistantUpdateEvent {
   state: AssistantState
-  suggestion?: AssistantSuggestion
+  /** Cola completa de la sesión (SPEC-036): pendientes ordenadas + ancladas. */
+  queue: AssistantQueue
   objectivesMet: number[]
   error?: LlmError
   /** Acumulado de uso de la SESIÓN (SPEC-021); viaja tras el primer análisis. */
@@ -46,17 +64,15 @@ export interface AssistantUpdateEvent {
   pauseLimitUsd?: number
 }
 
-/** Valoración 👍/👎 de la sugerencia vigente (mutable hasta la siguiente). */
-export type AssistantVote = 'up' | 'down'
-
 /**
  * Registro de la sesión del asistente que se persiste con la transcripción
  * (campo `assistant` del transcript.json). null si el asistente no llegó a
- * activarse (sin clave o grabación sin entrevista).
+ * activarse (sin clave o grabación sin entrevista). Los contadores de
+ * feedback 👍/👎 de SPEC-016 quedaron derogados por SPEC-036: el registro
+ * conserva el nº de sugerencias aceptadas y el uso de IA (SPEC-021).
  */
 export interface AssistantSessionSummary {
   suggestionCount: number
-  feedback: { up: number; down: number }
   /** Uso de IA de la sesión (SPEC-021); ceros si no hubo análisis. */
   usage: AiUsage
 }
@@ -64,7 +80,8 @@ export interface AssistantSessionSummary {
 /** API expuesta por el preload en `window.api.assistant`. */
 export interface AssistantApi {
   onUpdate: (callback: (event: AssistantUpdateEvent) => void) => () => void
-  sendFeedback: (vote: AssistantVote) => Promise<void>
+  /** Ancla/desancla una pregunta de la cola (SPEC-036); fire-and-forget. */
+  setPinned: (itemId: string, pinned: boolean) => Promise<void>
   /** Reanuda el asistente pausado por límite de coste (SPEC-021). */
   resume: () => Promise<void>
 }
