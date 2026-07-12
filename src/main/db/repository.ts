@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto'
 import type {
   AiCostSettings,
   AiUsage,
+  AssistantSettings,
   Company,
   Contact,
   CreateCompanyInput,
@@ -769,6 +770,49 @@ export function setAiCostSettings(settings: AiCostSettings): AiCostSettings {
   return mutate((draft) => {
     draft.aiCostSettings = { limitUsd }
     return { limitUsd }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Asistente en vivo (SPEC-036)
+// ---------------------------------------------------------------------------
+
+/** Tamaño de cola por defecto del asistente (SPEC-036). */
+const DEFAULT_ASSISTANT_QUEUE_SIZE = 3
+
+/**
+ * Ajustes del asistente en vivo con normalización defensiva (AC: un almacén
+ * ilegible o sin dato se comporta como el default sin crashear): si el
+ * singleton no es un objeto o `queueSize` no es un entero en [1, 5] →
+ * { queueSize: 3 }.
+ */
+export function getAssistantSettings(): AssistantSettings {
+  return read((store) => {
+    const raw: unknown = store.assistantSettings
+    if (typeof raw !== 'object' || raw === null) {
+      return { queueSize: DEFAULT_ASSISTANT_QUEUE_SIZE }
+    }
+    const queueSize = (raw as Record<string, unknown>).queueSize
+    if (
+      typeof queueSize === 'number' &&
+      Number.isInteger(queueSize) &&
+      queueSize >= 1 &&
+      queueSize <= 5
+    ) {
+      return { queueSize }
+    }
+    return { queueSize: DEFAULT_ASSISTANT_QUEUE_SIZE }
+  })
+}
+
+export function setAssistantSettings(settings: AssistantSettings): AssistantSettings {
+  const queueSize = settings.queueSize
+  if (!Number.isInteger(queueSize) || queueSize < 1 || queueSize > 5) {
+    throw validationError('El tamaño de la cola debe ser un entero entre 1 y 5')
+  }
+  return mutate((draft) => {
+    draft.assistantSettings = { queueSize }
+    return { queueSize }
   })
 }
 

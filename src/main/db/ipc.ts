@@ -76,6 +76,10 @@ export function registerDbIpcHandlers(): void {
   handleDb('db:ai-cost-settings:get', repository.getAiCostSettings)
   handleDb('db:ai-cost-settings:set', repository.setAiCostSettings)
 
+  // Ajustes del asistente en vivo (SPEC-036): tamaño de la cola de preguntas.
+  handleDb('db:assistant-settings:get', repository.getAssistantSettings)
+  handleDb('db:assistant-settings:set', repository.setAssistantSettings)
+
   // Prompts de IA personalizables (SPEC-026): catálogo fijo, override→default.
   handleDb('db:custom-prompt:list', listCustomPrompts)
   handleDb('db:custom-prompt:save', saveCustomPrompt)

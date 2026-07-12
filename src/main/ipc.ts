@@ -43,7 +43,7 @@ import {
 import {
   peekAssistantObjectivesMet,
   resumeAssistantLimit,
-  sendAssistantFeedback,
+  setAssistantPinned,
   startAssistant,
   stopAssistant
 } from './assistantService'
@@ -54,7 +54,6 @@ import {
 import { overrideInterviewObjective } from './objectiveOverrideService'
 import { autoGenerateInterviewScript } from './scriptAutoGenerationService'
 import { recordInterviewUsage } from './aiCost'
-import type { AssistantVote } from '../renderer/src/types/assistant'
 
 /**
  * Registra un canal secrets:* que SIEMPRE resuelve con el envelope
@@ -297,9 +296,10 @@ export function registerIpcHandlers(): void {
     shell.showItemInFolder(filePath)
   })
 
-  // Valoración 👍/👎 de la sugerencia vigente del asistente (SPEC-016)
-  ipcMain.handle('assistant:feedback', (_event, vote: AssistantVote) => {
-    sendAssistantFeedback(vote)
+  // Anclar/desanclar una pregunta de la cola del asistente (SPEC-036):
+  // fire-and-forget que nunca falla (no-ops en el servicio), patrón resume
+  ipcMain.handle('assistant:set-pinned', (_event, itemId: string, pinned: boolean) => {
+    setAssistantPinned(itemId, pinned)
   })
 
   // Reanudar el asistente pausado por límite de coste (SPEC-021)

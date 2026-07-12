@@ -408,7 +408,8 @@ export function computeLatencyStats(lines: TranscriptLine[]): LatencyStats | nul
  * + SPEC-019) y cierra la sesión. `transcriptPath` y `latency` son null si no
  * hubo resultados finales (en ese caso el summary del asistente no se escribe:
  * sin archivo). `assistant` es el registro de la sesión del asistente
- * (SPEC-016) o null si no hubo asistente (sin clave, sin entrevista).
+ * (SPEC-016; desde SPEC-036 sin contadores de feedback: nº de sugerencias +
+ * uso de IA) o null si no hubo asistente (sin clave, sin entrevista).
  * `consent` es el registro de consentimiento de grabación (SPEC-019) o null
  * si no lo hubo (grabaciones del spike /capture). Los lectores previos del
  * archivo ignoran los campos extra.

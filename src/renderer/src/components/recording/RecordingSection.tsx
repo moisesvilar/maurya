@@ -170,12 +170,11 @@ function RecordingSectionView({
               lo que el entrevistador debe ver de un vistazo */}
           <AssistantPanel
             state={assistant.state}
-            suggestion={assistant.suggestion}
+            queue={assistant.queue}
             error={assistant.error}
-            vote={assistant.vote}
             usage={assistant.usage}
             pauseLimitUsd={assistant.pauseLimitUsd}
-            onVote={assistant.sendFeedback}
+            onSetPinned={assistant.setPinned}
             onResume={assistant.resume}
           />
           {/* SPEC-025: el seguimiento en vivo de objetivos se pinta en la

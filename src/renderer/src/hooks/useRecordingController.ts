@@ -8,7 +8,7 @@ import { useConsentPreference } from '@/hooks/useConsentPreference'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useTranscription } from '@/hooks/useTranscription'
 import type { TranscriptLineView, TranscriptPartials } from '@/hooks/useTranscription'
-import type { AssistantState, AssistantSuggestion, AssistantVote } from '@/types/assistant'
+import type { AssistantQueue, AssistantState } from '@/types/assistant'
 import type {
   AudioInputDevice,
   AudioLevels,
@@ -34,12 +34,13 @@ export interface RecordingControllerTranscription {
 /** Estado del asistente proactivo expuesto por el controller. */
 export interface RecordingControllerAssistant {
   state: AssistantState
-  suggestion: AssistantSuggestion | null
+  /** Cola de preguntas de la sesión (SPEC-036): pendientes + ancladas. */
+  queue: AssistantQueue
   error: LlmError | null
-  vote: AssistantVote | null
   usage: AiUsage | null
   pauseLimitUsd: number | null
-  sendFeedback: (vote: AssistantVote) => void
+  /** Ancla/desancla una pregunta de la cola (SPEC-036). */
+  setPinned: (itemId: string, pinned: boolean) => void
   resume: () => void
 }
 
@@ -108,12 +109,11 @@ export function useRecordingController(
   } = useTranscription()
   const {
     state: assistantState,
-    suggestion: assistantSuggestion,
+    queue: assistantQueue,
     error: assistantError,
-    vote: assistantVote,
     usage: assistantUsage,
     pauseLimitUsd: assistantPauseLimitUsd,
-    sendFeedback,
+    setPinned: setAssistantPinned,
     resume: resumeAssistant,
     reset: resetAssistant
   } = useAssistant()
@@ -299,12 +299,11 @@ export function useRecordingController(
     },
     assistant: {
       state: assistantState,
-      suggestion: assistantSuggestion,
+      queue: assistantQueue,
       error: assistantError,
-      vote: assistantVote,
       usage: assistantUsage,
       pauseLimitUsd: assistantPauseLimitUsd,
-      sendFeedback,
+      setPinned: setAssistantPinned,
       resume: resumeAssistant
     },
     consentDialogOpen,

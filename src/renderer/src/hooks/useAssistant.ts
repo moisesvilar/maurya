@@ -1,22 +1,23 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { AssistantState, AssistantSuggestion, AssistantVote } from '@/types/assistant'
+import type { AssistantQueue, AssistantState } from '@/types/assistant'
 import type { AiUsage } from '@/types/domain'
 import type { LlmError } from '@/types/llm'
 
+const EMPTY_QUEUE: AssistantQueue = { pending: [], pinned: [] }
+
 export interface UseAssistantResult {
   state: AssistantState
-  /** Última sugerencia válida: 'analyzing' y 'error' la conservan visible. */
-  suggestion: AssistantSuggestion | null
+  /** Cola completa de la sesión (SPEC-036): main es la única fuente de verdad. */
+  queue: AssistantQueue
   /** Índices 0-based de objetivos cubiertos (acumulativo, lo mantiene main). */
   objectivesMet: number[]
   error: LlmError | null
-  /** Voto de la sugerencia vigente; se resetea con cada sugerencia nueva. */
-  vote: AssistantVote | null
   /** Uso de IA de la sesión (SPEC-021); null hasta el primer análisis. */
   usage: AiUsage | null
   /** Límite que provocó la pausa (SPEC-021); null si no está pausado. */
   pauseLimitUsd: number | null
-  sendFeedback: (vote: AssistantVote) => void
+  /** Ancla/desancla una pregunta de la cola (SPEC-036); main re-emite la cola. */
+  setPinned: (itemId: string, pinned: boolean) => void
   /** Reanuda el asistente pausado por límite de coste (SPEC-021). */
   resume: () => void
   /** Llamar al iniciar una grabación nueva (patrón useTranscription). */
@@ -25,39 +26,38 @@ export interface UseAssistantResult {
 
 /**
  * Estado del asistente proactivo (SPEC-016), suscrito a los eventos push del
- * main process. Reglas clave: 'analyzing' y 'error' NO borran la sugerencia
- * anterior (solo una nueva 'active' la sustituye, reseteando el voto); el
- * feedback es optimista (resaltado inmediato, main registra el contador).
- * SPEC-021: 'paused' tampoco borra la sugerencia; el usage se actualiza con
- * cada evento que lo traiga y pauseLimitUsd se limpia con 'active'/'idle'.
+ * main process. SPEC-036: todo evento transporta la cola completa y el hook la
+ * refleja tal cual — la conservación en 'analyzing'/'error'/'paused' es
+ * estructural, no lógica del hook. Anclar/desanclar viaja a main sin estado
+ * optimista (main re-emite la cola mutada de inmediato).
+ * SPEC-021: el usage se actualiza con cada evento que lo traiga y
+ * pauseLimitUsd se limpia con 'active'/'idle'.
  */
 export function useAssistant(): UseAssistantResult {
   const [state, setState] = useState<AssistantState>('idle')
-  const [suggestion, setSuggestion] = useState<AssistantSuggestion | null>(null)
+  const [queue, setQueue] = useState<AssistantQueue>(EMPTY_QUEUE)
   const [objectivesMet, setObjectivesMet] = useState<number[]>([])
   const [error, setError] = useState<LlmError | null>(null)
-  const [vote, setVote] = useState<AssistantVote | null>(null)
   const [usage, setUsage] = useState<AiUsage | null>(null)
   const [pauseLimitUsd, setPauseLimitUsd] = useState<number | null>(null)
 
   useEffect(() => {
     return window.api.assistant.onUpdate((event) => {
       setState(event.state)
+      setQueue(event.queue)
       setObjectivesMet(event.objectivesMet)
       if (event.usage !== undefined) {
         setUsage(event.usage)
       }
       if (event.state === 'paused') {
-        // Pausa por límite de coste (SPEC-021): conserva sugerencia y voto
+        // Pausa por límite de coste (SPEC-021): la cola reaparece al reanudar
         setPauseLimitUsd(event.pauseLimitUsd ?? null)
         return
       }
       if (event.state === 'active' || event.state === 'idle') {
         setPauseLimitUsd(null)
       }
-      if (event.state === 'active' && event.suggestion !== undefined) {
-        setSuggestion(event.suggestion)
-        setVote(null)
+      if (event.state === 'active') {
         setError(null)
         return
       }
@@ -66,16 +66,15 @@ export function useAssistant(): UseAssistantResult {
         return
       }
       if (event.state === 'analyzing') {
-        // Reintento en marcha: se retira la línea de error, se conserva la sugerencia
+        // Reintento en marcha: se retira la línea de error, la cola se conserva
         setError(null)
       }
     })
   }, [])
 
-  const sendFeedback = useCallback((next: AssistantVote): void => {
-    // Optimista: el resaltado no espera al IPC (main nunca lo rechaza)
-    setVote(next)
-    void window.api.assistant.sendFeedback(next)
+  const setPinned = useCallback((itemId: string, pinned: boolean): void => {
+    // Sin estado optimista: main re-emite la cola completa (SPEC-036)
+    void window.api.assistant.setPinned(itemId, pinned)
   }, [])
 
   const resume = useCallback((): void => {
@@ -85,23 +84,21 @@ export function useAssistant(): UseAssistantResult {
 
   const reset = useCallback((): void => {
     setState('idle')
-    setSuggestion(null)
+    setQueue(EMPTY_QUEUE)
     setObjectivesMet([])
     setError(null)
-    setVote(null)
     setUsage(null)
     setPauseLimitUsd(null)
   }, [])
 
   return {
     state,
-    suggestion,
+    queue,
     objectivesMet,
     error,
-    vote,
     usage,
     pauseLimitUsd,
-    sendFeedback,
+    setPinned,
     resume,
     reset
   }

@@ -87,6 +87,15 @@ export interface AiCostSettings {
 }
 
 /**
+ * Ajustes del asistente en vivo (SPEC-036), singleton en db.json (patrón
+ * aiCostSettings). `queueSize` es el máximo de preguntas pendientes visibles
+ * a la vez en la cola del asistente: entero 1–5, default 3.
+ */
+export interface AssistantSettings {
+  queueSize: number
+}
+
+/**
  * Evaluación de cumplimiento de UN objetivo (SPEC-025), generada por el LLM
  * tras la grabación. `reason` es el motivo corto (≤50 palabras) de por qué el
  * objetivo se cumplió o no.
@@ -409,6 +418,10 @@ export interface DbApi {
   /** Ajustes de coste de IA (SPEC-021): límite por entrevista del asistente. */
   getAiCostSettings: () => Promise<DbResult<AiCostSettings>>
   setAiCostSettings: (settings: AiCostSettings) => Promise<DbResult<AiCostSettings>>
+
+  /** Ajustes del asistente en vivo (SPEC-036): tamaño de la cola de preguntas. */
+  getAssistantSettings: () => Promise<DbResult<AssistantSettings>>
+  setAssistantSettings: (settings: AssistantSettings) => Promise<DbResult<AssistantSettings>>
 
   /** Prompts de IA personalizables (SPEC-026): catálogo fijo con override→default. */
   listCustomPrompts: () => Promise<DbResult<CustomPrompt[]>>

@@ -84,6 +84,10 @@ const db: DbApi = {
   getAiCostSettings: () => ipcRenderer.invoke('db:ai-cost-settings:get'),
   setAiCostSettings: (settings) => ipcRenderer.invoke('db:ai-cost-settings:set', settings),
 
+  // Ajustes del asistente en vivo (SPEC-036): tamaño de la cola de preguntas.
+  getAssistantSettings: () => ipcRenderer.invoke('db:assistant-settings:get'),
+  setAssistantSettings: (settings) => ipcRenderer.invoke('db:assistant-settings:set', settings),
+
   // Prompts de IA personalizables (SPEC-026): catálogo fijo, override→default.
   listCustomPrompts: () => ipcRenderer.invoke('db:custom-prompt:list'),
   saveCustomPrompt: (id, body) => ipcRenderer.invoke('db:custom-prompt:save', id, body),
@@ -148,8 +152,9 @@ const notes: NotesApi = {
 
 /**
  * Bridge del asistente en tiempo real (SPEC-016): el análisis corre íntegro en
- * main (SDK + clave); por aquí solo viajan eventos tipados y el voto 👍/👎.
- * La clave de Anthropic jamás cruza el bridge en ninguna dirección.
+ * main (SDK + clave); por aquí solo viajan eventos tipados y el anclado de
+ * preguntas de la cola (SPEC-036). La clave de Anthropic jamás cruza el bridge
+ * en ninguna dirección.
  */
 const assistant: AssistantApi = {
   onUpdate: (callback: (event: AssistantUpdateEvent) => void): (() => void) => {
@@ -160,7 +165,8 @@ const assistant: AssistantApi = {
       ipcRenderer.removeListener('assistant:update', listener)
     }
   },
-  sendFeedback: (vote) => ipcRenderer.invoke('assistant:feedback', vote),
+  // Anclar/desanclar una pregunta de la cola (SPEC-036), fire-and-forget
+  setPinned: (itemId, pinned) => ipcRenderer.invoke('assistant:set-pinned', itemId, pinned),
   // Reanudar tras pausa por límite de coste (SPEC-021)
   resume: () => ipcRenderer.invoke('assistant:resume')
 }
