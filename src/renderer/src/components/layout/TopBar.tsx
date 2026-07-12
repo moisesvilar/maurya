@@ -25,13 +25,25 @@ function sectionTitleFor(pathname: string): string {
   return match?.title ?? 'Página no encontrada'
 }
 
+interface TopBarProps {
+  /**
+   * Callback ref del slot de contenido por ruta (SPEC-034): Layout lo alimenta
+   * para publicar el nodo por TopBarSlotContext. Opcional: sin él (tests que
+   * montan TopBar suelta) el slot queda inerte.
+   */
+  slotRef?: (node: HTMLDivElement | null) => void
+}
+
 /**
  * Top bar del layout (SPEC-009): landmark banner con el título de la sección
  * activa como h1. SPEC-018 añade en la zona derecha el disparador de la
  * búsqueda global ("Buscar" + pista ⌘K, aria-hidden para no ensuciar el
  * accessible name) y el atajo ⌘K/Ctrl+K global con preventDefault y cleanup.
+ * SPEC-034 añade un slot vacío (display: contents, para que lo portalado
+ * participe como flex item directo del header sin gap fantasma) antes del
+ * botón Buscar, y permite el wrap a dos filas en mobile (min-h-14 flex-wrap).
  */
-export function TopBar(): React.ReactElement {
+export function TopBar({ slotRef }: TopBarProps): React.ReactElement {
   const { pathname } = useLocation()
   const [searchOpen, setSearchOpen] = useState(false)
 
@@ -49,8 +61,9 @@ export function TopBar(): React.ReactElement {
   }, [])
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b px-6">
+    <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-y-2 border-b px-6 py-2">
       <h1 className="text-lg font-semibold">{sectionTitleFor(pathname)}</h1>
+      <div ref={slotRef} className="contents" />
       <Button variant="outline" size="sm" onClick={() => setSearchOpen(true)}>
         <Search />
         Buscar
