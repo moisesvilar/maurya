@@ -95,9 +95,11 @@ interface RecordingSectionViewProps {
 }
 
 /**
- * JSX de la sección. Único condicional por variante: el bloque «Estado 1 —
+ * JSX de la sección. Condicionales por variante: el bloque «Estado 1 —
  * Preparación» solo se pinta en modo entrevista (en la captura esos controles
- * viven en la top bar y la cabecera, SPEC-034). Los Alerts de error y los
+ * viven en la top bar y la cabecera, SPEC-034), y el área de transcripción en
+ * vivo del bloque Grabando también es solo de la entrevista (SPEC-035: en la
+ * captura se retira la UI, no la transcripción). Los Alerts de error y los
  * diálogos (consentimiento, close guard, sobrescribir) se renderizan en ambas.
  */
 function RecordingSectionView({
@@ -182,11 +184,18 @@ function RecordingSectionView({
             <LevelMeter label="Micrófono" value={levels.microphone} />
             <LevelMeter label="Sistema" value={levels.system} />
           </div>
-          <TranscriptArea
-            status={transcription.status}
-            lines={transcription.lines}
-            partials={transcription.partials}
-          />
+          {/* SPEC-035: el área de transcripción en vivo solo se pinta en el
+              detalle de entrevista clásico; en la captura el foco durante la
+              llamada son el asistente y los objetivos. La transcripción sigue
+              corriendo igual: badge de estado, asistente y persistencia
+              (transcript.json) intactos. */}
+          {variant === 'interview' && (
+            <TranscriptArea
+              status={transcription.status}
+              lines={transcription.lines}
+              partials={transcription.partials}
+            />
+          )}
           {transcription.status === 'no-key' && <NoKeyAlert />}
           <MicSelect
             devices={devices}

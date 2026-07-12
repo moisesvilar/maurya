@@ -63,6 +63,9 @@ interface NoteSectionProps {
  * note-template y clave de Anthropic) deshabilitan la generación con
  * Tooltip/Alert; regenerar y descartar cambios piden confirmación con
  * AlertDialog; los errores del LLM son un Alert destructive persistente.
+ * SPEC-035: el estado vacío «Graba la entrevista para poder generar la
+ * nota.» (SPEC-017) queda derogado — sin nota y sin transcripción esta
+ * sección ya ni se monta (NoteScriptSections), así que la rama se eliminó.
  */
 export function NoteSection({
   interview,
@@ -276,12 +279,6 @@ export function NoteSection({
       </div>
 
       {noteState.status === 'loading' && <Skeleton className="h-24 w-full" />}
-
-      {noteState.status === 'ready' && note === null && !hasTranscript && (
-        <p className="text-sm text-muted-foreground">
-          Graba la entrevista para poder generar la nota.
-        </p>
-      )}
 
       {noteState.status === 'ready' && note === null && hasTranscript && (
         <div className="flex flex-col gap-3">
