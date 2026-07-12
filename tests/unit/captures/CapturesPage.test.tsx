@@ -303,6 +303,38 @@ describe('CapturesPage', () => {
       expect((await screen.findAllByText('Captura creada')).length).toBeGreaterThanOrEqual(1)
       expect(await screen.findByText('CAPTURE_DETAIL_PROBE')).toBeInTheDocument()
     })
+
+    // SPEC-033 · AC-01 (lado renderer): tras crear, el disparo de la
+    // autogeneración es incondicional (los guards viven en main: aquí la
+    // captura va SIN plantilla y aun así se invoca) y fire-and-forget — la
+    // navegación al detalle no lo espera
+    it('fires the fire-and-forget script auto-generation with the created capture id, even without a template (SPEC-033)', async () => {
+      setCaptures([])
+      vi.mocked(mockApi.api.db.listDiscoveries).mockResolvedValue({
+        ok: true,
+        data: [DISCOVERY]
+      })
+      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({
+        ok: true,
+        data: interview({ id: 'i-9', title: 'Kickoff con prospecto' })
+      })
+      const user = userEvent.setup()
+      renderCaptures()
+
+      await user.click(await screen.findByRole('button', { name: 'Nueva captura' }))
+      await screen.findByTestId('new-capture-dialog')
+      await user.type(screen.getByLabelText('Título'), 'Kickoff con prospecto')
+      await user.click(screen.getByRole('combobox', { name: 'Discovery' }))
+      await user.click(await screen.findByRole('option', { name: 'Vertical Sanidad' }))
+      await user.click(screen.getByRole('button', { name: 'Crear' }))
+
+      await waitFor(() =>
+        expect(vi.mocked(mockApi.api.llm.autoGenerateScript)).toHaveBeenCalledWith('i-9')
+      )
+      expect(vi.mocked(mockApi.api.llm.autoGenerateScript)).toHaveBeenCalledTimes(1)
+      // La navegación al detalle no queda bloqueada por la generación
+      expect(await screen.findByText('CAPTURE_DETAIL_PROBE')).toBeInTheDocument()
+    })
   })
 
   describe('row actions menu', () => {
@@ -378,9 +410,7 @@ describe('CapturesPage', () => {
       await openRowAction(user, 'Captura sin empresa', 'Eliminar')
 
       const dialog = await screen.findByRole('alertdialog')
-      expect(
-        within(dialog).getByRole('heading', { name: 'Eliminar captura' })
-      ).toBeInTheDocument()
+      expect(within(dialog).getByRole('heading', { name: 'Eliminar captura' })).toBeInTheDocument()
       expect(dialog).toHaveTextContent(
         'Se eliminarán permanentemente «Captura sin empresa» y sus notas.'
       )

@@ -18,7 +18,7 @@
  * toBeEnabled() por testid y re-consultar antes de clicar (nunca la
  * referencia stale).
  */
-import { render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
+import { act, render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -533,6 +533,122 @@ describe('ScriptSection', () => {
       await waitFor(() =>
         expect(screen.queryByTestId('script-editor-actions')).not.toBeInTheDocument()
       )
+    })
+  })
+
+  describe('auto-generation (SPEC-033)', () => {
+    // Los eventos llm:script-generation llegan por mockApi.emitScriptGeneration
+    // (patrón ObjectivesSection/SPEC-025); la suscripción filtra por interview.id.
+
+    // SPEC-033 · AC-02 (scoping del evento): la generación de OTRA entrevista
+    // no enciende el indicador de esta
+    it('ignores script-generation events of another interview keeping the enabled generate buttons', async () => {
+      renderDetail()
+      await waitFor(() =>
+        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+      )
+
+      act(() => {
+        mockApi.emitScriptGeneration({ interviewId: 'i-otra', status: 'generating' })
+      })
+
+      expect(screen.queryByRole('button', { name: 'Generando guión…' })).not.toBeInTheDocument()
+      const buttons = screen.getAllByRole('button', { name: 'Generar guión' })
+      expect(buttons).toHaveLength(2)
+      buttons.forEach((button) => expect(button).toBeEnabled())
+    })
+
+    // SPEC-033 · AC-02: en curso → «Generando guión…» disabled en la cabecera
+    // y sustituyendo al botón del empty state
+    it('shows the disabled "Generando guión…" indicator in the header and replacing the empty state CTA on its generating event', async () => {
+      renderDetail()
+      await waitFor(() =>
+        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+      )
+
+      act(() => {
+        mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })
+      })
+
+      const indicators = screen.getAllByRole('button', { name: 'Generando guión…' })
+      expect(indicators).toHaveLength(2)
+      indicators.forEach((indicator) => expect(indicator).toBeDisabled())
+      // «Generar guión» queda sustituido en ambas ubicaciones; el empty state
+      // («Aún no hay guión») sigue de fondo hasta que llegue el done
+      expect(screen.queryByRole('button', { name: 'Generar guión' })).not.toBeInTheDocument()
+      expect(screen.getByText('Aún no hay guión')).toBeInTheDocument()
+    })
+
+    // SPEC-033 · AC-03 (UI): done → guión en el editor, objetivos y Badge
+    // «Preparada» vía onInterviewUpdated, sin acción del usuario ni Toast de éxito
+    it('renders the generated script, objectives and "Preparada" badge on the done event without a success toast', async () => {
+      renderDetail()
+      await waitFor(() =>
+        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+      )
+
+      act(() => {
+        mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })
+      })
+      act(() => {
+        mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'done', interview: GENERATED })
+      })
+
+      // El guión aparece en el editor y la página refleja objetivos y estado
+      expect(await screen.findByText('Contenido nuevo')).toBeInTheDocument()
+      const editor = screen.getByTestId('script-markdown-editor')
+      expect(within(editor).getByText('Guión generado').closest('h1')).not.toBeNull()
+      expect(screen.getByText('Objetivo nuevo')).toBeInTheDocument()
+      expect(screen.getByText('Preparada')).toBeInTheDocument()
+      // Sin indicador residual y sin haber pasado por el invoke manual
+      expect(screen.queryByRole('button', { name: 'Generando guión…' })).not.toBeInTheDocument()
+      expect(vi.mocked(mockApi.api.llm.generateScript)).not.toHaveBeenCalled()
+      // Sin Toast de éxito: «Guión generado» solo existe como h1 del editor,
+      // nunca dentro de un toast de sonner (el texto coincide a propósito)
+      screen
+        .getAllByText('Guión generado')
+        .forEach((node) => expect(node.closest('[data-sonner-toast]')).toBeNull())
+    })
+
+    // SPEC-033 · AC-07 (UI): error → Toast con el mensaje del fallo y el botón
+    // «Generar guión» vuelve disponible como reintento manual
+    it('toasts the failure message on the error event and restores the enabled "Generar guión" button as manual retry', async () => {
+      const user = userEvent.setup()
+      vi.mocked(mockApi.api.llm.generateScript).mockReturnValue(
+        new Promise<LlmResult<Interview>>(() => {
+          // pendiente a propósito: solo se verifica el disparo del reintento
+        })
+      )
+      renderDetail()
+      await waitFor(() =>
+        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+      )
+
+      act(() => {
+        mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })
+      })
+      act(() => {
+        mockApi.emitScriptGeneration({
+          interviewId: 'i-1',
+          status: 'error',
+          message:
+            'No se pudo conectar con la API de Anthropic. Comprueba tu conexión e inténtalo de nuevo.'
+        })
+      })
+
+      const toasts = await screen.findAllByText(
+        'No se pudo conectar con la API de Anthropic. Comprueba tu conexión e inténtalo de nuevo.'
+      )
+      expect(toasts.length).toBeGreaterThanOrEqual(1)
+      // La captura sigue intacta sin guión y con el botón disponible
+      expect(screen.getByText('Aún no hay guión')).toBeInTheDocument()
+      const buttons = screen.getAllByRole('button', { name: 'Generar guión' })
+      expect(buttons).toHaveLength(2)
+      buttons.forEach((button) => expect(button).toBeEnabled())
+
+      // Reintento manual operativo (mecanismo de SPEC-014, invoke)
+      await user.click(buttons[0])
+      expect(vi.mocked(mockApi.api.llm.generateScript)).toHaveBeenCalledWith('i-1')
     })
   })
 })
