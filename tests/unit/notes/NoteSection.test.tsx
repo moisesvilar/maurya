@@ -16,10 +16,12 @@
  * se REMONTA al habilitarse (getStatus/templates async) → esperar
  * toBeEnabled() por testid y re-consultar el elemento antes de clicar (nunca
  * clicar la referencia stale previa).
- * SPEC-027 (disposición): sin guión/nota/transcripción la sección Nota NO se
- * monta → el fixture del record-first lleva guión; y tras generar la nota la
- * sección se remonta reordenada → re-anclar el section y encadenar el mock de
- * getNoteByInterview (2 lecturas iniciales null, después la nota persistida).
+ * SPEC-027/SPEC-035 (disposición): sin nota y SIN transcripción la sección
+ * Nota NO se monta — haya guión o no — y el estado vacío record-first «Graba
+ * la entrevista para poder generar la nota.» (SPEC-017 · AC-02) quedó
+ * derogado por SPEC-035 (rama eliminada de NoteSection); tras generar la nota
+ * la sección se remonta reordenada → re-anclar el section y encadenar el mock
+ * de getNoteByInterview (2 lecturas iniciales null, después la nota persistida).
  */
 import { render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -187,9 +189,11 @@ describe('NoteSection', () => {
       expect(within(section).getByRole('button', { name: 'Ver transcripción' })).toBeInTheDocument()
     })
 
-    // SPEC-017 · AC-02 (fixture con guión: por la disposición de SPEC-027, sin
-    // guión ni transcripción ni nota la sección Nota no se muestra)
-    it('shows the record-first empty state without selector nor generate button when there is no recording', async () => {
+    // SPEC-017 · AC-02 DEROGADO por SPEC-035: el estado vacío «Graba la
+    // entrevista para poder generar la nota.» se eliminó — sin transcripción y
+    // sin nota la sección Nota ya ni se monta, ni siquiera con guión. Este es
+    // el caso de SPEC-035 · AC-01 montado vía InterviewDetailPage.
+    it('does not mount the Nota section nor the record-first message when there is no recording', async () => {
       setInterview(
         interview({
           transcriptPath: null,
@@ -199,17 +203,16 @@ describe('NoteSection', () => {
         })
       )
       renderDetail()
-      const section = await noteSection()
 
+      // La página está cargada cuando la sección Guión (la única de contenido
+      // que queda) aparece; a partir de ahí se aserta la ausencia total
+      expect(await screen.findByRole('heading', { name: 'Guión' })).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Nota' })).not.toBeInTheDocument()
       expect(
-        await within(section).findByText('Graba la entrevista para poder generar la nota.')
-      ).toBeInTheDocument()
-      expect(
-        within(section).queryByRole('combobox', { name: 'Note-template' })
+        screen.queryByText('Graba la entrevista para poder generar la nota.')
       ).not.toBeInTheDocument()
-      expect(
-        within(section).queryByRole('button', { name: 'Generar nota' })
-      ).not.toBeInTheDocument()
+      expect(screen.queryByRole('combobox', { name: 'Note-template' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Generar nota' })).not.toBeInTheDocument()
     })
 
     // SPEC-017 · AC-03
