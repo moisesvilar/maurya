@@ -252,14 +252,21 @@ describe('CaptureDetailPage (SPEC-035 capture UI cleanup)', () => {
       await startFromHeader(user)
 
       emitLiveLine()
+      // SPEC-036: el evento transporta la cola completa (sustituye a suggestion)
       act(() => {
         mockApi.emitAssistantUpdate({
           state: 'active',
-          suggestion: {
-            action: 'dig_deeper',
-            suggestedQuestion: '¿Cuándo fue la última vez que os pasó?',
-            reason: 'La afirmación es genérica: pide un ejemplo concreto',
-            alarms: ['generic']
+          queue: {
+            pending: [
+              {
+                id: 'q-1',
+                action: 'dig_deeper',
+                suggestedQuestion: '¿Cuándo fue la última vez que os pasó?',
+                reason: 'La afirmación es genérica: pide un ejemplo concreto',
+                alarms: ['generic']
+              }
+            ],
+            pinned: []
           },
           objectivesMet: []
         })

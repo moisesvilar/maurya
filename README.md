@@ -1,6 +1,6 @@
 # Maurya
 
- Maurya es tu copiloto para entrevistas de descubrimiento. Te ayuda a aplicar The Mom Test en tiempo real: escucha la conversación, detecta cuándo se desvía hacia generalidades, opiniones o cumplidos de cortesía, y te sugiere cómo reconducirla hacia hechos concretos. Así sales de cada entrevista con problemas reales y relevantes.
+Maurya es tu copiloto para entrevistas de descubrimiento. Te ayuda a aplicar The Mom Test en tiempo real: escucha la conversación, detecta cuándo se desvía hacia generalidades, opiniones o cumplidos de cortesía, y te sugiere cómo reconducirla hacia hechos concretos. Así sales de cada entrevista con problemas reales y relevantes.
 
 ## Servicios externos
 
@@ -50,11 +50,10 @@ npm run build:mac    # typecheck + electron-vite build + electron-builder --mac
 ```
 
 - `npm run dev` **falla en silencio si `ELECTRON_RUN_AS_NODE` está exportada**
-(Electron arranca como Node y la ventana no abre). Usa
-`env -u ELECTRON_RUN_AS_NODE npm run dev`.
+  (Electron arranca como Node y la ventana no abre). Usa
+  `env -u ELECTRON_RUN_AS_NODE npm run dev`.
 - Requisitos: macOS 14.2+ (backend CATap del loopback), Node 20+.
 
 ## Licencia
 
 Maurya es open source bajo licencia [MIT](LICENSE).
-

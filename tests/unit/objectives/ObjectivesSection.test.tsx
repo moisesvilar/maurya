@@ -177,7 +177,11 @@ describe('ObjectivesSection', () => {
       const section = await findSection()
 
       act(() => {
-        mockApi.emitAssistantUpdate({ state: 'active', objectivesMet: [1] })
+        mockApi.emitAssistantUpdate({
+          state: 'active',
+          queue: { pending: [], pinned: [] },
+          objectivesMet: [1]
+        })
       })
 
       const items = within(section).getAllByTestId('objective-item')
@@ -273,7 +277,11 @@ describe('ObjectivesSection', () => {
 
       // El seguimiento en vivo marcó el objetivo 1 como cubierto…
       act(() => {
-        mockApi.emitAssistantUpdate({ state: 'active', objectivesMet: [1] })
+        mockApi.emitAssistantUpdate({
+          state: 'active',
+          queue: { pending: [], pinned: [] },
+          objectivesMet: [1]
+        })
       })
       const items = within(section).getAllByTestId('objective-item')
       await waitFor(() => expect(items[1]).toHaveAttribute('data-state', 'met'))

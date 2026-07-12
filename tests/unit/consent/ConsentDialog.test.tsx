@@ -187,9 +187,7 @@ describe('ConsentDialog (aviso de grabación)', () => {
       renderDetail()
       const dialog = await openConsent(user)
 
-      await user.click(
-        within(dialog).getByRole('button', { name: 'Entendido, iniciar grabación' })
-      )
+      await user.click(within(dialog).getByRole('button', { name: 'Entendido, iniciar grabación' }))
 
       // El diálogo se cierra y la captura arranca (flujo SPEC-015 intacto)
       await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
@@ -228,9 +226,7 @@ describe('ConsentDialog (aviso de grabación)', () => {
 
       await user.click(within(dialog).getByRole('checkbox'))
       expect(within(dialog).getByRole('checkbox')).toBeChecked()
-      await user.click(
-        within(dialog).getByRole('button', { name: 'Entendido, iniciar grabación' })
-      )
+      await user.click(within(dialog).getByRole('button', { name: 'Entendido, iniciar grabación' }))
 
       expect(await screen.findByRole('button', { name: 'Detener' })).toBeInTheDocument()
       // La preferencia queda persistida SOLO al confirmar con la casilla
@@ -261,9 +257,7 @@ describe('ConsentDialog (aviso de grabación)', () => {
       const { unmount } = renderDetail()
       const dialog = await openConsent(user)
       await user.click(within(dialog).getByRole('checkbox'))
-      await user.click(
-        within(dialog).getByRole('button', { name: 'Entendido, iniciar grabación' })
-      )
+      await user.click(within(dialog).getByRole('button', { name: 'Entendido, iniciar grabación' }))
       await screen.findByRole('button', { name: 'Detener' })
       expect(window.localStorage.getItem(STORAGE_KEY)).toBe('true')
 
@@ -283,9 +277,7 @@ describe('ConsentDialog (aviso de grabación)', () => {
       const { unmount } = renderDetail()
       const dialog = await openConsent(user)
       // Confirmación SIN marcar la casilla
-      await user.click(
-        within(dialog).getByRole('button', { name: 'Entendido, iniciar grabación' })
-      )
+      await user.click(within(dialog).getByRole('button', { name: 'Entendido, iniciar grabación' }))
       await screen.findByRole('button', { name: 'Detener' })
       expect(window.localStorage.getItem(STORAGE_KEY)).toBeNull()
 

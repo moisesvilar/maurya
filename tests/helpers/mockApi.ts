@@ -200,6 +200,13 @@ function createMockDbApi(): DbApi {
       .mockResolvedValue({ ok: true, data: { limitUsd: null } }),
     setAiCostSettings: vi.fn<DbApi['setAiCostSettings']>(),
 
+    // SPEC-036: tamaño de la cola de preguntas del asistente (default de
+    // solo-lectura seguro: 3; el set se configura por test)
+    getAssistantSettings: vi
+      .fn<DbApi['getAssistantSettings']>()
+      .mockResolvedValue({ ok: true, data: { queueSize: 3 } }),
+    setAssistantSettings: vi.fn<DbApi['setAssistantSettings']>(),
+
     // SPEC-026: prompts de IA personalizables (default de solo-lectura seguro:
     // catálogo vacío; save/reset se configuran por test)
     listCustomPrompts: vi.fn<DbApi['listCustomPrompts']>().mockResolvedValue({
@@ -235,7 +242,9 @@ export function createMockApi(): MockApiHandle {
           }
         }
       }),
-      sendFeedback: vi.fn<AssistantApi['sendFeedback']>().mockResolvedValue(undefined),
+      // SPEC-036 (deroga el feedback 👍/👎 de SPEC-016): anclar/desanclar una
+      // pregunta de la cola, fire-and-forget
+      setPinned: vi.fn<AssistantApi['setPinned']>().mockResolvedValue(undefined),
       // SPEC-021: reanuda el asistente pausado por límite de coste
       resume: vi.fn<AssistantApi['resume']>().mockResolvedValue(undefined)
     },

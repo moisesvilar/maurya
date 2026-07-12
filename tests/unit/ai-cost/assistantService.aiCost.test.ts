@@ -314,9 +314,11 @@ describe('assistantService (coste de IA SPEC-021)', () => {
       expect(assistantEvents(send).at(-1)?.state).toBe('paused')
     })
     expect(harness.create).not.toHaveBeenCalled()
-    // El evento lleva el límite que provocó la pausa (sin usage: 0 análisis)
+    // El evento lleva el límite que provocó la pausa (sin usage: 0 análisis);
+    // SPEC-036: todo evento transporta la cola completa (aquí vacía)
     expect(assistantEvents(send).at(-1)).toEqual({
       state: 'paused',
+      queue: { pending: [], pinned: [] },
       objectivesMet: [],
       pauseLimitUsd: 0.01
     })

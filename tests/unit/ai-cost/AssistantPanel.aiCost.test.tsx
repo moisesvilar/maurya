@@ -21,7 +21,7 @@ import {
   listAudioInputDevices
 } from '@/services/captureService'
 import { getPermissionsStatus } from '@/services/permissionsService'
-import type { AssistantSuggestion } from '@/types/assistant'
+import type { AssistantQueue } from '@/types/assistant'
 import type { AiUsage, Company, Interview } from '@/types/domain'
 import { createFakeAudioStream } from '../../helpers/fakeMediaStream'
 import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
@@ -80,15 +80,29 @@ const INTERVIEW: Interview = {
 }
 
 function usage(overrides: Partial<AiUsage> = {}): AiUsage {
-  return { calls: 4, inputTokens: 12_000, outputTokens: 2_400, estimatedCostUsd: 0.12, ...overrides }
+  return {
+    calls: 4,
+    inputTokens: 12_000,
+    outputTokens: 2_400,
+    estimatedCostUsd: 0.12,
+    ...overrides
+  }
 }
 
-function suggestion(): AssistantSuggestion {
+// SPEC-036: los eventos transportan la cola completa (la sugerencia única
+// del evento quedó derogada); la pregunta viaja como ítem pendiente
+function queueWithSuggestion(): AssistantQueue {
   return {
-    action: 'continue',
-    suggestedQuestion: '¿Cuándo fue la última vez que pasó?',
-    reason: 'Ya hay material concreto para avanzar',
-    alarms: []
+    pending: [
+      {
+        id: 'q-1',
+        action: 'continue',
+        suggestedQuestion: '¿Cuándo fue la última vez que pasó?',
+        reason: 'Ya hay material concreto para avanzar',
+        alarms: []
+      }
+    ],
+    pinned: []
   }
 }
 
@@ -124,6 +138,8 @@ function emitPaused(): void {
   act(() => {
     mockApi.emitAssistantUpdate({
       state: 'paused',
+      // SPEC-036: la cola viaja también en 'paused' (el Alert la sustituye en UI)
+      queue: queueWithSuggestion(),
       objectivesMet: [],
       pauseLimitUsd: 1,
       usage: usage()
@@ -174,7 +190,7 @@ describe('AssistantPanel (coste de IA SPEC-021)', () => {
     act(() => {
       mockApi.emitAssistantUpdate({
         state: 'active',
-        suggestion: suggestion(),
+        queue: queueWithSuggestion(),
         objectivesMet: [],
         usage: usage()
       })
@@ -187,7 +203,7 @@ describe('AssistantPanel (coste de IA SPEC-021)', () => {
     act(() => {
       mockApi.emitAssistantUpdate({
         state: 'active',
-        suggestion: suggestion(),
+        queue: queueWithSuggestion(),
         objectivesMet: [],
         usage: usage({ calls: 5, estimatedCostUsd: 0.15 })
       })
@@ -207,7 +223,7 @@ describe('AssistantPanel (coste de IA SPEC-021)', () => {
     act(() => {
       mockApi.emitAssistantUpdate({
         state: 'active',
-        suggestion: suggestion(),
+        queue: queueWithSuggestion(),
         objectivesMet: [],
         usage: usage()
       })
@@ -240,7 +256,7 @@ describe('AssistantPanel (coste de IA SPEC-021)', () => {
     act(() => {
       mockApi.emitAssistantUpdate({
         state: 'active',
-        suggestion: suggestion(),
+        queue: queueWithSuggestion(),
         objectivesMet: [],
         usage: usage({ calls: 5, estimatedCostUsd: 0.45 })
       })

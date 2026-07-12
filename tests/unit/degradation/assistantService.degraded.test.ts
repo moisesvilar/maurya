@@ -174,13 +174,14 @@ describe('assistantService (degradación SPEC-022)', () => {
     expect(userPrompt).toContain('[system] segunda línea sin hablante')
     expect(userPrompt).not.toMatch(/\[(mic|system) s\d\]/)
 
-    // Y la sugerencia llega con normalidad
+    // Y la sugerencia llega con normalidad (SPEC-036: encolada como primer
+    // ítem pendiente de la cola que transporta el evento)
     await vi.waitFor(() => {
       const events = assistantSender.send.mock.calls
         .filter((call) => call[0] === 'assistant:update')
         .map((call) => call[1] as AssistantUpdateEvent)
       expect(events.at(-1)?.state).toBe('active')
-      expect(events.at(-1)?.suggestion?.suggestedQuestion).toBe(
+      expect(events.at(-1)?.queue.pending[0]?.suggestedQuestion).toBe(
         '¿Cuándo fue la última vez que pasó?'
       )
     })

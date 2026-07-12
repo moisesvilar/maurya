@@ -341,7 +341,11 @@ describe('ObjectivesSection', () => {
 
       // El asistente en vivo marca AMBOS como cubiertos durante la grabación…
       act(() => {
-        mockApi.emitAssistantUpdate({ state: 'active', objectivesMet: [0, 1] })
+        mockApi.emitAssistantUpdate({
+          state: 'active',
+          queue: { pending: [], pinned: [] },
+          objectivesMet: [0, 1]
+        })
       })
 
       // …el objetivo sin marca refleja el vivo; el marcado a mano NO cambia
