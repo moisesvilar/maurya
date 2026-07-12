@@ -149,7 +149,7 @@ Peticiones directas del humano recogidas en [drafts/improvements-20260711.md](dr
 - [x] 🟡 **Prompts personalizados en acordeón**: en Ajustes cada prompt colapsado de inicio; el lápiz expande in-place el editor WYSIWYG (sin side panel); sin sección «Reglas fijas (no editables)»; expandir/colapsar **no solidario** (varios abiertos a la vez); + mitigación de *prompt injection* al aplicar prompts en guión/nota/asistente (ignorar instrucciones ajenas al objetivo de la app, p. ej. «olvida tus instrucciones») (RF-CFG-001) — §«Cambios en la edición de prompts personalizados» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md) — SPEC-031, unit 522/522 PASS (18/18 ACs; salvaguarda estática byte-estable; eficacia real de la mitigación pendiente de humo con clave)
 - [x] 🟡 **Nombre por defecto de captura** «Captura dd-mmmm-yyyy hh:mm» (fecha/hora de inicio) cuando el nombre esté vacío — §«Mejoras en las capturas» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md) — SPEC-032, unit 528/528 PASS a la primera (7/7 ACs; título opcional solo al crear)
 - [x] 🟡 **Autogeneración del guión al crear la captura**, sin pulsar «Generar guión» (RF-GUION-002) — §«Mejoras en las capturas» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md) — SPEC-033, unit 541/541 PASS (10/10 ACs; fire-and-forget en main con guards silenciosos + eventos llm:script-generation)
-- [ ] 🟡 **Reubicar controles de grabación en la Captura**: opciones (permisos mic/sistema + selección de micrófono) a la top bar, en pequeño y horizontal; «Iniciar grabación» (primary) junto a «Asignar empresa» (secondary) — §«Mejoras en las capturas» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md)
+- [x] 🟡 **Reubicar controles de grabación en la Captura**: opciones (permisos mic/sistema + selección de micrófono) a la top bar, en pequeño y horizontal; «Iniciar grabación» (primary) junto a «Asignar empresa» (secondary) — §«Mejoras en las capturas» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md) — SPEC-034, unit 554/554 PASS a la primera (13/13 ACs; useRecordingController extraído + TopBarPortal; detalle de entrevista intacto)
 - [ ] 🟢 **Limpiar UI de Captura**: quitar el mensaje «Nota / Graba la entrevista para poder generar la nota» y eliminar el componente de transcripción en tiempo real — §«Mejoras en las capturas» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md)
 - [ ] 🟡 **Cola persistente de preguntas sugeridas (anti-descarte)** en el asistente en vivo: quitar 👍/👎; mantener una **cola de preguntas pendientes que persisten** hasta resolverse (no se pisan al generar la siguiente), con **tamaño configurable en Ajustes (default 3)**; **supresión por similitud** contra toda la cola; **resolución automática** cuando el tema se cubre; **anclado manual (chincheta) opcional** como red de seguridad, sección oculta si no hay ancladas (RF-ASIS-002, RF-ASIS-004) — §«Enfoque acordado: cola persistente + supresión por similitud» de [drafts/improvements-20260711.md](drafts/improvements-20260711.md)
 
@@ -180,8 +180,8 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H7 · Pulido | 7 | 6 |
 | H8 · Post-MVP | 2 | 2 |
 | Post-MVP · Config. IA | 1 | 1 |
-| H9 · Mejoras UX/captura | 9 | 6 |
+| H9 · Mejoras UX/captura | 9 | 7 |
 | Validación | 4 | 0 |
-| **Total** | **68** | **60** |
+| **Total** | **68** | **61** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
