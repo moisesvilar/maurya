@@ -218,7 +218,7 @@ export function ObjectivesSection({
               >
                 {state === 'met' ? (
                   <CheckCircle2
-                    className="mt-0.5 size-4 shrink-0 text-green-600"
+                    className="mt-0.5 size-4 shrink-0 text-green-600 dark:text-green-500"
                     aria-hidden="true"
                   />
                 ) : (

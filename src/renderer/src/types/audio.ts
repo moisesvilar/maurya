@@ -5,6 +5,7 @@
  * Este módulo NO debe depender del DOM: lo importan (type-only) main y preload.
  */
 import type { Interview } from './domain'
+import type { ThemePreference } from './theme'
 
 /** Estados que devuelve systemPreferences.getMediaAccessStatus en macOS. */
 export type PermissionState = 'not-determined' | 'granted' | 'denied' | 'restricted' | 'unknown'
@@ -179,5 +180,10 @@ export interface MauryaApi {
   window: {
     onCloseRequested: (callback: () => void) => () => void
     confirmClose: () => void
+    /**
+     * Propaga la preferencia de tema a main (fire-and-forget) para que el
+     * chrome nativo (nativeTheme: barra de título, diálogos) acompañe.
+     */
+    setTheme: (theme: ThemePreference) => void
   }
 }

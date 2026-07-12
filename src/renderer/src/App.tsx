@@ -1,6 +1,7 @@
 import React from 'react'
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Layout } from '@/components/layout/Layout'
+import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { CaptureDetailPage } from '@/pages/CaptureDetailPage'
@@ -28,37 +29,39 @@ import { TemplatesHubPage } from '@/pages/TemplatesHubPage'
  */
 function App(): React.ReactElement {
   return (
-    <TooltipProvider>
-      <HashRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Navigate to="/captures" replace />} />
-            <Route path="capture" element={<Navigate to="/captures" replace />} />
-            <Route path="captures" element={<CapturesPage />} />
-            <Route path="captures/:id" element={<CaptureDetailPage />} />
-            <Route path="discoveries" element={<DiscoveriesPage />} />
-            <Route path="discoveries/:id" element={<DiscoveryDetailPage />} />
-            <Route
-              path="discoveries/:discoveryId/companies/:companyId"
-              element={<CompanyDetailPage />}
-            />
-            <Route
-              path="discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
-              element={<InterviewDetailPage />}
-            />
-            <Route path="templates" element={<TemplatesHubPage />} />
-            <Route path="templates/interview" element={<InterviewTemplatesPage />} />
-            <Route path="templates/interview/new" element={<InterviewTemplateEditorPage />} />
-            <Route path="templates/interview/:id" element={<InterviewTemplateEditorPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="settings/note-templates/new" element={<NoteTemplateEditorPage />} />
-            <Route path="settings/note-templates/:id" element={<NoteTemplateEditorPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Route>
-        </Routes>
-      </HashRouter>
-      <Toaster />
-    </TooltipProvider>
+    <ThemeProvider>
+      <TooltipProvider>
+        <HashRouter>
+          <Routes>
+            <Route path="/" element={<Layout />}>
+              <Route index element={<Navigate to="/captures" replace />} />
+              <Route path="capture" element={<Navigate to="/captures" replace />} />
+              <Route path="captures" element={<CapturesPage />} />
+              <Route path="captures/:id" element={<CaptureDetailPage />} />
+              <Route path="discoveries" element={<DiscoveriesPage />} />
+              <Route path="discoveries/:id" element={<DiscoveryDetailPage />} />
+              <Route
+                path="discoveries/:discoveryId/companies/:companyId"
+                element={<CompanyDetailPage />}
+              />
+              <Route
+                path="discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
+                element={<InterviewDetailPage />}
+              />
+              <Route path="templates" element={<TemplatesHubPage />} />
+              <Route path="templates/interview" element={<InterviewTemplatesPage />} />
+              <Route path="templates/interview/new" element={<InterviewTemplateEditorPage />} />
+              <Route path="templates/interview/:id" element={<InterviewTemplateEditorPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="settings/note-templates/new" element={<NoteTemplateEditorPage />} />
+              <Route path="settings/note-templates/:id" element={<NoteTemplateEditorPage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
+          </Routes>
+        </HashRouter>
+        <Toaster />
+      </TooltipProvider>
+    </ThemeProvider>
   )
 }
 

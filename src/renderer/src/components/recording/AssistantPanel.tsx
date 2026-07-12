@@ -48,7 +48,11 @@ function ItemBadges({ item }: { item: AssistantQueueItem }): React.ReactElement 
         <Badge className="bg-green-600 text-white">Continúa</Badge>
       )}
       {item.alarms.map((alarm) => (
-        <Badge key={alarm} variant="outline" className="border-amber-500 text-amber-600">
+        <Badge
+          key={alarm}
+          variant="outline"
+          className="border-amber-500 text-amber-600 dark:border-amber-400 dark:text-amber-400"
+        >
           {ALARM_LABELS[alarm]}
         </Badge>
       ))}

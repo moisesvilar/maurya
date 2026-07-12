@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, shell } from 'electron'
+import { BrowserWindow, ipcMain, nativeTheme, shell } from 'electron'
 import { readFileSync } from 'fs'
 import type {
   LatencyStats,
@@ -159,6 +159,17 @@ export function registerIpcHandlers(): void {
       }
     }
   )
+
+  /**
+   * Tema (dark mode): el renderer gobierna la preferencia (localStorage) y la
+   * propaga aquí para que el chrome nativo (barra de título, diálogos)
+   * acompañe. Validación en frontera: un payload inesperado se ignora.
+   */
+  ipcMain.on('window:set-theme', (_event, theme: unknown) => {
+    if (theme === 'light' || theme === 'dark' || theme === 'system') {
+      nativeTheme.themeSource = theme
+    }
+  })
 
   ipcMain.handle('permissions:get-status', () => getPermissionsSnapshot())
 
