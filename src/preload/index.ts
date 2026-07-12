@@ -19,6 +19,7 @@ import type {
 } from '../renderer/src/types/llm'
 import type { NotesApi } from '../renderer/src/types/notes'
 import type { AssistantApi, AssistantUpdateEvent } from '../renderer/src/types/assistant'
+import type { ThemePreference } from '../renderer/src/types/theme'
 
 /**
  * Bridge de persistencia (SPEC-006): API PLANA (`createCompany`, no
@@ -236,6 +237,10 @@ const api: MauryaApi & {
     },
     confirmClose: (): void => {
       ipcRenderer.send('window:confirm-close')
+    },
+    // Tema (dark mode): fire-and-forget para que nativeTheme acompañe
+    setTheme: (theme: ThemePreference): void => {
+      ipcRenderer.send('window:set-theme', theme)
     }
   },
   db,

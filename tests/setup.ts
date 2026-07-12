@@ -8,7 +8,7 @@
 import '@testing-library/jest-dom/vitest'
 
 if (typeof window !== 'undefined') {
-  // sonner y next-themes consultan matchMedia
+  // sonner y el ThemeProvider (lib/theme) consultan matchMedia
   if (typeof window.matchMedia !== 'function') {
     window.matchMedia = (query: string): MediaQueryList => ({
       matches: false,

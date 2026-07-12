@@ -313,7 +313,9 @@ export function createMockApi(): MockApiHandle {
           }
         }
       }),
-      confirmClose: vi.fn<MauryaApi['window']['confirmClose']>()
+      confirmClose: vi.fn<MauryaApi['window']['confirmClose']>(),
+      // Tema (dark mode): fire-and-forget hacia main, sin retorno que configurar
+      setTheme: vi.fn<MauryaApi['window']['setTheme']>()
     }
   }
 

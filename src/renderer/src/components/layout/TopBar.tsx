@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { GlobalSearchDialog } from '@/components/search/GlobalSearchDialog'
+import { ThemeToggle } from '@/components/layout/ThemeToggle'
 
 /**
  * Mapa prefijo de ruta → título de sección (SPEC-009). `/settings` va primero
@@ -64,16 +65,20 @@ export function TopBar({ slotRef }: TopBarProps): React.ReactElement {
     <header className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-y-2 border-b px-6 py-2">
       <h1 className="text-lg font-semibold">{sectionTitleFor(pathname)}</h1>
       <div ref={slotRef} className="contents" />
-      <Button variant="outline" size="sm" onClick={() => setSearchOpen(true)}>
-        <Search />
-        Buscar
-        <kbd
-          aria-hidden="true"
-          className="pointer-events-none rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground"
-        >
-          ⌘K
-        </kbd>
-      </Button>
+      {/* Buscar + selector de tema agrupados para que justify-between no los separe */}
+      <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={() => setSearchOpen(true)}>
+          <Search />
+          Buscar
+          <kbd
+            aria-hidden="true"
+            className="pointer-events-none rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground"
+          >
+            ⌘K
+          </kbd>
+        </Button>
+        <ThemeToggle />
+      </div>
       <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
   )
