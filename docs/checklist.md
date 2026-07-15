@@ -164,7 +164,7 @@ Peticiones directas del humano tras una entrevista real, recogidas en [drafts/im
 - [x] 🟡 **Acciones por pregunta ANCLAR/DESANCLAR/DESCARTAR/RESPONDIDA**: anclada = nunca sustituida ni auto-resuelta; DESCARTAR saca la pregunta y al finalizar la entrevista se pregunta el porqué para dejar constancia en notas y objetivos; RESPONDIDA saca la pregunta y dispara análisis en background para actualizar objetivos en vivo y nutrir las notas (RF-ASIS-002, RF-ASIS-004, RF-ASIS-005, RF-NOTE-001) — §3 de [drafts/improvements-preguntas-20260715.md](drafts/improvements-preguntas-20260715.md) — SPEC-039, unit 655/655 PASS (25/25 ACs; Interview.questionOutcomes + Dialog de motivos + supresión contra descartadas/respondidas + secciones en prompts de nota/evaluación)
 - [x] 🟡 **Generación de preguntas ceñida al guión y a su orden**: sugerir preferentemente la siguiente pregunta del guión aún no cubierta, en su orden; desviarse solo cuando el Mom Test lo justifique (RF-ASIS-002, RF-GUION-002) — §4 de [drafts/improvements-preguntas-20260715.md](drafts/improvements-preguntas-20260715.md) — SPEC-040, unit 666/666 PASS a la primera (11/11 ACs; reglas de adherencia + scriptCursor realimentado sin tocar el prefijo cacheado)
 - [x] 🟢 **Sugerencias de preguntas arriba al grabar**: el panel del asistente pasa a mostrarse entre la sección Objetivos y el Guión mientras se graba (RF-ASIS-004) — §5 de [drafts/improvements-preguntas-20260715.md](drafts/improvements-preguntas-20260715.md) — SPEC-041, unit 676/676 PASS (10/10 ACs; AssistantLiveSection compartido, controller izado en el detalle de entrevista, aplica también a capturas)
-- [ ] 🟡 **Fusionar las dos secciones «Objetivos»** en una sola: icono de cumplimiento en tiempo real (verde/estándar), descripción corta editable en tiempo real y botón de eliminar por objetivo; se conserva añadir objetivo y la evaluación/overrides de SPEC-025/028 (RF-GUION-004, RF-GUION-005, RF-ASIS-005) — §6 de [drafts/improvements-preguntas-20260715.md](drafts/improvements-preguntas-20260715.md)
+- [x] 🟡 **Fusionar las dos secciones «Objetivos»** en una sola: icono de cumplimiento en tiempo real (verde/estándar), descripción corta editable en tiempo real y botón de eliminar por objetivo; se conserva añadir objetivo y la evaluación/overrides de SPEC-025/028 (RF-GUION-004, RF-GUION-005, RF-ASIS-005) — §6 de [drafts/improvements-preguntas-20260715.md](drafts/improvements-preguntas-20260715.md) — SPEC-042, unit 690/690 PASS (15/15 ACs; sección única editable con draft SPEC-029, bloque del Guión derogado). **H10 completo (6/6)**
 
 ---
 
@@ -194,8 +194,8 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | H8 · Post-MVP | 2 | 2 |
 | Post-MVP · Config. IA | 1 | 1 |
 | H9 · Mejoras UX/captura | 9 | 9 |
-| H10 · Asistente de preguntas | 6 | 0 |
+| H10 · Asistente de preguntas | 6 | 6 |
 | Validación | 4 | 0 |
-| **Total** | **74** | **63** |
+| **Total** | **74** | **69** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
