@@ -1765,5 +1765,67 @@
     },
     "created_at": "2026-07-15",
     "updated_at": "2026-07-15"
+  },
+  "SPEC-039": {
+    "spec_file": "specs/SPEC-039-acciones-preguntas-asistente.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición (25) — acciones visibles en el panel ×4: AC-01 tres acciones por pendiente (Marcar respondida/Descartar pregunta/Anclar pregunta por aria-label), AC-02 anclada con Desanclar (desanclar solo en ancladas, anclar solo en pendientes), AC-03 Descartar invoca la acción con su id y el ítem desaparece al reflejarse el evento de main sin confirmación ni Toast, AC-04 Marcar respondida ídem; servicio ×6: AC-05 discarded saca de la cola, registra en la sesión y emite assistant:update sin LLM, AC-06 la acción manual sí retira ancladas (discarded/answered), AC-07 answered sin vuelo ni pausa dispara UNA llamada inmediata en background cuyo objectivesMet actualiza el seguimiento en vivo, AC-08 con análisis en vuelo sale igualmente y NO hay llamada extra, AC-09 pausado por límite (SPEC-021) sale sin llamada, AC-10 id inexistente o sin sesión es no-op silencioso; supresión y prompt ×3: AC-11 candidata casi idéntica a una descartada se descarta, AC-12 ídem a una respondida, AC-13 el mensaje de usuario incluye la lista de descartadas/respondidas con la instrucción de no repetirlas; persistencia al parar ×2: AC-14 questionOutcomes en el campo assistant del transcript.json y en la entrevista, AC-15 sin acciones manuales queda vacío y suggestionCount/usage se conservan; diálogo de motivos ×4: AC-16 la parada con descartadas abre el Dialog «Preguntas descartadas» con un Textarea opcional por pregunta, AC-17 «Guardar motivos» persiste vía setInterviewDiscardReasons + Toast «Motivos guardados», AC-18 «Omitir» cierra sin persistir, AC-19 sin descartadas no se abre; nota y objetivos ×3: AC-20 el prompt de la nota incluye las secciones de descartadas con motivo y respondidas, AC-21 sin questionOutcomes el prompt es idéntico al actual, AC-22 el prompt de evaluación de objetivos incluye la sección de descartadas con motivo; regresión ×3: AC-23 systemBlocks byte-idénticos con acciones manuales entre medias, AC-24 suggestionCount sigue contando solo candidatas aceptadas, AC-25 anclar/desanclar de SPEC-036 intactos.",
+    "unit": [
+      {
+        "file": "tests/unit/assistant/questionActions.test.ts",
+        "test_count": 14,
+        "description": "assistantService en Node (arnés SPEC-016/021/036/037/038): resolveAssistantItem con discarded/answered (también sobre ancladas), análisis inmediato de answered con guard in-flight y gate de límite de coste intactos, no-ops silenciosos, supresión de candidatas contra descartadas/respondidas, sección nueva del mensaje de usuario, questionOutcomes en summary/transcript.json/entrevista (persistTranscript + repository.setInterviewQuestionOutcomes) y regresión de byte-estabilidad, suggestionCount y pin/unpin."
+      },
+      {
+        "file": "tests/unit/assistant/AssistantPanel.actions.test.tsx",
+        "test_count": 4,
+        "description": "Panel del asistente en jsdom (montado vía InterviewDetailPage con grabación en curso): tres acciones por ítem pendiente y anclado por aria-label, clicks de descartar/respondida → assistant.resolveItem(id, outcome) sin confirmación ni Toast, y desaparición del ítem al re-emitir main la cola sin él (fuente de verdad)."
+      },
+      {
+        "file": "tests/unit/recording/DiscardReasonsDialog.test.tsx",
+        "test_count": 4,
+        "description": "Integración real del Dialog «Preguntas descartadas» vía InterviewDetailPage → RecordingSectionView: apertura tras «Detener» con StopResult.interview.questionOutcomes con descartadas, guardado de motivos → db.setInterviewDiscardReasons con los índices REALES del array completo + Toast «Motivos guardados», «Omitir» cierra sin llamada y sin descartadas no se abre."
+      },
+      {
+        "file": "tests/unit/notes/noteService.outcomes.test.ts",
+        "test_count": 2,
+        "description": "noteService en Node (arnés SPEC-017): secciones condicionales del prompt de la nota — descartadas con motivo (o «sin motivo indicado») y respondidas con questionOutcomes; sin ellos el prompt no incluye esas secciones y conserva su forma."
+      },
+      {
+        "file": "tests/unit/objectives/objectiveEvaluation.outcomes.test.ts",
+        "test_count": 1,
+        "description": "objectiveEvaluationService en Node (arnés SPEC-025): el prompt de evaluación incluye la sección de preguntas descartadas con sus motivos y excluye las respondidas (solo alimentan la nota); el resultado sigue persistiéndose alineado."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e Playwright no aplica en este proyecto (decisión humana 2026-07-03). El glue completo de recording:stop en src/main/ipc.ts (stopAssistant → persistTranscript → setInterviewQuestionOutcomes → updateInterview en un solo handler con ipcMain real) no es alcanzable en unit (precedente SPEC-025 «glue ipc verificado solo por lectura»): AC-14 cubre cada pieza real del camino (summary de stopAssistant, escritura del transcript.json por persistTranscript y persistencia en la Interview por repository) y el encadenado del handler queda verificado por lectura + humo MANUAL (grabar, descartar/responder, parar y comprobar transcript.json y el diálogo de motivos).",
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/assistant/AssistantPanel.actions.test.tsx::AssistantPanel (acciones por pregunta SPEC-039)::actions offered per item::offers Marcar respondida, Descartar pregunta and Anclar pregunta on a pending item",
+      "AC-02": "tests/unit/assistant/AssistantPanel.actions.test.tsx::AssistantPanel (acciones por pregunta SPEC-039)::actions offered per item::offers Marcar respondida, Descartar pregunta and Desanclar pregunta on a pinned item only",
+      "AC-03": "tests/unit/assistant/AssistantPanel.actions.test.tsx::AssistantPanel (acciones por pregunta SPEC-039)::discard and answered clicks::calls resolveItem with discarded on the discard button and removes the item when main re-emits the queue",
+      "AC-04": "tests/unit/assistant/AssistantPanel.actions.test.tsx::AssistantPanel (acciones por pregunta SPEC-039)::discard and answered clicks::calls resolveItem with answered on the answered button and removes the item when main re-emits the queue",
+      "AC-05": "tests/unit/assistant/questionActions.test.ts::assistantService (acciones por pregunta SPEC-039)::manual discard and answer (service)::removes a discarded question from the queue, records it in the session and emits the update without any LLM call",
+      "AC-06": "tests/unit/assistant/questionActions.test.ts::assistantService (acciones por pregunta SPEC-039)::manual discard and answer (service)::lets the manual action remove pinned questions with both discarded and answered outcomes",
+      "AC-07": "tests/unit/assistant/questionActions.test.ts::assistantService (acciones por pregunta SPEC-039)::manual discard and answer (service)::fires one immediate background analysis on answered whose objectivesMet updates the live tracking",
+      "AC-08": "tests/unit/assistant/questionActions.test.ts::assistantService (acciones por pregunta SPEC-039)::manual discard and answer (service)::does not fire an extra call when answered arrives with an analysis already in flight",
+      "AC-09": "tests/unit/assistant/questionActions.test.ts::assistantService (acciones por pregunta SPEC-039)::manual discard and answer (service)::removes the answered question without any LLM call while the assistant is paused by cost limit",
+      "AC-10": "tests/unit/assistant/questionActions.test.ts::assistantService (acciones por pregunta SPEC-039)::manual discard and answer (service)::ignores silently an unknown item id and a resolve without an active session",
+      "AC-11": "tests/unit/assistant/questionActions.test.ts::assistantService (acciones por pregunta SPEC-039)::suppression and prompt over discarded/answered::suppresses a later candidate almost identical to a discarded question",
+      "AC-12": "tests/unit/assistant/questionActions.test.ts::assistantService (acciones por pregunta SPEC-039)::suppression and prompt over discarded/answered::suppresses a later candidate almost identical to an answered question",
+      "AC-13": "tests/unit/assistant/questionActions.test.ts::assistantService (acciones por pregunta SPEC-039)::suppression and prompt over discarded/answered::includes the discarded and answered questions with the do-not-repeat instruction in the user message only",
+      "AC-14": "tests/unit/assistant/questionActions.test.ts::assistantService (acciones por pregunta SPEC-039)::persistence on recording stop::returns questionOutcomes in the stop summary and persists them into transcript.json and into the interview",
+      "AC-15": "tests/unit/assistant/questionActions.test.ts::assistantService (acciones por pregunta SPEC-039)::persistence on recording stop::keeps questionOutcomes empty and suggestionCount/usage unchanged without manual actions",
+      "AC-16": "tests/unit/recording/DiscardReasonsDialog.test.tsx::DiscardReasonsDialog (motivos al finalizar SPEC-039)::opens the Preguntas descartadas dialog after stopping with each discarded question and an optional reason textarea",
+      "AC-17": "tests/unit/recording/DiscardReasonsDialog.test.tsx::DiscardReasonsDialog (motivos al finalizar SPEC-039)::persists the written reasons with their real questionOutcomes indexes and shows the Motivos guardados toast on save",
+      "AC-18": "tests/unit/recording/DiscardReasonsDialog.test.tsx::DiscardReasonsDialog (motivos al finalizar SPEC-039)::closes without persisting anything when Omitir is pressed",
+      "AC-19": "tests/unit/recording/DiscardReasonsDialog.test.tsx::DiscardReasonsDialog (motivos al finalizar SPEC-039)::does not open the dialog when the stop result has no discarded questions",
+      "AC-20": "tests/unit/notes/noteService.outcomes.test.ts::noteService (questionOutcomes SPEC-039)::includes the discarded questions with their reasons and the answered questions as prompt sections when the interview has questionOutcomes",
+      "AC-21": "tests/unit/notes/noteService.outcomes.test.ts::noteService (questionOutcomes SPEC-039)::omits both sections when the interview has no questionOutcomes keeping the prompt identical",
+      "AC-22": "tests/unit/objectives/objectiveEvaluation.outcomes.test.ts::objectiveEvaluationService (questionOutcomes SPEC-039)::includes the discarded questions with their reasons in the evaluation prompt when the interview has questionOutcomes",
+      "AC-23": "tests/unit/assistant/questionActions.test.ts::assistantService (acciones por pregunta SPEC-039)::regression (SPEC-021/023/036 invariants)::keeps the system blocks byte-identical across analyses with manual actions in between",
+      "AC-24": "tests/unit/assistant/questionActions.test.ts::assistantService (acciones por pregunta SPEC-039)::regression (SPEC-021/023/036 invariants)::keeps suggestionCount counting only accepted candidates after manual resolutions",
+      "AC-25": "tests/unit/assistant/questionActions.test.ts::assistantService (acciones por pregunta SPEC-039)::regression (SPEC-021/023/036 invariants)::keeps pin and unpin behaviour intact: move to pinned and return to the front of pending"
+    },
+    "created_at": "2026-07-15",
+    "updated_at": "2026-07-15"
   }
 }
