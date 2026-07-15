@@ -1,7 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { CheckCircle2, Loader2, Pencil, Sparkles, Target } from 'lucide-react'
+import { CheckCircle2, Loader2, Pencil, Plus, Sparkles, Target, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ObjectiveOverrideDialog } from '@/components/interviews/ObjectiveOverrideDialog'
 import { cn } from '@/lib/utils'
@@ -36,6 +47,13 @@ const EVALUATION_ERROR_TOAST = 'No se pudieron evaluar los objetivos'
  * final > seguimiento en vivo. Con marca manual, la explicación de la
  * evaluación previa queda tachada como historial (nunca es el único canal:
  * coexiste con la explicación reescrita debajo y con `data-overridden`).
+ * SPEC-042: sección ÚNICA de objetivos — la edición (Input por objetivo,
+ * eliminar, añadir) vive aquí con el patrón «draft null-prístino» de SPEC-029
+ * (Guardar/Descartar solo ante cambios; descartar SIEMPRE con AlertDialog).
+ * Los adornos por índice (icono, motivo, marca, lápiz) se calculan sobre lo
+ * PERSISTIDO y toleran índices nuevos del draft. La invalidación de
+ * evaluación/marcas al cambiar la lista la hace el repositorio (SPEC-025/028),
+ * no el renderer. El bloque de edición del Guión queda derogado.
  */
 export function ObjectivesSection({
   interview,
@@ -50,6 +68,11 @@ export function ObjectivesSection({
   const [manualEvaluating, setManualEvaluating] = useState(false)
   /** Índice del objetivo con el diálogo de cumplimiento abierto (SPEC-028); null = cerrado. */
   const [overrideIndex, setOverrideIndex] = useState<number | null>(null)
+  // SPEC-042: null = prístino — los Inputs siguen a la prop `interview` hasta
+  // la primera edición real (patrón ScriptSection/SPEC-029).
+  const [objectivesDraft, setObjectivesDraft] = useState<string[] | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
 
   const interviewId = interview.id
 
@@ -103,6 +126,39 @@ export function ObjectivesSection({
   const showEvaluateButton =
     objectives.length > 0 && hasTranscript && results === null && !evaluating
   const canEvaluate = keyStatus === 'ok'
+
+  // SPEC-042: la lista mostrada es draft ?? persistidos; dirty solo con draft
+  // realmente distinto (mismo cálculo que el guión en ScriptSection).
+  const displayedObjectives = objectivesDraft ?? objectives
+  const isDirty =
+    objectivesDraft !== null &&
+    (objectivesDraft.length !== objectives.length ||
+      objectivesDraft.some((objective, index) => objective !== objectives[index]))
+
+  const handleSave = async (): Promise<void> => {
+    setSaving(true)
+    try {
+      // Los objetivos vacíos se descartan silenciosamente (SPEC-014 conservado).
+      // La invalidación de evaluación/marcas la hace el repositorio (SPEC-025/028).
+      const nextObjectives = (objectivesDraft ?? objectives)
+        .map((item) => item.trim())
+        .filter((item) => item !== '')
+      const result = await window.api.db.updateInterview(interview.id, {
+        objectives: nextObjectives
+      })
+      if (result.ok) {
+        onInterviewUpdatedRef.current(result.data)
+        // El filtrado de vacíos puede hacer que lo persistido difiera del
+        // draft (['a',''] → ['a']): sin este reset la barra quedaría visible.
+        setObjectivesDraft(null)
+        toast('Objetivos guardados')
+      } else {
+        toast.error(result.error.message)
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const handleEvaluate = async (): Promise<void> => {
     setManualEvaluating(true)
@@ -196,75 +252,163 @@ export function ObjectivesSection({
         {showEvaluateButton && evaluateButton()}
       </div>
 
-      {objectives.length === 0 ? (
+      {displayedObjectives.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-8 text-center">
           <Target className="size-6 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">Sin objetivos</p>
-          <p className="text-sm text-muted-foreground">
-            Se generan con el guión o se añaden editándolo
-          </p>
+          <p className="text-sm text-muted-foreground">Se generan con el guión o añádelos aquí</p>
+          <Button
+            variant="outline"
+            data-testid="objectives-add-button"
+            onClick={() => setObjectivesDraft((draft) => [...(draft ?? objectives), ''])}
+          >
+            <Plus />
+            Añadir objetivo
+          </Button>
         </div>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {objectives.map((objective, index) => {
-            const state = objectiveState(index)
-            const override = overrides?.[index] ?? null
-            return (
-              <li
-                key={index}
-                className="flex items-start gap-2 text-sm"
-                data-testid="objective-item"
-                data-state={state}
-              >
-                {state === 'met' ? (
-                  <CheckCircle2
-                    className="mt-0.5 size-4 shrink-0 text-green-600 dark:text-green-500"
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <Target
-                    className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                )}
-                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                  <span>{objective}</span>
-                  {results !== null && results[index] !== undefined && (
-                    <p
-                      className={cn(
-                        'text-sm text-muted-foreground',
-                        override !== null && 'line-through'
-                      )}
-                      data-testid="objective-reason"
-                      data-overridden={override !== null ? 'true' : undefined}
-                    >
-                      {results[index].reason}
-                    </p>
-                  )}
-                  {override !== null && (
-                    <p
-                      className="text-sm text-muted-foreground"
-                      data-testid="objective-override-text"
-                    >
-                      {override.text}
-                    </p>
-                  )}
-                </div>
-                {/* Siempre habilitado: el camino sin clave es funcional (SPEC-028) */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Editar cumplimiento del objetivo"
-                  data-testid="objective-override-button"
-                  onClick={() => setOverrideIndex(index)}
+        <>
+          <ul className="flex flex-col gap-2">
+            {displayedObjectives.map((objective, index) => {
+              const state = objectiveState(index)
+              const override = overrides?.[index] ?? null
+              return (
+                <li
+                  key={index}
+                  className="flex items-start gap-2 text-sm"
+                  data-testid="objective-item"
+                  data-state={state}
                 >
-                  <Pencil />
-                </Button>
-              </li>
-            )
-          })}
-        </ul>
+                  {state === 'met' ? (
+                    <CheckCircle2
+                      className="mt-2.5 size-4 shrink-0 text-green-600 dark:text-green-500"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <Target
+                      className="mt-2.5 size-4 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  )}
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    {/* SPEC-042: descripción editable en el momento; la
+                        mutación del draft sigue el patrón de ScriptSection */}
+                    <Input
+                      value={objective}
+                      aria-label={`Objetivo ${index + 1}`}
+                      data-testid="objective-input"
+                      onChange={(event) =>
+                        setObjectivesDraft((draft) =>
+                          (draft ?? [...objectives]).map((item, itemIndex) =>
+                            itemIndex === index ? event.target.value : item
+                          )
+                        )
+                      }
+                    />
+                    {results !== null && results[index] !== undefined && (
+                      <p
+                        className={cn(
+                          'text-sm text-muted-foreground',
+                          override !== null && 'line-through'
+                        )}
+                        data-testid="objective-reason"
+                        data-overridden={override !== null ? 'true' : undefined}
+                      >
+                        {results[index].reason}
+                      </p>
+                    )}
+                    {override !== null && (
+                      <p
+                        className="text-sm text-muted-foreground"
+                        data-testid="objective-override-text"
+                      >
+                        {override.text}
+                      </p>
+                    )}
+                  </div>
+                  {/* Siempre habilitado: el camino sin clave es funcional
+                      (SPEC-028). Solo para índices persistidos: la marca opera
+                      sobre lo PERSISTIDO y un alta del draft aún no existe. */}
+                  {index < objectives.length && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Editar cumplimiento del objetivo"
+                      data-testid="objective-override-button"
+                      onClick={() => setOverrideIndex(index)}
+                    >
+                      <Pencil />
+                    </Button>
+                  )}
+                  {/* SPEC-042: eliminar muta el draft; solo persiste al guardar */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Eliminar objetivo"
+                    data-testid="objective-delete-button"
+                    onClick={() =>
+                      setObjectivesDraft((draft) =>
+                        (draft ?? [...objectives]).filter((_item, itemIndex) => itemIndex !== index)
+                      )
+                    }
+                  >
+                    <Trash2 />
+                  </Button>
+                </li>
+              )
+            })}
+          </ul>
+          <div>
+            <Button
+              variant="outline"
+              data-testid="objectives-add-button"
+              onClick={() => setObjectivesDraft((draft) => [...(draft ?? objectives), ''])}
+            >
+              <Plus />
+              Añadir objetivo
+            </Button>
+          </div>
+        </>
       )}
+
+      {/* SPEC-042: barra sticky solo con cambios (patrón script-editor-actions) */}
+      {isDirty && (
+        <div
+          data-testid="objectives-editor-actions"
+          className="sticky bottom-0 flex items-center justify-end gap-2 border-t bg-background py-3"
+        >
+          <Button variant="outline" disabled={saving} onClick={() => setConfirmDiscard(true)}>
+            Descartar
+          </Button>
+          <Button disabled={saving} onClick={() => void handleSave()}>
+            {saving && <Loader2 className="animate-spin" />}
+            Guardar
+          </Button>
+        </div>
+      )}
+
+      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Descartar cambios</AlertDialogTitle>
+            <AlertDialogDescription>
+              Los cambios sin guardar de los objetivos se perderán.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                setConfirmDiscard(false)
+                setObjectivesDraft(null)
+              }}
+            >
+              Descartar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {overrideIndex !== null && (
         <ObjectiveOverrideDialog
