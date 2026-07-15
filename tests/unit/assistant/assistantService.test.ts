@@ -381,8 +381,10 @@ describe('assistantService', () => {
       // SPEC-021: el summary gana el usage de la sesión (las respuestas del
       // SDK mockeado no traen bloque usage → 2 llamadas con 0 tokens).
       // SPEC-036: sin contadores de feedback (toEqual fija su ausencia).
+      // SPEC-039: el summary gana questionOutcomes (vacío sin acciones manuales).
       expect(summary).toEqual({
         suggestionCount: 2,
+        questionOutcomes: [],
         usage: { calls: 2, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }
       })
 
@@ -398,6 +400,7 @@ describe('assistantService', () => {
       }
       expect(persisted.assistant).toEqual({
         suggestionCount: 2,
+        questionOutcomes: [],
         usage: { calls: 2, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }
       })
       expect(persisted.assistant).not.toHaveProperty('feedback')
@@ -420,9 +423,10 @@ describe('assistantService', () => {
 
       const summary = stopAssistant()
       // SPEC-021: sin análisis completados el usage viaja a ceros
-      // (SPEC-036 deroga los contadores de feedback del summary)
+      // (SPEC-036 deroga los contadores de feedback; SPEC-039 añade questionOutcomes)
       expect(summary).toEqual({
         suggestionCount: 0,
+        questionOutcomes: [],
         usage: { calls: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }
       })
       const eventsAtStop = assistantEvents(send).length

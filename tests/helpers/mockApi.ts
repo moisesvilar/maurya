@@ -177,6 +177,8 @@ function createMockDbApi(): DbApi {
       .fn<DbApi['listAllInterviews']>()
       .mockResolvedValue({ ok: true, data: [] }),
     assignInterviewCompany: vi.fn<DbApi['assignInterviewCompany']>(),
+    // SPEC-039: motivos de las preguntas descartadas (se configura por test)
+    setInterviewDiscardReasons: vi.fn<DbApi['setInterviewDiscardReasons']>(),
 
     createNoteTemplate: vi.fn<DbApi['createNoteTemplate']>(),
     listNoteTemplates: vi
@@ -245,6 +247,8 @@ export function createMockApi(): MockApiHandle {
       // SPEC-036 (deroga el feedback 👍/👎 de SPEC-016): anclar/desanclar una
       // pregunta de la cola, fire-and-forget
       setPinned: vi.fn<AssistantApi['setPinned']>().mockResolvedValue(undefined),
+      // SPEC-039: descartar / marcar respondida una pregunta, fire-and-forget
+      resolveItem: vi.fn<AssistantApi['resolveItem']>().mockResolvedValue(undefined),
       // SPEC-021: reanuda el asistente pausado por límite de coste
       resume: vi.fn<AssistantApi['resume']>().mockResolvedValue(undefined)
     },

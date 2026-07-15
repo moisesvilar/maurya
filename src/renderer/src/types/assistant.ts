@@ -65,6 +65,19 @@ export interface AssistantUpdateEvent {
 }
 
 /**
+ * Desenlace manual de una pregunta de la cola (SPEC-039): 'discarded' la
+ * retira (al finalizar se pregunta el porqué) y 'answered' la retira
+ * disparando un análisis en background que actualiza los objetivos.
+ */
+export type AssistantQuestionOutcome = 'discarded' | 'answered'
+
+/** Pregunta resuelta manualmente en la sesión (SPEC-039): texto + desenlace. */
+export interface AssistantQuestionRecord {
+  question: string
+  outcome: AssistantQuestionOutcome
+}
+
+/**
  * Registro de la sesión del asistente que se persiste con la transcripción
  * (campo `assistant` del transcript.json). null si el asistente no llegó a
  * activarse (sin clave o grabación sin entrevista). Los contadores de
@@ -75,6 +88,12 @@ export interface AssistantSessionSummary {
   suggestionCount: number
   /** Uso de IA de la sesión (SPEC-021); ceros si no hubo análisis. */
   usage: AiUsage
+  /**
+   * Preguntas descartadas/respondidas manualmente en la sesión (SPEC-039),
+   * descartadas primero. Los transcript.json anteriores a la spec no traen el
+   * campo: lectores tolerantes.
+   */
+  questionOutcomes: AssistantQuestionRecord[]
 }
 
 /** API expuesta por el preload en `window.api.assistant`. */
@@ -82,6 +101,8 @@ export interface AssistantApi {
   onUpdate: (callback: (event: AssistantUpdateEvent) => void) => () => void
   /** Ancla/desancla una pregunta de la cola (SPEC-036); fire-and-forget. */
   setPinned: (itemId: string, pinned: boolean) => Promise<void>
+  /** Descarta o marca respondida una pregunta (SPEC-039); fire-and-forget. */
+  resolveItem: (itemId: string, outcome: AssistantQuestionOutcome) => Promise<void>
   /** Reanuda el asistente pausado por límite de coste (SPEC-021). */
   resume: () => Promise<void>
 }

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AssignCompanySheet } from '@/components/captures/AssignCompanySheet'
+import { AssistantLiveSection } from '@/components/recording/AssistantLiveSection'
 import { AiCostInline } from '@/components/interviews/AiCostInline'
 import { NoteScriptSections } from '@/components/interviews/NoteScriptSections'
 import { TopBarPortal } from '@/components/layout/TopBarSlot'
@@ -221,6 +222,10 @@ function CaptureDetailContent({
           )}
         </div>
       </div>
+
+      {/* SPEC-041: el panel del asistente, encima de Nota/Guión (la captura
+          no tiene sección Objetivos), solo mientras se graba */}
+      <AssistantLiveSection controller={controller} />
 
       <NoteScriptSections interview={interview} onInterviewUpdated={onInterviewUpdated} />
 

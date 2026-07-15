@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { AssistantQueue, AssistantState } from '@/types/assistant'
+import type { AssistantQueue, AssistantQuestionOutcome, AssistantState } from '@/types/assistant'
 import type { AiUsage } from '@/types/domain'
 import type { LlmError } from '@/types/llm'
 
@@ -18,6 +18,8 @@ export interface UseAssistantResult {
   pauseLimitUsd: number | null
   /** Ancla/desancla una pregunta de la cola (SPEC-036); main re-emite la cola. */
   setPinned: (itemId: string, pinned: boolean) => void
+  /** Descarta o marca respondida una pregunta (SPEC-039); main re-emite la cola. */
+  resolveItem: (itemId: string, outcome: AssistantQuestionOutcome) => void
   /** Reanuda el asistente pausado por límite de coste (SPEC-021). */
   resume: () => void
   /** Llamar al iniciar una grabación nueva (patrón useTranscription). */
@@ -77,6 +79,11 @@ export function useAssistant(): UseAssistantResult {
     void window.api.assistant.setPinned(itemId, pinned)
   }, [])
 
+  const resolveItem = useCallback((itemId: string, outcome: AssistantQuestionOutcome): void => {
+    // Sin estado optimista (SPEC-039): main re-emite la cola sin la pregunta
+    void window.api.assistant.resolveItem(itemId, outcome)
+  }, [])
+
   const resume = useCallback((): void => {
     // Main emite el evento de vuelta a 'active'/'idle'; sin estado optimista
     void window.api.assistant.resume()
@@ -99,6 +106,7 @@ export function useAssistant(): UseAssistantResult {
     usage,
     pauseLimitUsd,
     setPinned,
+    resolveItem,
     resume,
     reset
   }

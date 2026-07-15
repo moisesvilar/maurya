@@ -66,6 +66,9 @@ const db: DbApi = {
   listAllInterviews: () => ipcRenderer.invoke('db:interview:list-all'),
   assignInterviewCompany: (interviewId, input) =>
     ipcRenderer.invoke('db:interview:assign-company', interviewId, input),
+  // Motivos de las preguntas descartadas del asistente (SPEC-039).
+  setInterviewDiscardReasons: (interviewId, reasons) =>
+    ipcRenderer.invoke('db:set-discard-reasons', interviewId, reasons),
 
   createNoteTemplate: (input) => ipcRenderer.invoke('db:note-template:create', input),
   listNoteTemplates: () => ipcRenderer.invoke('db:note-template:list'),
@@ -168,6 +171,8 @@ const assistant: AssistantApi = {
   },
   // Anclar/desanclar una pregunta de la cola (SPEC-036), fire-and-forget
   setPinned: (itemId, pinned) => ipcRenderer.invoke('assistant:set-pinned', itemId, pinned),
+  // Descartar / marcar respondida una pregunta (SPEC-039), fire-and-forget
+  resolveItem: (itemId, outcome) => ipcRenderer.invoke('assistant:resolve-item', itemId, outcome),
   // Reanudar tras pausa por límite de coste (SPEC-021)
   resume: () => ipcRenderer.invoke('assistant:resume')
 }

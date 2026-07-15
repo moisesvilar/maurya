@@ -7,10 +7,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { AiCostInline } from '@/components/interviews/AiCostInline'
 import { NoteScriptSections } from '@/components/interviews/NoteScriptSections'
 import { ObjectivesSection } from '@/components/interviews/ObjectivesSection'
+import { AssistantLiveSection } from '@/components/recording/AssistantLiveSection'
 import { RecordingSection } from '@/components/recording/RecordingSection'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
 import { useContacts } from '@/hooks/useContacts'
 import { useInterviewTemplates } from '@/hooks/useInterviewTemplates'
+import { useRecordingController } from '@/hooks/useRecordingController'
 import type { Company, Interview } from '@/types/domain'
 
 type InterviewDetailState =
@@ -130,38 +132,75 @@ export function InterviewDetailPage(): React.ReactElement {
       )}
 
       {state.status === 'ready' && (
-        <>
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-semibold">{state.interview.title}</h1>
-              <Badge variant="secondary">{STATUS_LABELS[state.interview.status]}</Badge>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {state.company.name} · {contactLabel(state.interview)} ·{' '}
-              {templateLabel(state.interview)} · <AiCostInline aiUsage={state.interview.aiUsage} />
-            </p>
-          </div>
-
-          {/* SPEC-025: los objetivos van arriba del todo, inmediatamente tras
-              la cabecera — son el indicador de progreso principal */}
-          <ObjectivesSection
-            interview={state.interview}
-            onInterviewUpdated={handleInterviewUpdated}
-          />
-
-          <NoteScriptSections
-            interview={state.interview}
-            onInterviewUpdated={handleInterviewUpdated}
-          />
-
-          {/* SPEC-030: la Grabación cierra la página — tras el flujo end-to-end
-              es material de archivo (rutas WAV/transcript, latencia) */}
-          <RecordingSection
-            interview={state.interview}
-            onInterviewUpdated={handleInterviewUpdated}
-          />
-        </>
+        <InterviewDetailContent
+          interview={state.interview}
+          company={state.company}
+          contactLabel={contactLabel(state.interview)}
+          templateLabel={templateLabel(state.interview)}
+          onInterviewUpdated={handleInterviewUpdated}
+        />
       )}
     </div>
+  )
+}
+
+interface InterviewDetailContentProps {
+  interview: Interview
+  company: Company
+  contactLabel: string
+  templateLabel: string
+  onInterviewUpdated: (interview: Interview) => void
+}
+
+/**
+ * Ready-branch del detalle de entrevista (SPEC-041, patrón
+ * CaptureDetailContent de SPEC-034): crea el controller de grabación en un
+ * componente hijo para no condicionar hooks, de modo que la página pueda
+ * pintar el panel del asistente ARRIBA — entre «Objetivos» y Nota/Guión —
+ * mientras se graba, y lo comparte con la sección Grabación por prop. El
+ * ciclo de vida del controller (auto-guardado al desmontar, close guard) es
+ * el mismo que tenía dentro de la sección.
+ */
+function InterviewDetailContent({
+  interview,
+  company,
+  contactLabel,
+  templateLabel,
+  onInterviewUpdated
+}: InterviewDetailContentProps): React.ReactElement {
+  const controller = useRecordingController(interview, onInterviewUpdated)
+
+  return (
+    <>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold">{interview.title}</h1>
+          <Badge variant="secondary">{STATUS_LABELS[interview.status]}</Badge>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {company.name} · {contactLabel} · {templateLabel} ·{' '}
+          <AiCostInline aiUsage={interview.aiUsage} />
+        </p>
+      </div>
+
+      {/* SPEC-025: los objetivos van arriba del todo, inmediatamente tras
+          la cabecera — son el indicador de progreso principal */}
+      <ObjectivesSection interview={interview} onInterviewUpdated={onInterviewUpdated} />
+
+      {/* SPEC-041: el panel del asistente, entre objetivos y Nota/Guión,
+          solo mientras se graba */}
+      <AssistantLiveSection controller={controller} />
+
+      <NoteScriptSections interview={interview} onInterviewUpdated={onInterviewUpdated} />
+
+      {/* SPEC-030: la Grabación cierra la página — tras el flujo end-to-end
+          es material de archivo (rutas WAV/transcript, latencia) */}
+      <RecordingSection
+        interview={interview}
+        onInterviewUpdated={onInterviewUpdated}
+        controller={controller}
+        variant="interview"
+      />
+    </>
   )
 }

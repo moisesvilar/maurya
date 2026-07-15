@@ -1,7 +1,7 @@
 {
   "name": "maurya",
   "productName": "Maurya",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Maurya — copiloto de entrevistas: captura y transcripción de micrófono y audio del sistema en macOS",
   "main": "./out/main/index.js",
   "author": "Maurya",

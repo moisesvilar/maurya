@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { FileText, Loader2, Plus, RefreshCw, Sparkles, Trash2 } from 'lucide-react'
+import { FileText, Loader2, RefreshCw, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -14,7 +14,6 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MarkdownEditor } from '@/components/markdown/MarkdownEditor'
 import type { Interview } from '@/types/domain'
@@ -29,13 +28,15 @@ interface ScriptSectionProps {
 /**
  * Sección Guión del detalle de entrevista (SPEC-014): generación con Claude
  * (main process) y edición siempre activa (SPEC-029): con guión, el editor
- * WYSIWYG (MarkdownEditor, SPEC-027; Riesgo #6: control humano) y la lista
- * editable de objetivos están siempre visibles, sin modo lectura ni botón
- * "Editar" (los objetivos de lectura viven en ObjectivesSection — SPEC-025).
+ * WYSIWYG (MarkdownEditor, SPEC-027; Riesgo #6: control humano) está siempre
+ * visible, sin modo lectura ni botón "Editar". SPEC-042: el bloque de edición
+ * de objetivos que vivía aquí queda derogado — la sección «Objetivos»
+ * superior (ObjectivesSection) es la superficie única de estado Y edición;
+ * esta sección solo edita y persiste `scriptMarkdown`.
  * "Guardar"/"Descartar" solo aparecen con cambios: el editor solo emite
- * onChange en ediciones reales, así el dirty-check compara contra los valores
- * persistidos sin falsos positivos por normalización (drafts null = prístino,
- * nunca inicializados en efectos). El contenido del editor solo se resetea
+ * onChange en ediciones reales, así el dirty-check compara contra el valor
+ * persistido sin falsos positivos por normalización (draft null = prístino,
+ * nunca inicializado en efectos). El contenido del editor solo se resetea
  * remontándolo (key por contador) en descarte confirmado y regeneración con
  * éxito; tras "Guardar" NO se remonta — el contenido ya es el persistido y así
  * se conservan foco y caret. Estado local, sin hook aparte (único consumidor).
@@ -52,10 +53,9 @@ export function ScriptSection({
   // Autogeneración al crear la captura (SPEC-033): estado gobernado por los
   // eventos `llm:script-generation` de main, nunca por el invoke manual.
   const [autoGenerating, setAutoGenerating] = useState(false)
-  // null = prístino: el editor/lista no han recibido ninguna edición real
-  // desde el último reset; mientras tanto la UI sigue a la prop `interview`.
+  // null = prístino: el editor no ha recibido ninguna edición real desde el
+  // último reset; mientras tanto la UI sigue a la prop `interview`.
   const [scriptDraft, setScriptDraft] = useState<string | null>(null)
-  const [objectivesDraft, setObjectivesDraft] = useState<string[] | null>(null)
   // Key del MarkdownEditor: incrementarla remonta el editor con el contenido
   // persistido (única forma de resetear TipTap). Solo en descarte/regeneración.
   const [editorResetKey, setEditorResetKey] = useState(0)
@@ -112,14 +112,10 @@ export function ScriptSection({
   const isGenerating = generating || autoGenerating
   const canGenerate = hasTemplate && keyStatus === 'ok' && !isGenerating
 
+  // SPEC-042: el dirty de la sección depende SOLO del markdown (los objetivos
+  // se editan y guardan en ObjectivesSection).
   const persistedScript = interview.scriptMarkdown ?? ''
-  const scriptDirty = scriptDraft !== null && scriptDraft !== persistedScript
-  const objectivesDirty =
-    objectivesDraft !== null &&
-    (objectivesDraft.length !== interview.objectives.length ||
-      objectivesDraft.some((objective, index) => objective !== interview.objectives[index]))
-  const isDirty = scriptDirty || objectivesDirty
-  const displayedObjectives = objectivesDraft ?? interview.objectives
+  const isDirty = scriptDraft !== null && scriptDraft !== persistedScript
 
   /** Motivo de deshabilitado de la generación (Tooltip); null si está habilitada. */
   const disabledReason = !hasTemplate
@@ -137,7 +133,6 @@ export function ScriptSection({
         // Reset a prístino + remontaje del editor con el guión nuevo (mismo
         // callback → un solo re-render por batching de React 19).
         setScriptDraft(null)
-        setObjectivesDraft(null)
         setEditorResetKey((key) => key + 1)
         toast('Guión generado')
       } else {
@@ -151,19 +146,13 @@ export function ScriptSection({
   const handleSave = async (): Promise<void> => {
     setSaving(true)
     try {
-      // Los objetivos vacíos se descartan silenciosamente (AC de edición)
-      const objectives = (objectivesDraft ?? interview.objectives)
-        .map((item) => item.trim())
-        .filter((item) => item !== '')
+      // SPEC-042: solo persiste el markdown — los objetivos no viajan en el
+      // payload y no cambian al guardar el guión.
       const result = await window.api.db.updateInterview(interview.id, {
-        scriptMarkdown: scriptDraft ?? persistedScript,
-        objectives
+        scriptMarkdown: scriptDraft ?? persistedScript
       })
       if (result.ok) {
         onInterviewUpdated(result.data)
-        // El filtrado de vacíos puede hacer que lo persistido difiera del
-        // draft (['a',''] → ['a']): sin este reset la barra quedaría visible.
-        setObjectivesDraft(null)
         // scriptDraft y la key NO se tocan: el dirty por comparación ya da
         // false y el editor no se remonta (foco y caret intactos).
         toast('Cambios guardados')
@@ -274,51 +263,8 @@ export function ScriptSection({
             ariaLabel="Guión"
             testId="script-markdown-editor"
           />
-          {/* SPEC-025: la sección "Objetivos" superior es la vista de estado;
-              este bloque es la única superficie de edición, siempre visible */}
-          <div className="flex flex-col gap-2">
-            <h4 className="text-base font-semibold">Objetivos</h4>
-            {displayedObjectives.map((objective, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <Input
-                  value={objective}
-                  onChange={(event) =>
-                    setObjectivesDraft((draft) =>
-                      (draft ?? [...interview.objectives]).map((item, itemIndex) =>
-                        itemIndex === index ? event.target.value : item
-                      )
-                    )
-                  }
-                  aria-label={`Objetivo ${index + 1}`}
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Eliminar objetivo"
-                  onClick={() =>
-                    setObjectivesDraft((draft) =>
-                      (draft ?? [...interview.objectives]).filter(
-                        (_item, itemIndex) => itemIndex !== index
-                      )
-                    )
-                  }
-                >
-                  <Trash2 />
-                </Button>
-              </div>
-            ))}
-            <div>
-              <Button
-                variant="outline"
-                onClick={() =>
-                  setObjectivesDraft((draft) => [...(draft ?? interview.objectives), ''])
-                }
-              >
-                <Plus />
-                Añadir objetivo
-              </Button>
-            </div>
-          </div>
+          {/* SPEC-042: el bloque de edición de objetivos que vivía aquí queda
+              derogado — la edición vive en ObjectivesSection */}
           {isDirty && (
             <div
               data-testid="script-editor-actions"
@@ -363,7 +309,7 @@ export function ScriptSection({
           <AlertDialogHeader>
             <AlertDialogTitle>Descartar cambios</AlertDialogTitle>
             <AlertDialogDescription>
-              Los cambios sin guardar del guión y los objetivos se perderán.
+              Los cambios sin guardar del guión se perderán.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -373,7 +319,6 @@ export function ScriptSection({
               onClick={() => {
                 setConfirmDiscard(false)
                 setScriptDraft(null)
-                setObjectivesDraft(null)
                 setEditorResetKey((key) => key + 1)
               }}
             >

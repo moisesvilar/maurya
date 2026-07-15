@@ -237,9 +237,10 @@ describe('NoteScriptSections', () => {
     })
 
     // SPEC-027 · AC-06 (adaptado por SPEC-029: la sección completa es el
-    // editor siempre montado + "Regenerar" unificado; el bloque de edición de
-    // objetivos —h4— vive siempre dentro del Guión)
-    it('shows the full Guión section (editor, objectives block and Regenerar) when the "Guión" tab is clicked', async () => {
+    // editor siempre montado + "Regenerar" unificado; adaptado por SPEC-042:
+    // el bloque de edición de objetivos —h4— dentro del Guión queda DEROGADO,
+    // la edición vive en la sección Objetivos fusionada de la página)
+    it('shows the full Guión section (editor and Regenerar) when the "Guión" tab is clicked', async () => {
       const user = userEvent.setup()
       setNote(NOTE)
       renderSections(bothExist())
@@ -254,10 +255,9 @@ describe('NoteScriptSections', () => {
       expect(within(panel).getByTestId('script-markdown-editor')).toBeInTheDocument()
       expect(within(panel).getByTestId('script-regenerate-button')).toBeInTheDocument()
       expect(within(panel).queryByRole('button', { name: 'Editar' })).not.toBeInTheDocument()
-      // Bloque de edición de objetivos siempre visible bajo el editor (SPEC-029)
-      expect(
-        within(panel).getByRole('heading', { name: 'Objetivos', level: 4 })
-      ).toBeInTheDocument()
+      // SPEC-042: ningún bloque de objetivos dentro del Guión
+      expect(within(panel).queryByRole('heading', { name: 'Objetivos' })).not.toBeInTheDocument()
+      expect(within(panel).queryAllByTestId('objective-input')).toHaveLength(0)
     })
 
     // SPEC-027 · AC-07

@@ -196,6 +196,31 @@ function buildUserPrompt(
     .slice(-TRANSCRIPT_PROMPT_CHARS)
   sections.push(`## Conversación\n${conversation}`)
 
+  // Desenlaces manuales de las preguntas del asistente (SPEC-039): secciones
+  // condicionales — sin questionOutcomes el prompt es idéntico al anterior.
+  const questionOutcomes = interview.questionOutcomes ?? []
+  const discarded = questionOutcomes.filter((entry) => entry.outcome === 'discarded')
+  if (discarded.length > 0) {
+    const discardedLines = discarded.map(
+      (entry) =>
+        `- ${entry.question} — Motivo: ${
+          entry.reason !== undefined && entry.reason !== null && entry.reason.trim() !== ''
+            ? entry.reason
+            : 'sin motivo indicado'
+        }`
+    )
+    sections.push(
+      `## Preguntas descartadas por el entrevistador (con su motivo)\n${discardedLines.join('\n')}`
+    )
+  }
+  const answered = questionOutcomes.filter((entry) => entry.outcome === 'answered')
+  if (answered.length > 0) {
+    const answeredLines = answered.map((entry) => `- ${entry.question}`)
+    sections.push(
+      `## Preguntas ya respondidas marcadas por el entrevistador\n${answeredLines.join('\n')}`
+    )
+  }
+
   sections.push(
     `## Tarea\nGenera la nota de resumen de la entrevista "${interview.title}" siguiendo las secciones del note-template.`
   )

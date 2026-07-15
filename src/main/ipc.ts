@@ -25,7 +25,7 @@ import {
   startTranscription
 } from './transcriptionService'
 import { registerDbIpcHandlers } from './db/ipc'
-import { updateInterview } from './db/repository'
+import { setInterviewQuestionOutcomes, updateInterview } from './db/repository'
 import {
   getSecretsStatus,
   initSecrets,
@@ -42,11 +42,13 @@ import {
 } from './noteService'
 import {
   peekAssistantObjectivesMet,
+  resolveAssistantItem,
   resumeAssistantLimit,
   setAssistantPinned,
   startAssistant,
   stopAssistant
 } from './assistantService'
+import type { AssistantQuestionOutcome } from '../renderer/src/types/assistant'
 import {
   evaluateInterviewObjectives,
   maybeEvaluateAfterRecording
@@ -259,6 +261,17 @@ export function registerIpcHandlers(): void {
       if (assistantSummary !== null && assistantSummary.usage.calls > 0) {
         recordInterviewUsage(activeInterviewId, assistantSummary.usage)
       }
+      // Desenlaces manuales de las preguntas (SPEC-039) ANTES de
+      // updateInterview: la Interview devuelta en StopResult ya los lleva.
+      // Best-effort (patrón recordInterviewUsage): un fallo aquí nunca afecta
+      // a wavPath/transcriptPath ni a la parada.
+      if (assistantSummary !== null && assistantSummary.questionOutcomes.length > 0) {
+        try {
+          setInterviewQuestionOutcomes(activeInterviewId, assistantSummary.questionOutcomes)
+        } catch {
+          // Entrevista borrada o almacén ilegible: la parada sigue su curso
+        }
+      }
       try {
         interview = updateInterview(activeInterviewId, {
           wavPath: result.filePath,
@@ -312,6 +325,15 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('assistant:set-pinned', (_event, itemId: string, pinned: boolean) => {
     setAssistantPinned(itemId, pinned)
   })
+
+  // Descartar / marcar respondida una pregunta de la cola (SPEC-039):
+  // fire-and-forget que nunca falla (no-ops en el servicio), patrón set-pinned
+  ipcMain.handle(
+    'assistant:resolve-item',
+    (_event, itemId: string, outcome: AssistantQuestionOutcome) => {
+      resolveAssistantItem(itemId, outcome)
+    }
+  )
 
   // Reanudar el asistente pausado por límite de coste (SPEC-021)
   ipcMain.handle('assistant:resume', () => {

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Loader2, PauseCircle, Pin, PinOff } from 'lucide-react'
+import { Check, Loader2, PauseCircle, Pin, PinOff, X } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import type {
   AssistantAlarm,
   AssistantQueue,
   AssistantQueueItem,
+  AssistantQuestionOutcome,
   AssistantState
 } from '@/types/assistant'
 import type { AiUsage } from '@/types/domain'
@@ -27,6 +28,8 @@ interface AssistantPanelProps {
   pauseLimitUsd: number | null
   /** Ancla/desancla una pregunta de la cola (SPEC-036). */
   onSetPinned: (itemId: string, pinned: boolean) => void
+  /** Descarta o marca respondida una pregunta de la cola (SPEC-039). */
+  onResolveItem: (itemId: string, outcome: AssistantQuestionOutcome) => void
   /** Reanuda el asistente pausado por límite de coste (SPEC-021). */
   onResume: () => void
 }
@@ -36,6 +39,91 @@ const ALARM_LABELS: Record<AssistantAlarm, string> = {
   compliment: 'Cumplido',
   generic: 'Genérico',
   hypothetical: 'Hipotético'
+}
+
+interface ItemActionsProps {
+  item: AssistantQueueItem
+  /** true en la sección «Ancladas»: el tercer botón pasa a «Desanclar pregunta». */
+  pinned: boolean
+  onSetPinned: (itemId: string, pinned: boolean) => void
+  onResolveItem: (itemId: string, outcome: AssistantQuestionOutcome) => void
+}
+
+/**
+ * Grupo de tres acciones inline de un ítem (SPEC-039): «Marcar respondida»,
+ * «Descartar pregunta» y «Anclar/Desanclar pregunta», icon-only con aria-label
+ * y Tooltip (regla §10: el panel es glanceable). Descartar y responder son
+ * atómicas e inmediatas, sin confirmación ni Toast: el coste del error es bajo
+ * y una confirmación rompería la atención en directo; el diálogo de motivos
+ * del final actúa de red.
+ */
+function ItemActions({
+  item,
+  pinned,
+  onSetPinned,
+  onResolveItem
+}: ItemActionsProps): React.ReactElement {
+  return (
+    <div className="ml-auto flex shrink-0 items-center">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Marcar respondida"
+            data-testid="assistant-item-answered"
+            onClick={() => onResolveItem(item.id, 'answered')}
+          >
+            <Check />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Respondida: actualiza los objetivos</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Descartar pregunta"
+            data-testid="assistant-item-discard"
+            onClick={() => onResolveItem(item.id, 'discarded')}
+          >
+            <X />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Descartar: al finalizar se te pedirá el porqué</TooltipContent>
+      </Tooltip>
+      {pinned ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Desanclar pregunta"
+              onClick={() => onSetPinned(item.id, false)}
+            >
+              <PinOff />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Desanclar: vuelve a pendientes</TooltipContent>
+        </Tooltip>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Anclar pregunta"
+              onClick={() => onSetPinned(item.id, true)}
+            >
+              <Pin />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Anclar: la pregunta no se resuelve sola</TooltipContent>
+        </Tooltip>
+      )}
+    </div>
+  )
 }
 
 /** Badge de acción + chips de alarma de un ítem (fila 1, con wrap responsive). */
@@ -79,6 +167,7 @@ export function AssistantPanel({
   usage,
   pauseLimitUsd,
   onSetPinned,
+  onResolveItem,
   onResume
 }: AssistantPanelProps): React.ReactElement {
   const queueEmpty = queue.pending.length === 0 && queue.pinned.length === 0
@@ -130,24 +219,17 @@ export function AssistantPanel({
                         data-testid="assistant-queue-item"
                         className="flex flex-col gap-1 rounded-md border p-2"
                       >
-                        <div className="flex items-start gap-2">
+                        <div className="flex flex-wrap items-start gap-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <ItemBadges item={item} />
                           </div>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label="Anclar pregunta"
-                                className="ml-auto shrink-0"
-                                onClick={() => onSetPinned(item.id, true)}
-                              >
-                                <Pin />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Anclar: la pregunta no se resuelve sola</TooltipContent>
-                          </Tooltip>
+                          {/* SPEC-039: respondida / descartar / anclar */}
+                          <ItemActions
+                            item={item}
+                            pinned={false}
+                            onSetPinned={onSetPinned}
+                            onResolveItem={onResolveItem}
+                          />
                         </div>
                         <p className="text-base font-medium">{item.suggestedQuestion}</p>
                         <p className="text-sm text-muted-foreground">{item.reason}</p>
@@ -165,24 +247,17 @@ export function AssistantPanel({
                         data-testid="assistant-pinned-item"
                         className="flex flex-col gap-1 rounded-md border p-2"
                       >
-                        <div className="flex items-start gap-2">
+                        <div className="flex flex-wrap items-start gap-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <ItemBadges item={item} />
                           </div>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label="Desanclar pregunta"
-                                className="ml-auto shrink-0"
-                                onClick={() => onSetPinned(item.id, false)}
-                              >
-                                <PinOff />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Desanclar: vuelve a pendientes</TooltipContent>
-                          </Tooltip>
+                          {/* SPEC-039: respondida / descartar / desanclar */}
+                          <ItemActions
+                            item={item}
+                            pinned
+                            onSetPinned={onSetPinned}
+                            onResolveItem={onResolveItem}
+                          />
                         </div>
                         <p className="text-base font-medium">{item.suggestedQuestion}</p>
                       </div>

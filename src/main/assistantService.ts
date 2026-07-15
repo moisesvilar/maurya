@@ -6,6 +6,8 @@ import type {
   AssistantAlarm,
   AssistantQueue,
   AssistantQueueItem,
+  AssistantQuestionOutcome,
+  AssistantQuestionRecord,
   AssistantSessionSummary,
   AssistantSuggestion,
   AssistantUpdateEvent
@@ -61,6 +63,14 @@ const MAX_TOKENS = 512
 // SPEC-026: viven en prompts/defaults.ts para que las reglas bloqueadas que
 // muestra Ajustes nunca divergan de las que se envían.
 
+/**
+ * Tope de longitud del cursor de guión (SPEC-040): suficiente para
+ * «bloque — pregunta», acota la latencia de salida (coherente con SPEC-023).
+ * DEBE ser el mismo número en el schema y en el texto del prompt. Documentada
+ * y ajustable por el humano sin cambiar el contrato (patrón MIN_NEW_FINAL_LINES).
+ */
+export const SCRIPT_CURSOR_MAX_CHARS = 120
+
 /** Schema de structured outputs: la respuesta del análisis es SIEMPRE este JSON. */
 const OUTPUT_SCHEMA = {
   type: 'object' as const,
@@ -76,7 +86,10 @@ const OUTPUT_SCHEMA = {
     objectivesMet: { type: 'array' as const, items: { type: 'integer' as const } },
     // SPEC-036: índices (0-based) de las preguntas en cola cuyo tema ya quedó
     // cubierto por la conversación (resolución automática de la cola)
-    resolvedQueueIndexes: { type: 'array' as const, items: { type: 'integer' as const } }
+    resolvedQueueIndexes: { type: 'array' as const, items: { type: 'integer' as const } },
+    // SPEC-040: cursor de guión — required con vacío permitido («» cuando el
+    // modelo no sabe); el parseo defensivo cubre ambos casos
+    scriptCursor: { type: 'string' as const, maxLength: SCRIPT_CURSOR_MAX_CHARS }
   },
   required: [
     'action',
@@ -84,7 +97,8 @@ const OUTPUT_SCHEMA = {
     'reason',
     'alarms',
     'objectivesMet',
-    'resolvedQueueIndexes'
+    'resolvedQueueIndexes',
+    'scriptCursor'
   ],
   additionalProperties: false
 }
@@ -106,12 +120,23 @@ interface AssistantSession {
   pending: AssistantQueueItem[]
   /** Preguntas ancladas por el usuario (SPEC-036), en orden de anclado. */
   pinned: AssistantQueueItem[]
+  /** Descartadas manualmente en la sesión (SPEC-039): no vuelven a sugerirse. */
+  discarded: AssistantQueueItem[]
+  /** Respondidas manualmente en la sesión (SPEC-039): no vuelven a sugerirse. */
+  answered: AssistantQueueItem[]
   /** Máximo de pendientes de la sesión (SPEC-036): leído UNA vez al arrancar. */
   maxPending: number
   /** Acumulativo: un objetivo marcado cubierto no vuelve a pendiente. */
   objectivesMet: Set<number>
   /** Candidatas ACEPTADAS en cola (SPEC-036): las suprimidas no cuentan. */
   suggestionCount: number
+  /**
+   * Cursor de guión (SPEC-040): último punto del guión reportado por un
+   * análisis (bloque o pregunta en curso), realimentado en el mensaje de
+   * usuario siguiente. Estado de sesión en memoria: nace null y muere con la
+   * sesión; un cursor vacío o inválido NUNCA borra el último válido.
+   */
+  scriptCursor: string | null
   /** Uso de IA acumulado de la SESIÓN (SPEC-021): en memoria, volcado al parar. */
   usage: AiUsage
   /** Coste persistido de la entrevista al arrancar (base de la comparación con el límite). */
@@ -155,24 +180,167 @@ function buildQueuePayload(target: AssistantSession): AssistantQueue {
 
 /**
  * Normalización determinista para la supresión por similitud (SPEC-036):
- * minúsculas, puntuación fuera y espacios colapsados. Exportada para QA.
+ * minúsculas, sin diacríticos (SPEC-037: NFD + eliminación de marcas
+ * combinantes, precedente de db/search.ts), puntuación fuera y espacios
+ * colapsados. La igualdad exacta de SPEC-036 pasa así a ser insensible a
+ * diacríticos: estrictamente más conservadora (descarta más, nunca menos).
+ * Exportada para QA.
  */
 export function normalizeQuestion(text: string): string {
   return text
     .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()
 }
 
+// --- Similitud de preguntas (SPEC-037; constantes ajustables) ----------------
+
 /**
- * Segunda barrera de similitud (SPEC-036): igualdad de normalizados contra
- * TODA la cola (pendientes + ancladas). Esta comprobación determinista es la
- * que garantizan los ACs; la instrucción del prompt es la primera barrera.
+ * Umbral del coeficiente de solapamiento a partir del cual dos preguntas se
+ * consideran casi idénticas (SPEC-037). Documentada y ajustable por el humano
+ * sin cambiar el contrato (patrón MIN_NEW_FINAL_LINES).
+ */
+export const SIMILARITY_THRESHOLD = 0.7
+
+/**
+ * Longitud mínima del prefijo común para que dos tokens significativos cuenten
+ * como equivalentes (SPEC-037): cubre derivaciones y conjugaciones sin
+ * stemming real («gestionar»≡«gestion»; «gestor»≢«gestion», prefijo común 4).
+ * Documentada y ajustable por el humano sin cambiar el contrato (patrón
+ * SIMILARITY_THRESHOLD).
+ */
+export const TOKEN_PREFIX_EQUIVALENCE_CHARS = 5
+
+/**
+ * Stopwords españolas excluidas de la comparación de similitud (SPEC-037):
+ * artículos, preposiciones, conjunciones, pronombres, interrogativos y
+ * muletillas temporales. Lista FIJA y determinista, sin diacríticos (se aplica
+ * sobre texto ya pasado por normalizeQuestion); ampliable por el humano sin
+ * cambiar el contrato.
+ */
+export const QUESTION_STOPWORDS: Set<string> = new Set([
+  'que',
+  'como',
+  'cuanto',
+  'cuanta',
+  'cuantos',
+  'cuantas',
+  'quien',
+  'donde',
+  'cuando',
+  'por',
+  'para',
+  'de',
+  'del',
+  'la',
+  'el',
+  'los',
+  'las',
+  'un',
+  'una',
+  'unos',
+  'unas',
+  'y',
+  'o',
+  'en',
+  'con',
+  'sin',
+  'al',
+  'se',
+  'os',
+  'esa',
+  'ese',
+  'eso',
+  'esta',
+  'este',
+  'esto',
+  'vosotros',
+  'usted',
+  'ustedes',
+  'hoy',
+  'ahora',
+  'actualmente',
+  'vez'
+])
+
+/**
+ * Tokens significativos de una pregunta (SPEC-037): normaliza, tokeniza por
+ * espacios, filtra stopwords y aplica la reducción singular/plural ingenua
+ * (recorte de una «s» final en tokens de más de 3 caracteres, TRAS filtrar
+ * stopwords: «citas»→«cita», «herramientas»→«herramienta»). Exportada para QA.
+ */
+export function questionSignificantTokens(text: string): Set<string> {
+  const tokens = normalizeQuestion(text)
+    .split(' ')
+    .filter((token) => token !== '' && !QUESTION_STOPWORDS.has(token))
+    .map((token) => (token.length > 3 && token.endsWith('s') ? token.slice(0, -1) : token))
+  return new Set(tokens)
+}
+
+/**
+ * Equivalencia entre dos tokens significativos (SPEC-037): idénticos O con
+ * prefijo común de al menos TOKEN_PREFIX_EQUIVALENCE_CHARS caracteres.
+ */
+function areTokensEquivalent(a: string, b: string): boolean {
+  if (a === b) {
+    return true
+  }
+  // Prefijo común >= N ⟺ ambos miden >= N y sus primeros N caracteres coinciden
+  return (
+    a.length >= TOKEN_PREFIX_EQUIVALENCE_CHARS &&
+    b.length >= TOKEN_PREFIX_EQUIVALENCE_CHARS &&
+    a.slice(0, TOKEN_PREFIX_EQUIVALENCE_CHARS) === b.slice(0, TOKEN_PREFIX_EQUIVALENCE_CHARS)
+  )
+}
+
+/**
+ * Similitud determinista entre dos preguntas (SPEC-037), local y sin llamadas
+ * LLM (control de coste, regla SPEC-016/021):
+ * 1. Igualdad de textos normalizados → similar (superconjunto de SPEC-036).
+ * 2. Algún conjunto de tokens significativos vacío tras las stopwords → NO
+ *    similar (la igualdad exacta ya se comprobó; salvaguarda de la spec).
+ * 3. Intersección por EQUIVALENCIA de tokens (idénticos o prefijo común >=
+ *    TOKEN_PREFIX_EQUIVALENCE_CHARS): se cuentan los tokens de A con algún
+ *    equivalente en B.
+ * 4. Coeficiente de solapamiento matches / min(|A|,|B|) >= SIMILARITY_THRESHOLD
+ *    → casi idéntica.
+ * Exportada para QA.
+ */
+export function areQuestionsSimilar(a: string, b: string): boolean {
+  if (normalizeQuestion(a) === normalizeQuestion(b)) {
+    return true
+  }
+  const tokensA = questionSignificantTokens(a)
+  const tokensB = questionSignificantTokens(b)
+  if (tokensA.size === 0 || tokensB.size === 0) {
+    return false
+  }
+  let matches = 0
+  for (const tokenA of tokensA) {
+    for (const tokenB of tokensB) {
+      if (areTokensEquivalent(tokenA, tokenB)) {
+        matches += 1
+        break
+      }
+    }
+  }
+  return matches / Math.min(tokensA.size, tokensB.size) >= SIMILARITY_THRESHOLD
+}
+
+/**
+ * Segunda barrera de similitud (SPEC-036, robustecida por SPEC-037): una
+ * candidata igual O casi idéntica a cualquier pregunta de TODA la cola
+ * (pendientes + ancladas) se descarta. SPEC-039: el ámbito se amplía al
+ * histórico manual de la sesión (descartadas + respondidas) — el
+ * entrevistador ya se pronunció sobre esos temas y no vuelven a sugerirse.
+ * Esta comprobación determinista es la que garantizan los ACs; la
+ * instrucción del prompt es la primera barrera.
  */
 function isSimilarToQueue(target: AssistantSession, question: string): boolean {
-  const normalized = normalizeQuestion(question)
-  return [...target.pending, ...target.pinned].some(
-    (item) => normalizeQuestion(item.suggestedQuestion) === normalized
+  return [...target.pending, ...target.pinned, ...target.discarded, ...target.answered].some(
+    (item) => areQuestionsSimilar(item.suggestedQuestion, question)
   )
 }
 
@@ -239,9 +407,14 @@ export function startAssistant(sender: WebContents, interviewId: string): void {
     // SPEC-036: la cola es estado de sesión — nace vacía en cada grabación
     pending: [],
     pinned: [],
+    // SPEC-039: el histórico manual también es estado de sesión
+    discarded: [],
+    answered: [],
     maxPending,
     objectivesMet: new Set<number>(),
     suggestionCount: 0,
+    // SPEC-040: sin cursor hasta el primer análisis que lo devuelva válido
+    scriptCursor: null,
     usage: { calls: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 },
     persistedBaseUsd,
     pausedByLimit: false,
@@ -271,7 +444,53 @@ function handleFinalLine(target: AssistantSession, line: TranscriptLine): void {
   }
   target.lines.push(line)
   target.newLinesSinceLastCall += 1
+  // SPEC-038: la resolución por formulación va DESPUÉS de apilar la línea y
+  // ANTES de evaluar los disparadores, sin alterarlos (la línea cuenta como
+  // material nuevo exactamente igual que antes).
+  resolveAskedQuestions(target, line)
   maybeAnalyze(target, MIN_NEW_FINAL_LINES)
+}
+
+/**
+ * Resolución determinista por formulación (SPEC-038): cuando el ENTREVISTADOR
+ * (canal mic) formula en una línea final una pregunta casi idéntica (métrica
+ * de SPEC-037, mismo umbral y equivalencias) a una PENDIENTE, la pregunta
+ * sale de la cola inmediatamente y sin ninguna llamada al LLM. Puede resolver
+ * varias de una vez. Las ancladas NUNCA se auto-resuelven (invariante de
+ * SPEC-036: solo salen por desanclado manual) y una línea del interlocutor
+ * (system) similar es coincidencia temática, no formulación. No toca
+ * suggestionCount (solo cuenta candidatas aceptadas) ni los contadores de
+ * disparo del análisis.
+ */
+function resolveAskedQuestions(target: AssistantSession, line: TranscriptLine): void {
+  if (line.channel !== 'mic') {
+    return
+  }
+  const resolvedIds = new Set(
+    target.pending
+      .filter((item) => areQuestionsSimilar(line.text, item.suggestedQuestion))
+      .map((item) => item.id)
+  )
+  if (resolvedIds.size === 0) {
+    return
+  }
+  target.pending = target.pending.filter((item) => !resolvedIds.has(item.id))
+  // Patrón de estado derivado de setAssistantPinned: un análisis en vuelo
+  // conserva su spinner; si no, active/idle según el contenido total de la
+  // cola. usage solo acompaña con ≥1 análisis para que la línea no parpadee.
+  const event: AssistantUpdateEvent = {
+    state: target.inFlight
+      ? 'analyzing'
+      : target.pending.length + target.pinned.length > 0
+        ? 'active'
+        : 'idle',
+    queue: buildQueuePayload(target),
+    objectivesMet: sortedObjectivesMet(target)
+  }
+  if (target.usage.calls > 0) {
+    event.usage = { ...target.usage }
+  }
+  emitUpdate(target, event)
 }
 
 /**
@@ -285,6 +504,41 @@ function readLimitUsd(): number | null {
   } catch {
     return null
   }
+}
+
+/**
+ * Gate de límite de coste (SPEC-021), extraído como helper en SPEC-039 para
+ * compartirlo entre maybeAnalyze y el análisis inmediato de 'answered' SIN
+ * cambiar el comportamiento: persistido + sesión, redondeado hacia arriba para
+ * pausar ANTES de excederlo; el evento 'paused' solo se emite en la
+ * transición. "Reanudar" lo desactiva para la sesión.
+ * @returns true si el análisis queda bloqueado por el límite.
+ */
+function blockedByCostLimit(target: AssistantSession): boolean {
+  if (target.limitOverridden) {
+    return false
+  }
+  const limitUsd = readLimitUsd()
+  if (
+    limitUsd === null ||
+    roundUpUsd(target.persistedBaseUsd + target.usage.estimatedCostUsd) < limitUsd
+  ) {
+    return false
+  }
+  if (!target.pausedByLimit) {
+    target.pausedByLimit = true
+    const event: AssistantUpdateEvent = {
+      state: 'paused',
+      queue: buildQueuePayload(target),
+      objectivesMet: sortedObjectivesMet(target),
+      pauseLimitUsd: limitUsd
+    }
+    if (target.usage.calls > 0) {
+      event.usage = { ...target.usage }
+    }
+    emitUpdate(target, event)
+  }
+  return true
 }
 
 /**
@@ -304,29 +558,8 @@ function maybeAnalyze(target: AssistantSession, minLines: number): void {
   if (Date.now() - target.lastCallAtMs < MIN_INTERVAL_MS) {
     return
   }
-  // Límite de coste (SPEC-021): persistido + sesión, redondeado hacia arriba
-  // para pausar ANTES de excederlo. "Reanudar" lo desactiva para la sesión.
-  if (!target.limitOverridden) {
-    const limitUsd = readLimitUsd()
-    if (
-      limitUsd !== null &&
-      roundUpUsd(target.persistedBaseUsd + target.usage.estimatedCostUsd) >= limitUsd
-    ) {
-      if (!target.pausedByLimit) {
-        target.pausedByLimit = true
-        const event: AssistantUpdateEvent = {
-          state: 'paused',
-          queue: buildQueuePayload(target),
-          objectivesMet: sortedObjectivesMet(target),
-          pauseLimitUsd: limitUsd
-        }
-        if (target.usage.calls > 0) {
-          event.usage = { ...target.usage }
-        }
-        emitUpdate(target, event)
-      }
-      return
-    }
+  if (blockedByCostLimit(target)) {
+    return
   }
   void runAnalysis(target)
 }
@@ -382,6 +615,11 @@ async function runAnalysis(target: AssistantSession): Promise<void> {
     }
     for (const index of outcome.objectivesMet) {
       target.objectivesMet.add(index)
+    }
+    // 3. Cursor de guión (SPEC-040): solo un cursor válido sustituye al
+    // previo — el vacío o inválido conserva el último punto conocido.
+    if (outcome.scriptCursor !== null) {
+      target.scriptCursor = outcome.scriptCursor
     }
     // Medición de la sesión (SPEC-021): SOLO en el camino de éxito completo
     // (una llamada que falla no cambia el acumulado, AC). SPEC-023: se
@@ -445,14 +683,24 @@ function buildSystemPrompt(personaBlock: string): string {
     '- Escribe TODO en español.',
     "- `action`: 'dig_deeper' si la última respuesta del interlocutor carece de evidencia concreta (hechos pasados, cifras, ejemplos reales) o toca un objetivo aún no cubierto; 'continue' si ya hay material concreto suficiente para avanzar con el guión.",
     `- \`suggestedQuestion\`: la siguiente pregunta exacta que debe hacer el entrevistador, breve (máximo ${SUGGESTED_QUESTION_MAX_CHARS} caracteres) y sobre hechos pasados y comportamiento concreto.`,
+    // SPEC-040: adherencia al guión y a su orden + cursor de posición. Texto
+    // estático: cambia entre releases, no dentro de la sesión — la
+    // byte-estabilidad del prefijo cacheado (SPEC-023) queda intacta.
+    "- Con `action` 'continue', la `suggestedQuestion` debe ser la SIGUIENTE pregunta del guión aún no cubierta, respetando el orden del guión.",
+    '- Desvíate del guión solo con justificación The Mom Test (falta de evidencia concreta o señal de alarma); tras profundizar, vuelve al punto del guión donde te quedaste.',
+    `- \`scriptCursor\`: el bloque o pregunta del guión que se está tratando ahora mismo (máximo ${SCRIPT_CURSOR_MAX_CHARS} caracteres; string vacío si no hay guión o no se sabe).`,
     `- \`reason\`: el porqué en UNA sola frase corta (máximo ${REASON_MAX_CHARS} caracteres). Con 'dig_deeper', referencia el motivo concreto: la evidencia que falta según The Mom Test o el objetivo aún no cubierto.`,
     "- `alarms`: señales de alarma detectadas en las últimas intervenciones del interlocutor: 'compliment' (cumplidos: «suena interesante»), 'generic' (genéricos: «normalmente hacemos»), 'hypothetical' (futuros hipotéticos: «lo compraríamos»). Array vacío si no hay. Si detectas una alarma, la pregunta sugerida debe reconducir a lo concreto (hechos pasados, casos reales).",
     '- `objectivesMet`: índices (0-based) de los objetivos YA cubiertos por la conversación, incluidos los que se marcaron cubiertos en análisis anteriores. Array vacío si no hay objetivos.',
-    // SPEC-036: primera barrera de similitud (la segunda, determinista, vive
-    // en main) + resolución automática de la cola. Texto estático: cambia
+    // SPEC-036/037: primera barrera de similitud (la segunda, determinista,
+    // vive en main) + resolución automática de la cola. Texto estático: cambia
     // entre releases, no dentro de la sesión — byte-estabilidad SPEC-023 intacta.
-    '- En cada mensaje recibirás la lista numerada de preguntas ya en cola; NO propongas una pregunta igual o casi igual a ninguna de ellas: aporta la siguiente jugada.',
-    '- `resolvedQueueIndexes`: índices (0-based) de las preguntas en cola cuyo tema YA quedó cubierto por la conversación; array vacío si ninguna.',
+    '- En cada mensaje recibirás la lista numerada de preguntas ya en cola; NO propongas una pregunta igual, casi igual ni una reformulación del mismo tema con otras palabras respecto a ninguna de ellas: aporta la siguiente jugada.',
+    '- Si la mejor siguiente pregunta ya está en la cola, repite EXACTAMENTE el mismo texto de la pregunta en cola, sin reformularla.',
+    // SPEC-038: primera barrera reforzada de la resolución en vivo — la
+    // revisión es explícita, una a una, y cubre respuestas con otra
+    // formulación o llegadas sin que nadie hiciera la pregunta. Texto estático.
+    '- `resolvedQueueIndexes`: en CADA análisis revisa UNA A UNA las preguntas en cola y marca los índices (0-based) de las que el interlocutor YA haya respondido, aunque la formulación difiera o la respuesta haya llegado sin que nadie hiciera la pregunta; array vacío si ninguna.',
     '- Responde únicamente con el JSON pedido.'
   ].join('\n')
 }
@@ -508,6 +756,13 @@ function buildUserPrompt(target: AssistantSession): string {
     )
   }
 
+  // Cursor de guión (SPEC-040): realimentación del último punto reportado.
+  // Solo si hay cursor válido; viaja SOLO aquí, nunca en systemBlocks
+  // (byte-estabilidad del prefijo cacheado, SPEC-023).
+  if (target.scriptCursor !== null) {
+    sections.push(`## Punto actual del guión\n${target.scriptCursor}`)
+  }
+
   const conversation = target.lines
     .map((line) => {
       const speaker = line.speaker !== null ? ` s${line.speaker}` : ''
@@ -534,8 +789,20 @@ function buildUserPrompt(target: AssistantSession): string {
       : 'ninguna'
   sections.push(`## Preguntas en cola (índices 0-based)\n${queueLines}`)
 
+  // Histórico manual de la sesión (SPEC-039): solo si hay ≥1. Viaja SOLO en
+  // el mensaje de usuario, nunca en systemBlocks (byte-estabilidad SPEC-023).
+  const resolvedItems = [...target.discarded, ...target.answered]
+  if (resolvedItems.length > 0) {
+    const resolvedLines = resolvedItems.map((item) => `- ${item.suggestedQuestion}`).join('\n')
+    sections.push(
+      `## Preguntas ya descartadas o respondidas por el entrevistador (NO las repitas ni propongas variantes)\n${resolvedLines}`
+    )
+  }
+
+  // SPEC-038: primero la revisión de la cola (preguntas ya respondidas),
+  // después la siguiente jugada. Parte variable: sin restricción de bytes.
   sections.push(
-    '## Tarea\nAnaliza la conversación y devuelve la siguiente jugada del entrevistador en el JSON pedido.'
+    '## Tarea\nPrimero revisa la cola de preguntas y marca en `resolvedQueueIndexes` las que el interlocutor ya haya respondido; después analiza la conversación y decide la siguiente jugada del entrevistador. Devuélvelo todo en el JSON pedido.'
   )
 
   return sections.join('\n\n')
@@ -550,6 +817,8 @@ interface AnalysisOutcome {
   objectivesMet: number[]
   /** Índices de la cola (tal como viajó en el prompt) ya cubiertos (SPEC-036). */
   resolvedQueueIndexes: number[]
+  /** Cursor de guión (SPEC-040): string no vacío tras trim, o null (se conserva el previo). */
+  scriptCursor: string | null
 }
 
 /**
@@ -611,6 +880,12 @@ function parseAnalysis(raw: string, objectiveCount: number, queueCount: number):
           typeof item === 'number' && Number.isInteger(item) && item >= 0 && item < queueCount
       )
     : []
+  // SPEC-040: extracción defensiva del cursor (patrón objectivesMet) — solo
+  // un string con contenido tras trim vale; ausente, no-string o vacío → null,
+  // sin invalidar el análisis (nunca lanza por esto)
+  const rawCursor = record.scriptCursor
+  const scriptCursor =
+    typeof rawCursor === 'string' && rawCursor.trim() !== '' ? rawCursor.trim() : null
   return {
     suggestion: {
       action,
@@ -619,7 +894,8 @@ function parseAnalysis(raw: string, objectiveCount: number, queueCount: number):
       alarms
     },
     objectivesMet,
-    resolvedQueueIndexes
+    resolvedQueueIndexes,
+    scriptCursor
   }
 }
 
@@ -712,6 +988,58 @@ export function setAssistantPinned(itemId: string, pinned: boolean): void {
 }
 
 /**
+ * Descarta o marca respondida una pregunta de la cola (SPEC-039). Sin sesión
+ * o con id inexistente es un no-op silencioso (patrón setAssistantPinned).
+ * La acción manual sí puede retirar una anclada (la protección del anclado
+ * solo blinda contra la resolución automática). El ítem pasa al histórico de
+ * la sesión (`discarded`/`answered`): no vuelve a sugerirse (supresión
+ * SPEC-037 ampliada) y se persiste al parar. suggestionCount no se toca.
+ * Con 'answered' y sin análisis en vuelo se dispara UNA llamada inmediata en
+ * background (sin exigir material nuevo ni intervalo), respetando el gate de
+ * límite de coste de SPEC-021; los contadores de disparo no se resetean.
+ */
+export function resolveAssistantItem(itemId: string, outcome: AssistantQuestionOutcome): void {
+  if (session === null) {
+    return
+  }
+  const target = session
+  const item =
+    target.pending.find((candidate) => candidate.id === itemId) ??
+    target.pinned.find((candidate) => candidate.id === itemId)
+  if (item === undefined) {
+    return
+  }
+  target.pending = target.pending.filter((candidate) => candidate.id !== itemId)
+  target.pinned = target.pinned.filter((candidate) => candidate.id !== itemId)
+  if (outcome === 'discarded') {
+    target.discarded.push(item)
+  } else {
+    target.answered.push(item)
+  }
+  // Patrón de estado derivado de setAssistantPinned: un análisis en vuelo
+  // conserva su spinner; si no, active/idle según el contenido de la cola.
+  const event: AssistantUpdateEvent = {
+    state: target.inFlight
+      ? 'analyzing'
+      : target.pending.length + target.pinned.length > 0
+        ? 'active'
+        : 'idle',
+    queue: buildQueuePayload(target),
+    objectivesMet: sortedObjectivesMet(target)
+  }
+  if (target.usage.calls > 0) {
+    event.usage = { ...target.usage }
+  }
+  emitUpdate(target, event)
+  // Análisis inmediato de 'answered' (SPEC-039): actualiza los objetivos en
+  // vivo sin esperar a los disparadores de 3 líneas/20 s. Guard in-flight y
+  // gate de límite (SPEC-021) intactos: pausado o en vuelo → sin llamada.
+  if (outcome === 'answered' && !target.inFlight && !blockedByCostLimit(target)) {
+    void runAnalysis(target)
+  }
+}
+
+/**
  * Reanuda el asistente pausado por límite de coste (SPEC-021): desactiva la
  * comprobación del límite para el RESTO de la sesión (no vuelve a pausar, AC)
  * y reintenta el análisis respetando los disparadores de SPEC-016. Sin sesión
@@ -763,8 +1091,21 @@ export function stopAssistant(): AssistantSessionSummary | null {
     clearInterval(target.fallbackTimer)
     target.fallbackTimer = null
   }
+  // Desenlaces manuales de la sesión (SPEC-039): descartadas primero,
+  // respondidas después — mismo orden en transcript.json y en la entrevista.
+  const questionOutcomes: AssistantQuestionRecord[] = [
+    ...target.discarded.map((item): AssistantQuestionRecord => ({
+      question: item.suggestedQuestion,
+      outcome: 'discarded'
+    })),
+    ...target.answered.map((item): AssistantQuestionRecord => ({
+      question: item.suggestedQuestion,
+      outcome: 'answered'
+    }))
+  ]
   return {
     suggestionCount: target.suggestionCount,
-    usage: { ...target.usage }
+    usage: { ...target.usage },
+    questionOutcomes
   }
 }

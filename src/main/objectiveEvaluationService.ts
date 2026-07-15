@@ -1,7 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { BrowserWindow } from 'electron'
 import type { TranscriptLine } from '../renderer/src/types/audio'
-import type { Interview, ObjectiveResult } from '../renderer/src/types/domain'
+import type {
+  Interview,
+  InterviewQuestionOutcome,
+  ObjectiveResult
+} from '../renderer/src/types/domain'
 import type { ObjectiveEvaluationEvent } from '../renderer/src/types/llm'
 import { getAnthropicKey, mapSdkError, toLlmError, LlmOperationError } from './llmService'
 import { extractUsage, recordInterviewUsage, roundUpUsd } from './aiCost'
@@ -74,7 +78,8 @@ function buildSystemPrompt(): string {
 function buildUserPrompt(
   objectives: string[],
   lines: TranscriptLine[],
-  objectivesMetHint: number[]
+  objectivesMetHint: number[],
+  questionOutcomes: InterviewQuestionOutcome[]
 ): string {
   const sections: string[] = []
 
@@ -84,6 +89,23 @@ function buildUserPrompt(
   if (objectivesMetHint.length > 0) {
     sections.push(
       `## Índices marcados como cubiertos durante la llamada (pista no vinculante)\n${objectivesMetHint.join(', ')}`
+    )
+  }
+
+  // Preguntas descartadas por el entrevistador (SPEC-039): sección
+  // condicional — sin descartadas el prompt es idéntico al anterior.
+  const discarded = questionOutcomes.filter((entry) => entry.outcome === 'discarded')
+  if (discarded.length > 0) {
+    const discardedLines = discarded.map(
+      (entry) =>
+        `- ${entry.question} — Motivo: ${
+          entry.reason !== undefined && entry.reason !== null && entry.reason.trim() !== ''
+            ? entry.reason
+            : 'sin motivo indicado'
+        }`
+    )
+    sections.push(
+      `## Preguntas descartadas por el entrevistador (con su motivo)\n${discardedLines.join('\n')}`
     )
   }
 
@@ -211,7 +233,12 @@ async function doEvaluate(interviewId: string, objectivesMetHint: number[]): Pro
       messages: [
         {
           role: 'user',
-          content: buildUserPrompt(interview.objectives, transcript.lines, objectivesMetHint)
+          content: buildUserPrompt(
+            interview.objectives,
+            transcript.lines,
+            objectivesMetHint,
+            interview.questionOutcomes ?? []
+          )
         }
       ]
     })
