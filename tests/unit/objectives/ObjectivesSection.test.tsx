@@ -126,9 +126,15 @@ describe('ObjectivesSection', () => {
       expect(
         section.compareDocumentPosition(recordingHeading) & Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy()
-      // Un objetivo por línea, todos pendientes (icono Target muted = data-state pending)
+      // Un objetivo por línea, todos pendientes (icono Target muted = data-state pending).
+      // SPEC-042 (adaptación): el texto del objetivo ya no es un span — es el
+      // value del Input editable de la sección fusionada
       const items = within(section).getAllByTestId('objective-item')
-      expect(items.map((item) => item.textContent)).toEqual(['Objetivo cero', 'Objetivo uno'])
+      const inputs = within(section).getAllByTestId('objective-input')
+      expect(inputs.map((input) => (input as HTMLInputElement).value)).toEqual([
+        'Objetivo cero',
+        'Objetivo uno'
+      ])
       items.forEach((item) => expect(item).toHaveAttribute('data-state', 'pending'))
     })
 
@@ -138,26 +144,24 @@ describe('ObjectivesSection', () => {
       const section = await findSection()
 
       expect(await within(section).findByText('Sin objetivos')).toBeInTheDocument()
+      // SPEC-042 (adaptación): el hint remite a añadir aquí (el anterior
+      // «…se añaden editándolo» remitía al Guión, cuyo bloque queda derogado)
+      // y el empty state gana el botón «Añadir objetivo»
       expect(
-        within(section).getByText('Se generan con el guión o se añaden editándolo')
+        within(section).getByText('Se generan con el guión o añádelos aquí')
       ).toBeInTheDocument()
+      expect(within(section).getByTestId('objectives-add-button')).toBeInTheDocument()
       expect(within(section).queryAllByTestId('objective-item')).toHaveLength(0)
     })
 
-    // SPEC-025 · AC-04 (la edición vive en la sección Guión; adaptado por
-    // SPEC-029: la lista editable está siempre activa — sin botón "Editar" —
-    // y "Guardar" solo aparece con cambios)
-    it('reflects the updated objectives list after editing and saving in the Guión section', async () => {
+    // SPEC-025 · AC-04 (adaptado por SPEC-029 y por SPEC-042: la edición ya no
+    // vive en la sección Guión — el bloque queda derogado — sino en la propia
+    // sección Objetivos fusionada, con la misma semántica draft + Guardar)
+    it('reflects the updated objectives list after editing and saving in the fused Objetivos section', async () => {
       const user = userEvent.setup()
-      const withScript = interview({
-        scriptMarkdown: '# Guión',
-        objectives: ['Objetivo cero', 'Objetivo uno'],
-        status: 'prepared'
-      })
-      setInterview(withScript)
       vi.mocked(mockApi.api.db.updateInterview).mockResolvedValue({
         ok: true,
-        data: { ...withScript, objectives: ['Objetivo cero', 'Objetivo uno editado'] }
+        data: interview({ objectives: ['Objetivo cero', 'Objetivo uno editado'] })
       })
       renderDetail()
 
@@ -166,7 +170,7 @@ describe('ObjectivesSection', () => {
 
       const section = screen.getByTestId('objectives-section')
       await waitFor(() =>
-        expect(within(section).getByText('Objetivo uno editado')).toBeInTheDocument()
+        expect(within(section).getByLabelText('Objetivo 2')).toHaveValue('Objetivo uno editado')
       )
     })
   })

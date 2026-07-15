@@ -331,10 +331,7 @@ describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
 
       await user.click(within(item).getByRole('button', { name: 'Descartar pregunta' }))
 
-      expect(vi.mocked(mockApi.api.assistant.resolveItem)).toHaveBeenCalledWith(
-        'q-1',
-        'discarded'
-      )
+      expect(vi.mocked(mockApi.api.assistant.resolveItem)).toHaveBeenCalledWith('q-1', 'discarded')
     })
 
     // SPEC-041 · AC-09 (regresión SPEC-039: el Dialog de motivos se abre igual)
