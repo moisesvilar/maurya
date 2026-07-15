@@ -12,7 +12,6 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import { AssistantPanel } from '@/components/recording/AssistantPanel'
 import { ConsentDialog } from '@/components/recording/ConsentDialog'
 import {
   DiscardReasonsDialog,
@@ -37,11 +36,18 @@ interface RecordingSectionProps {
   interview: Interview
   onInterviewUpdated: (interview: Interview) => void
   /**
-   * Controller externo (SPEC-034, variante captura): lo crea el detalle de
-   * captura para compartirlo con la top bar y la cabecera. Sin él (detalle de
-   * entrevista clásico), la sección crea el suyo propio y no cambia nada.
+   * Controller externo (SPEC-034, variante captura; SPEC-041 también en la
+   * entrevista): lo crea la página para compartirlo con el panel del
+   * asistente (y en la captura con la top bar y la cabecera). Sin él, la
+   * sección crea el suyo propio y no cambia nada.
    */
   controller?: RecordingController
+  /**
+   * Variante de la superficie (SPEC-041): con controller externo ya no se
+   * puede inferir de su presencia — default 'capture' (compatibilidad con
+   * CaptureDetailPage); sin controller siempre es 'interview'.
+   */
+  variant?: 'interview' | 'capture'
 }
 
 function formatElapsed(totalSeconds: number): string {
@@ -67,7 +73,7 @@ export function RecordingSection(props: RecordingSectionProps): React.ReactEleme
       <RecordingSectionView
         controller={props.controller}
         interview={props.interview}
-        variant="capture"
+        variant={props.variant ?? 'capture'}
         onInterviewUpdated={props.onInterviewUpdated}
       />
     )
@@ -150,7 +156,6 @@ function RecordingSectionView({
     requestNewRecording,
     handleShowInFinder,
     transcription,
-    assistant,
     consentDialogOpen,
     handleConsentCancel,
     handleConsentConfirm,
@@ -237,18 +242,10 @@ function RecordingSectionView({
             </Button>
             <TranscriptionStatusBadge status={transcription.status} />
           </div>
-          {/* Asistente (SPEC-016): entre la fila superior y los medidores —
-              lo que el entrevistador debe ver de un vistazo */}
-          <AssistantPanel
-            state={assistant.state}
-            queue={assistant.queue}
-            error={assistant.error}
-            usage={assistant.usage}
-            pauseLimitUsd={assistant.pauseLimitUsd}
-            onSetPinned={assistant.setPinned}
-            onResolveItem={assistant.resolveItem}
-            onResume={assistant.resume}
-          />
+          {/* SPEC-041: el panel del asistente ya no vive aquí — las páginas
+              lo pintan arriba (AssistantLiveSection, entre objetivos y
+              Nota/Guión) mientras se graba. La Grabación conserva cronómetro,
+              Detener, medidores y (solo entrevista) la transcripción. */}
           {/* SPEC-025: el seguimiento en vivo de objetivos se pinta en la
               sección "Objetivos" superior del detalle, no aquí */}
           <div className="space-y-3">
