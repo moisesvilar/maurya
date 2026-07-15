@@ -155,24 +155,133 @@ function buildQueuePayload(target: AssistantSession): AssistantQueue {
 
 /**
  * Normalización determinista para la supresión por similitud (SPEC-036):
- * minúsculas, puntuación fuera y espacios colapsados. Exportada para QA.
+ * minúsculas, sin diacríticos (SPEC-037: NFD + eliminación de marcas
+ * combinantes, precedente de db/search.ts), puntuación fuera y espacios
+ * colapsados. La igualdad exacta de SPEC-036 pasa así a ser insensible a
+ * diacríticos: estrictamente más conservadora (descarta más, nunca menos).
+ * Exportada para QA.
  */
 export function normalizeQuestion(text: string): string {
   return text
     .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()
 }
 
+// --- Similitud de preguntas (SPEC-037; constantes ajustables) ----------------
+
 /**
- * Segunda barrera de similitud (SPEC-036): igualdad de normalizados contra
- * TODA la cola (pendientes + ancladas). Esta comprobación determinista es la
+ * Umbral del coeficiente de solapamiento a partir del cual dos preguntas se
+ * consideran casi idénticas (SPEC-037). Documentada y ajustable por el humano
+ * sin cambiar el contrato (patrón MIN_NEW_FINAL_LINES).
+ */
+export const SIMILARITY_THRESHOLD = 0.7
+
+/**
+ * Stopwords españolas excluidas de la comparación de similitud (SPEC-037):
+ * artículos, preposiciones, conjunciones, pronombres, interrogativos y
+ * muletillas temporales. Lista FIJA y determinista, sin diacríticos (se aplica
+ * sobre texto ya pasado por normalizeQuestion); ampliable por el humano sin
+ * cambiar el contrato.
+ */
+export const QUESTION_STOPWORDS: Set<string> = new Set([
+  'que',
+  'como',
+  'cuanto',
+  'cuanta',
+  'cuantos',
+  'cuantas',
+  'quien',
+  'donde',
+  'cuando',
+  'por',
+  'para',
+  'de',
+  'del',
+  'la',
+  'el',
+  'los',
+  'las',
+  'un',
+  'una',
+  'unos',
+  'unas',
+  'y',
+  'o',
+  'en',
+  'con',
+  'sin',
+  'al',
+  'se',
+  'os',
+  'esa',
+  'ese',
+  'eso',
+  'esta',
+  'este',
+  'esto',
+  'vosotros',
+  'usted',
+  'ustedes',
+  'hoy',
+  'ahora',
+  'actualmente',
+  'vez'
+])
+
+/**
+ * Tokens significativos de una pregunta (SPEC-037): normaliza, tokeniza por
+ * espacios, filtra stopwords y aplica la reducción singular/plural ingenua
+ * (recorte de una «s» final en tokens de más de 3 caracteres, TRAS filtrar
+ * stopwords: «citas»→«cita», «herramientas»→«herramienta»). Exportada para QA.
+ */
+export function questionSignificantTokens(text: string): Set<string> {
+  const tokens = normalizeQuestion(text)
+    .split(' ')
+    .filter((token) => token !== '' && !QUESTION_STOPWORDS.has(token))
+    .map((token) => (token.length > 3 && token.endsWith('s') ? token.slice(0, -1) : token))
+  return new Set(tokens)
+}
+
+/**
+ * Similitud determinista entre dos preguntas (SPEC-037), local y sin llamadas
+ * LLM (control de coste, regla SPEC-016/021):
+ * 1. Igualdad de textos normalizados → similar (superconjunto de SPEC-036).
+ * 2. Algún conjunto de tokens significativos vacío tras las stopwords → NO
+ *    similar (la igualdad exacta ya se comprobó; salvaguarda de la spec).
+ * 3. Coeficiente de solapamiento |A∩B| / min(|A|,|B|) >= SIMILARITY_THRESHOLD
+ *    → casi idéntica.
+ * Exportada para QA.
+ */
+export function areQuestionsSimilar(a: string, b: string): boolean {
+  if (normalizeQuestion(a) === normalizeQuestion(b)) {
+    return true
+  }
+  const tokensA = questionSignificantTokens(a)
+  const tokensB = questionSignificantTokens(b)
+  if (tokensA.size === 0 || tokensB.size === 0) {
+    return false
+  }
+  let intersection = 0
+  for (const token of tokensA) {
+    if (tokensB.has(token)) {
+      intersection += 1
+    }
+  }
+  return intersection / Math.min(tokensA.size, tokensB.size) >= SIMILARITY_THRESHOLD
+}
+
+/**
+ * Segunda barrera de similitud (SPEC-036, robustecida por SPEC-037): una
+ * candidata igual O casi idéntica a cualquier pregunta de TODA la cola
+ * (pendientes + ancladas) se descarta. Esta comprobación determinista es la
  * que garantizan los ACs; la instrucción del prompt es la primera barrera.
  */
 function isSimilarToQueue(target: AssistantSession, question: string): boolean {
-  const normalized = normalizeQuestion(question)
-  return [...target.pending, ...target.pinned].some(
-    (item) => normalizeQuestion(item.suggestedQuestion) === normalized
+  return [...target.pending, ...target.pinned].some((item) =>
+    areQuestionsSimilar(item.suggestedQuestion, question)
   )
 }
 
@@ -448,10 +557,11 @@ function buildSystemPrompt(personaBlock: string): string {
     `- \`reason\`: el porqué en UNA sola frase corta (máximo ${REASON_MAX_CHARS} caracteres). Con 'dig_deeper', referencia el motivo concreto: la evidencia que falta según The Mom Test o el objetivo aún no cubierto.`,
     "- `alarms`: señales de alarma detectadas en las últimas intervenciones del interlocutor: 'compliment' (cumplidos: «suena interesante»), 'generic' (genéricos: «normalmente hacemos»), 'hypothetical' (futuros hipotéticos: «lo compraríamos»). Array vacío si no hay. Si detectas una alarma, la pregunta sugerida debe reconducir a lo concreto (hechos pasados, casos reales).",
     '- `objectivesMet`: índices (0-based) de los objetivos YA cubiertos por la conversación, incluidos los que se marcaron cubiertos en análisis anteriores. Array vacío si no hay objetivos.',
-    // SPEC-036: primera barrera de similitud (la segunda, determinista, vive
-    // en main) + resolución automática de la cola. Texto estático: cambia
+    // SPEC-036/037: primera barrera de similitud (la segunda, determinista,
+    // vive en main) + resolución automática de la cola. Texto estático: cambia
     // entre releases, no dentro de la sesión — byte-estabilidad SPEC-023 intacta.
-    '- En cada mensaje recibirás la lista numerada de preguntas ya en cola; NO propongas una pregunta igual o casi igual a ninguna de ellas: aporta la siguiente jugada.',
+    '- En cada mensaje recibirás la lista numerada de preguntas ya en cola; NO propongas una pregunta igual, casi igual ni una reformulación del mismo tema con otras palabras respecto a ninguna de ellas: aporta la siguiente jugada.',
+    '- Si la mejor siguiente pregunta ya está en la cola, repite EXACTAMENTE el mismo texto de la pregunta en cola, sin reformularla.',
     '- `resolvedQueueIndexes`: índices (0-based) de las preguntas en cola cuyo tema YA quedó cubierto por la conversación; array vacío si ninguna.',
     '- Responde únicamente con el JSON pedido.'
   ].join('\n')
