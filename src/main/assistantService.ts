@@ -411,7 +411,53 @@ function handleFinalLine(target: AssistantSession, line: TranscriptLine): void {
   }
   target.lines.push(line)
   target.newLinesSinceLastCall += 1
+  // SPEC-038: la resolución por formulación va DESPUÉS de apilar la línea y
+  // ANTES de evaluar los disparadores, sin alterarlos (la línea cuenta como
+  // material nuevo exactamente igual que antes).
+  resolveAskedQuestions(target, line)
   maybeAnalyze(target, MIN_NEW_FINAL_LINES)
+}
+
+/**
+ * Resolución determinista por formulación (SPEC-038): cuando el ENTREVISTADOR
+ * (canal mic) formula en una línea final una pregunta casi idéntica (métrica
+ * de SPEC-037, mismo umbral y equivalencias) a una PENDIENTE, la pregunta
+ * sale de la cola inmediatamente y sin ninguna llamada al LLM. Puede resolver
+ * varias de una vez. Las ancladas NUNCA se auto-resuelven (invariante de
+ * SPEC-036: solo salen por desanclado manual) y una línea del interlocutor
+ * (system) similar es coincidencia temática, no formulación. No toca
+ * suggestionCount (solo cuenta candidatas aceptadas) ni los contadores de
+ * disparo del análisis.
+ */
+function resolveAskedQuestions(target: AssistantSession, line: TranscriptLine): void {
+  if (line.channel !== 'mic') {
+    return
+  }
+  const resolvedIds = new Set(
+    target.pending
+      .filter((item) => areQuestionsSimilar(line.text, item.suggestedQuestion))
+      .map((item) => item.id)
+  )
+  if (resolvedIds.size === 0) {
+    return
+  }
+  target.pending = target.pending.filter((item) => !resolvedIds.has(item.id))
+  // Patrón de estado derivado de setAssistantPinned: un análisis en vuelo
+  // conserva su spinner; si no, active/idle según el contenido total de la
+  // cola. usage solo acompaña con ≥1 análisis para que la línea no parpadee.
+  const event: AssistantUpdateEvent = {
+    state: target.inFlight
+      ? 'analyzing'
+      : target.pending.length + target.pinned.length > 0
+        ? 'active'
+        : 'idle',
+    queue: buildQueuePayload(target),
+    objectivesMet: sortedObjectivesMet(target)
+  }
+  if (target.usage.calls > 0) {
+    event.usage = { ...target.usage }
+  }
+  emitUpdate(target, event)
 }
 
 /**
@@ -593,7 +639,10 @@ function buildSystemPrompt(personaBlock: string): string {
     // entre releases, no dentro de la sesión — byte-estabilidad SPEC-023 intacta.
     '- En cada mensaje recibirás la lista numerada de preguntas ya en cola; NO propongas una pregunta igual, casi igual ni una reformulación del mismo tema con otras palabras respecto a ninguna de ellas: aporta la siguiente jugada.',
     '- Si la mejor siguiente pregunta ya está en la cola, repite EXACTAMENTE el mismo texto de la pregunta en cola, sin reformularla.',
-    '- `resolvedQueueIndexes`: índices (0-based) de las preguntas en cola cuyo tema YA quedó cubierto por la conversación; array vacío si ninguna.',
+    // SPEC-038: primera barrera reforzada de la resolución en vivo — la
+    // revisión es explícita, una a una, y cubre respuestas con otra
+    // formulación o llegadas sin que nadie hiciera la pregunta. Texto estático.
+    '- `resolvedQueueIndexes`: en CADA análisis revisa UNA A UNA las preguntas en cola y marca los índices (0-based) de las que el interlocutor YA haya respondido, aunque la formulación difiera o la respuesta haya llegado sin que nadie hiciera la pregunta; array vacío si ninguna.',
     '- Responde únicamente con el JSON pedido.'
   ].join('\n')
 }
@@ -675,8 +724,10 @@ function buildUserPrompt(target: AssistantSession): string {
       : 'ninguna'
   sections.push(`## Preguntas en cola (índices 0-based)\n${queueLines}`)
 
+  // SPEC-038: primero la revisión de la cola (preguntas ya respondidas),
+  // después la siguiente jugada. Parte variable: sin restricción de bytes.
   sections.push(
-    '## Tarea\nAnaliza la conversación y devuelve la siguiente jugada del entrevistador en el JSON pedido.'
+    '## Tarea\nPrimero revisa la cola de preguntas y marca en `resolvedQueueIndexes` las que el interlocutor ya haya respondido; después analiza la conversación y decide la siguiente jugada del entrevistador. Devuélvelo todo en el JSON pedido.'
   )
 
   return sections.join('\n\n')
