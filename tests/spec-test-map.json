@@ -1705,5 +1705,35 @@
     },
     "created_at": "2026-07-12",
     "updated_at": "2026-07-12"
+  },
+  "SPEC-037": {
+    "spec_file": "specs/SPEC-037-similitud-preguntas.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición (13) — supresión determinista ×5: AC-01 reformulación del mismo tema se descarta con la cola intacta, AC-02 solo mayúsculas/diacríticos/puntuación se descarta, AC-03 la barrera cubre las ancladas, AC-04 variación singular/plural y de sufijos (gestionar≡gestión) se descarta, AC-05 la suprimida no incrementa suggestionCount y el evento lleva la cola sin ella; aceptación ×3: AC-06 tema distinto entra al frente, AC-07 compartir una palabra con otro tema no descarta, AC-08 contra cola vacía nunca se descarta; primera barrera (prompt) ×2: AC-09 instrucción de no proponer reformulaciones del mismo tema, AC-10 instrucción de repetir EXACTAMENTE el texto de la cola; regresión ×3: AC-11 systemBlocks byte-idénticos entre llamadas, AC-12 gate de capacidad intacto (orden similitud→capacidad), AC-13 aceptada al frente con id propio y suggestionCount solo de aceptadas.",
+    "unit": [
+      {
+        "file": "tests/unit/assistant/questionSimilarity.test.ts",
+        "test_count": 13,
+        "description": "assistantService en Node (arnés SPEC-016/021/036: SDK y Deepgram mockeados, store/repository/transcriptionService REALES, fake timers solo de Date): similitud aproximada por tokens significativos (stopwords fijas, sin diacríticos, recorte de «s», equivalencia por prefijo común ≥ 5, solapamiento ≥ 0.7) contra pendientes y ancladas; aceptación de temas distintos; instrucciones nuevas del prompt (primera barrera); regresión de byte-estabilidad SPEC-023, gate de capacidad y encolado SPEC-036."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e Playwright no aplica en este proyecto (decisión humana 2026-07-03). La calidad real de la primera barrera (que el modelo repita el texto exacto o no reformule) es MANUAL: humo con clave en una sesión real; la barrera determinista queda cubierta por unit.",
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/assistant/questionSimilarity.test.ts::assistantService (similitud SPEC-037)::deterministic near-duplicate suppression::discards a rephrased near-duplicate of a pending question keeping the queue unchanged",
+      "AC-02": "tests/unit/assistant/questionSimilarity.test.ts::assistantService (similitud SPEC-037)::deterministic near-duplicate suppression::discards a candidate that only differs in case, diacritics or punctuation",
+      "AC-03": "tests/unit/assistant/questionSimilarity.test.ts::assistantService (similitud SPEC-037)::deterministic near-duplicate suppression::discards a near-duplicate of a pinned question keeping pending and pinned unchanged",
+      "AC-04": "tests/unit/assistant/questionSimilarity.test.ts::assistantService (similitud SPEC-037)::deterministic near-duplicate suppression::discards a same-topic candidate with singular/plural and suffix variations",
+      "AC-05": "tests/unit/assistant/questionSimilarity.test.ts::assistantService (similitud SPEC-037)::deterministic near-duplicate suppression::keeps suggestionCount untouched and emits the queue without the suppressed candidate",
+      "AC-06": "tests/unit/assistant/questionSimilarity.test.ts::assistantService (similitud SPEC-037)::distinct candidate acceptance::enqueues a distinct-topic candidate at the front of the pending queue",
+      "AC-07": "tests/unit/assistant/questionSimilarity.test.ts::assistantService (similitud SPEC-037)::distinct candidate acceptance::enqueues a candidate that shares a word with a queued question but targets another topic",
+      "AC-08": "tests/unit/assistant/questionSimilarity.test.ts::assistantService (similitud SPEC-037)::distinct candidate acceptance::always enqueues the candidate when the queue is empty",
+      "AC-09": "tests/unit/assistant/questionSimilarity.test.ts::assistantService (similitud SPEC-037)::prompt first barrier::instructs the model not to propose rephrasings of the same topic as queued questions",
+      "AC-10": "tests/unit/assistant/questionSimilarity.test.ts::assistantService (similitud SPEC-037)::prompt first barrier::instructs the model to repeat the exact queued text when the best next question is already queued",
+      "AC-11": "tests/unit/assistant/questionSimilarity.test.ts::assistantService (similitud SPEC-037)::regression (SPEC-021/023/036 invariants)::keeps the system blocks byte-identical across analyses after the similarity change",
+      "AC-12": "tests/unit/assistant/questionSimilarity.test.ts::assistantService (similitud SPEC-037)::regression (SPEC-021/023/036 invariants)::discards a distinct candidate by the capacity gate when pending is at its maximum",
+      "AC-13": "tests/unit/assistant/questionSimilarity.test.ts::assistantService (similitud SPEC-037)::regression (SPEC-021/023/036 invariants)::enqueues accepted candidates at the front with their own id and counts only accepted ones"
+    },
+    "created_at": "2026-07-15",
+    "updated_at": "2026-07-15"
   }
 }
