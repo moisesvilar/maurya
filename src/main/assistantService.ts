@@ -180,6 +180,15 @@ export function normalizeQuestion(text: string): string {
 export const SIMILARITY_THRESHOLD = 0.7
 
 /**
+ * Longitud mínima del prefijo común para que dos tokens significativos cuenten
+ * como equivalentes (SPEC-037): cubre derivaciones y conjugaciones sin
+ * stemming real («gestionar»≡«gestion»; «gestor»≢«gestion», prefijo común 4).
+ * Documentada y ajustable por el humano sin cambiar el contrato (patrón
+ * SIMILARITY_THRESHOLD).
+ */
+export const TOKEN_PREFIX_EQUIVALENCE_CHARS = 5
+
+/**
  * Stopwords españolas excluidas de la comparación de similitud (SPEC-037):
  * artículos, preposiciones, conjunciones, pronombres, interrogativos y
  * muletillas temporales. Lista FIJA y determinista, sin diacríticos (se aplica
@@ -246,12 +255,31 @@ export function questionSignificantTokens(text: string): Set<string> {
 }
 
 /**
+ * Equivalencia entre dos tokens significativos (SPEC-037): idénticos O con
+ * prefijo común de al menos TOKEN_PREFIX_EQUIVALENCE_CHARS caracteres.
+ */
+function areTokensEquivalent(a: string, b: string): boolean {
+  if (a === b) {
+    return true
+  }
+  // Prefijo común >= N ⟺ ambos miden >= N y sus primeros N caracteres coinciden
+  return (
+    a.length >= TOKEN_PREFIX_EQUIVALENCE_CHARS &&
+    b.length >= TOKEN_PREFIX_EQUIVALENCE_CHARS &&
+    a.slice(0, TOKEN_PREFIX_EQUIVALENCE_CHARS) === b.slice(0, TOKEN_PREFIX_EQUIVALENCE_CHARS)
+  )
+}
+
+/**
  * Similitud determinista entre dos preguntas (SPEC-037), local y sin llamadas
  * LLM (control de coste, regla SPEC-016/021):
  * 1. Igualdad de textos normalizados → similar (superconjunto de SPEC-036).
  * 2. Algún conjunto de tokens significativos vacío tras las stopwords → NO
  *    similar (la igualdad exacta ya se comprobó; salvaguarda de la spec).
- * 3. Coeficiente de solapamiento |A∩B| / min(|A|,|B|) >= SIMILARITY_THRESHOLD
+ * 3. Intersección por EQUIVALENCIA de tokens (idénticos o prefijo común >=
+ *    TOKEN_PREFIX_EQUIVALENCE_CHARS): se cuentan los tokens de A con algún
+ *    equivalente en B.
+ * 4. Coeficiente de solapamiento matches / min(|A|,|B|) >= SIMILARITY_THRESHOLD
  *    → casi idéntica.
  * Exportada para QA.
  */
@@ -264,13 +292,16 @@ export function areQuestionsSimilar(a: string, b: string): boolean {
   if (tokensA.size === 0 || tokensB.size === 0) {
     return false
   }
-  let intersection = 0
-  for (const token of tokensA) {
-    if (tokensB.has(token)) {
-      intersection += 1
+  let matches = 0
+  for (const tokenA of tokensA) {
+    for (const tokenB of tokensB) {
+      if (areTokensEquivalent(tokenA, tokenB)) {
+        matches += 1
+        break
+      }
     }
   }
-  return intersection / Math.min(tokensA.size, tokensB.size) >= SIMILARITY_THRESHOLD
+  return matches / Math.min(tokensA.size, tokensB.size) >= SIMILARITY_THRESHOLD
 }
 
 /**
