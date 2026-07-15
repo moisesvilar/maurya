@@ -223,10 +223,7 @@ describe('AssistantPanel (acciones por pregunta SPEC-039)', () => {
 
       await user.click(within(item).getByRole('button', { name: 'Descartar pregunta' }))
 
-      expect(vi.mocked(mockApi.api.assistant.resolveItem)).toHaveBeenCalledWith(
-        'q-1',
-        'discarded'
-      )
+      expect(vi.mocked(mockApi.api.assistant.resolveItem)).toHaveBeenCalledWith('q-1', 'discarded')
       // Sin confirmación (ningún AlertDialog) ni Toast de sonner
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
       expect(document.querySelector('[data-sonner-toast]')).toBeNull()

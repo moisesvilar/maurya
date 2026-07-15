@@ -1827,5 +1827,33 @@
     },
     "created_at": "2026-07-15",
     "updated_at": "2026-07-15"
+  },
+  "SPEC-040": {
+    "spec_file": "specs/SPEC-040-preguntas-cenidas-guion.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición (11) — instrucciones ×3: AC-01 continue = siguiente pregunta del guión en su orden, AC-02 desviación solo Mom Test y volver al guión, AC-03 instrucción de scriptCursor; cursor ×4: AC-04 el cursor devuelto viaja en el siguiente mensaje, AC-05 sin cursor previo la sección no aparece, AC-06 el vacío conserva el último válido, AC-07 tipo inesperado no rompe el análisis; contrato ×1: AC-08 scriptCursor string acotado y required con topes previos intactos; regresión ×3: AC-09 systemBlocks byte-idénticos con cursor cambiante, AC-10 aceptación/supresión intactas, AC-11 sin guión todo funciona.",
+    "unit": [
+      {
+        "file": "tests/unit/assistant/scriptCursor.test.ts",
+        "test_count": 11,
+        "description": "assistantService en Node (arnés SPEC-016/021/036/037/038): reglas estáticas de adherencia al guión, campo scriptCursor del schema (maxLength 120, required), realimentación del cursor en el mensaje de usuario con parseo defensivo (vacío/tipo inesperado conservan el último válido) y regresión de byte-estabilidad, supresión y sesiones sin guión."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e Playwright no aplica (decisión humana 2026-07-03). La calidad real de la adherencia al guión (que el modelo siga de verdad el orden) es MANUAL: humo con clave en sesión real.",
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/assistant/scriptCursor.test.ts::assistantService (cursor de guión SPEC-040)::script adherence instructions (system prompt)::instructs the model to suggest the next uncovered script question in script order on continue",
+      "AC-02": "tests/unit/assistant/scriptCursor.test.ts::assistantService (cursor de guión SPEC-040)::script adherence instructions (system prompt)::instructs the model to deviate only with Mom Test justification and to return to the script afterwards",
+      "AC-03": "tests/unit/assistant/scriptCursor.test.ts::assistantService (cursor de guión SPEC-040)::script adherence instructions (system prompt)::instructs the model to return the current script block or question in scriptCursor",
+      "AC-04": "tests/unit/assistant/scriptCursor.test.ts::assistantService (cursor de guión SPEC-040)::cursor feedback loop::feeds the returned cursor back as the current script point in the next user message",
+      "AC-05": "tests/unit/assistant/scriptCursor.test.ts::assistantService (cursor de guión SPEC-040)::cursor feedback loop::omits the current script point section when no valid cursor was ever returned",
+      "AC-06": "tests/unit/assistant/scriptCursor.test.ts::assistantService (cursor de guión SPEC-040)::cursor feedback loop::keeps the last valid cursor when a later analysis returns an empty one",
+      "AC-07": "tests/unit/assistant/scriptCursor.test.ts::assistantService (cursor de guión SPEC-040)::cursor feedback loop::keeps the analysis valid and the previous cursor when scriptCursor has an unexpected type",
+      "AC-08": "tests/unit/assistant/scriptCursor.test.ts::assistantService (cursor de guión SPEC-040)::output contract::declares scriptCursor as a bounded required string keeping the existing output caps",
+      "AC-09": "tests/unit/assistant/scriptCursor.test.ts::assistantService (cursor de guión SPEC-040)::regression (SPEC-023/036/037 invariants)::keeps the system blocks byte-identical while the cursor changes across analyses",
+      "AC-10": "tests/unit/assistant/scriptCursor.test.ts::assistantService (cursor de guión SPEC-040)::regression (SPEC-023/036/037 invariants)::keeps candidate acceptance and similarity suppression untouched when a cursor is returned",
+      "AC-11": "tests/unit/assistant/scriptCursor.test.ts::assistantService (cursor de guión SPEC-040)::regression (SPEC-023/036/037 invariants)::works unchanged for an interview without script"
+    },
+    "created_at": "2026-07-15",
+    "updated_at": "2026-07-15"
   }
 }
