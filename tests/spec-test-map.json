@@ -1735,5 +1735,35 @@
     },
     "created_at": "2026-07-15",
     "updated_at": "2026-07-15"
+  },
+  "SPEC-038": {
+    "spec_file": "specs/SPEC-038-resolucion-preguntas-vivo.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición (13) — resolución determinista por formulación (mic) ×7: AC-01 línea final mic casi idéntica saca la pendiente al instante sin LLM, AC-02 las ancladas nunca se auto-resuelven, AC-03 el canal system no formula, AC-04 otro tema no resuelve, AC-05 una línea puede resolver varias, AC-06 la línea que resuelve sigue contando para los disparadores, AC-07 las interim no resuelven; primera barrera (prompt) ×2: AC-08 revisar una a una y marcar respondidas aunque no se formularan, AC-09 la Tarea pide primero la revisión de la cola; regresión ×4: AC-10 systemBlocks byte-idénticos, AC-11 resolvedQueueIndexes por snapshot intacto, AC-12 índice anclado ignorado, AC-13 suggestionCount no cambia por resolución.",
+    "unit": [
+      {
+        "file": "tests/unit/assistant/liveResolution.test.ts",
+        "test_count": 13,
+        "description": "assistantService en Node (arnés SPEC-016/021/036/037): resolución inmediata al formular por mic (métrica SPEC-037, por id, multi-match, ancladas exentas, solo finales, sin llamadas extra), instrucciones reforzadas del prompt (revisión una a una + Tarea en dos pasos) y regresión de byte-estabilidad, resolución por snapshot y suggestionCount."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e Playwright no aplica en este proyecto (decisión humana 2026-07-03). La calidad real de la resolución por análisis LLM (respondidas sin formularse) es MANUAL: humo con clave en sesión real; la vía determinista queda cubierta por unit.",
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/assistant/liveResolution.test.ts::assistantService (resolución en vivo SPEC-038)::deterministic resolution on interviewer asking (mic)::removes a pending question immediately when a final mic line asks it, emitting the update without any LLM call",
+      "AC-02": "tests/unit/assistant/liveResolution.test.ts::assistantService (resolución en vivo SPEC-038)::deterministic resolution on interviewer asking (mic)::keeps a pinned question intact when a final mic line asks it",
+      "AC-03": "tests/unit/assistant/liveResolution.test.ts::assistantService (resolución en vivo SPEC-038)::deterministic resolution on interviewer asking (mic)::keeps the pending question when a similar final line arrives on the system channel",
+      "AC-04": "tests/unit/assistant/liveResolution.test.ts::assistantService (resolución en vivo SPEC-038)::deterministic resolution on interviewer asking (mic)::keeps the pending question when the final mic line targets another topic",
+      "AC-05": "tests/unit/assistant/liveResolution.test.ts::assistantService (resolución en vivo SPEC-038)::deterministic resolution on interviewer asking (mic)::removes every pending question matched by the same final mic line",
+      "AC-06": "tests/unit/assistant/liveResolution.test.ts::assistantService (resolución en vivo SPEC-038)::deterministic resolution on interviewer asking (mic)::still counts the resolving mic line toward the analysis triggers without extra calls",
+      "AC-07": "tests/unit/assistant/liveResolution.test.ts::assistantService (resolución en vivo SPEC-038)::deterministic resolution on interviewer asking (mic)::ignores interim mic lines even when they match a pending question",
+      "AC-08": "tests/unit/assistant/liveResolution.test.ts::assistantService (resolución en vivo SPEC-038)::prompt first barrier::instructs the model to review every queued question and mark answered ones even if never asked verbatim",
+      "AC-09": "tests/unit/assistant/liveResolution.test.ts::assistantService (resolución en vivo SPEC-038)::prompt first barrier::asks first for the queue review and then for the next move in the user task section",
+      "AC-10": "tests/unit/assistant/liveResolution.test.ts::assistantService (resolución en vivo SPEC-038)::regression (SPEC-023/036/037 invariants)::keeps the system blocks byte-identical across analyses after the live-resolution change",
+      "AC-11": "tests/unit/assistant/liveResolution.test.ts::assistantService (resolución en vivo SPEC-038)::regression (SPEC-023/036/037 invariants)::still resolves pending questions marked by the analysis through snapshot indexes",
+      "AC-12": "tests/unit/assistant/liveResolution.test.ts::assistantService (resolución en vivo SPEC-038)::regression (SPEC-023/036/037 invariants)::ignores an analysis-resolved index that points to a pinned question",
+      "AC-13": "tests/unit/assistant/liveResolution.test.ts::assistantService (resolución en vivo SPEC-038)::regression (SPEC-023/036/037 invariants)::keeps suggestionCount counting only accepted candidates after a live resolution"
+    },
+    "created_at": "2026-07-15",
+    "updated_at": "2026-07-15"
   }
 }
