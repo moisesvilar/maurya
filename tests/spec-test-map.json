@@ -1647,9 +1647,9 @@
       "AC-08": "Sin cambios en la entrevista clásica — co-cobertura SPEC-015 · AC-09: tests/unit/recording/RecordingSection.test.tsx::RecordingSection::live transcription::shows live lines with source badge and speaker label plus the \"Transcribiendo\" status badge (montado vía InterviewDetailPage, variante interview: acredita que el área en vivo sigue pintándose allí; suite en verde tras la implementación de SPEC-035)",
       "AC-09": "tests/unit/captures/CaptureDetailPage.liveTranscript.test.tsx::CaptureDetailPage (SPEC-035 capture UI cleanup)::recording without live transcript area::keeps the live assistant producing suggestions from the unpainted transcription during a capture recording + co-cobertura de servicio: suite completa de tests/unit/assistant/assistantService.test.ts (SPEC-016) corriendo sobre una captura sin empresa (seed SPEC-020)"
     },
-    "notes": "Derogaciones anotadas en este map: SPEC-017 · AC-02 (mensaje record-first eliminado; test sustituido 1:1), SPEC-027 · AC-01 (ampliado) y AC-03 (caso sin transcripción derogado; test adaptado con transcriptPath), SPEC-015 · AC-09 (vigente solo en el detalle de entrevista) y SPEC-020 · AC-15 (paridad de secciones matizada por SPEC-034/SPEC-035). Nota de contrato: tests/spec-test-map.schema.json no existe en este repo (la validación formal del map queda como convención de formato con las entradas previas).",
+    "notes": "Derogaciones anotadas en este map: SPEC-017 · AC-02 (mensaje record-first eliminado; test sustituido 1:1), SPEC-027 · AC-01 (ampliado) y AC-03 (caso sin transcripción derogado; test adaptado con transcriptPath), SPEC-015 · AC-09 (vigente solo en el detalle de entrevista) y SPEC-020 · AC-15 (paridad de secciones matizada por SPEC-034/SPEC-035). Nota de contrato: tests/spec-test-map.schema.json no existe en este repo (la validación formal del map queda como convención de formato con las entradas previas). Adaptación SPEC-041 (2026-07-15): AC-05 asertaba el panel del asistente dentro de la sección «Grabación» — derogación posicional por SPEC-041 (el panel vive ahora en assistant-live-section, arriba de Nota/Guión); el test se adaptó conservando el aserto funcional (panel presente durante la grabación) en la nueva ubicación.",
     "created_at": "2026-07-12",
-    "updated_at": "2026-07-12"
+    "updated_at": "2026-07-15"
   },
   "SPEC-036": {
     "spec_file": "specs/SPEC-036-cola-preguntas-asistente.md",
@@ -1852,6 +1852,34 @@
       "AC-09": "tests/unit/assistant/scriptCursor.test.ts::assistantService (cursor de guión SPEC-040)::regression (SPEC-023/036/037 invariants)::keeps the system blocks byte-identical while the cursor changes across analyses",
       "AC-10": "tests/unit/assistant/scriptCursor.test.ts::assistantService (cursor de guión SPEC-040)::regression (SPEC-023/036/037 invariants)::keeps candidate acceptance and similarity suppression untouched when a cursor is returned",
       "AC-11": "tests/unit/assistant/scriptCursor.test.ts::assistantService (cursor de guión SPEC-040)::regression (SPEC-023/036/037 invariants)::works unchanged for an interview without script"
+    },
+    "created_at": "2026-07-15",
+    "updated_at": "2026-07-15"
+  },
+  "SPEC-041": {
+    "spec_file": "specs/SPEC-041-panel-sugerencias-arriba.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición (10) — detalle de entrevista ×4: AC-01 el panel aparece DESPUÉS de «Objetivos» y ANTES de Nota/Guión (orden DOM), AC-02 la sección «Grabación» ya no contiene el panel (cronómetro, Detener, medidores y transcripción en vivo permanecen), AC-03 sin grabación en curso el panel no aparece en ninguna parte, AC-04 en estado Grabada tampoco; detalle de captura ×2: AC-05 grabando el panel aparece ANTES de Nota/Guión (encima del Guión), AC-06 sin grabar no aparece; comportamiento intacto ×2: AC-07 la cola se renderiza igual que antes (badges, pregunta, porqué, acciones SPEC-039), AC-08 una acción de pregunta invoca la misma acción del asistente (cableado sin cambios); regresión ×2: AC-09 el Dialog «Preguntas descartadas» (SPEC-039) se abre igual tras la parada, AC-10 la transcripción en vivo sigue presente solo en la Grabación de la entrevista (SPEC-035).",
+    "unit": [
+      {
+        "file": "tests/unit/recording/AssistantLiveSection.test.tsx",
+        "test_count": 10,
+        "description": "Orden DOM en jsdom con compareDocumentPosition (patrón SPEC-030) montando InterviewDetailPage y CaptureDetailPage bajo Layout (arneses de RecordingSection.test.tsx y CaptureDetailPage.liveTranscript.test.tsx): panel en assistant-live-section entre Objetivos y Nota/Guión (entrevista) y encima de Nota/Guión (captura) solo durante la grabación, Grabación sin panel pero con cronómetro/Detener/medidores/transcripción, panel funcional en la nueva ubicación (cola SPEC-036/039 + Descartar → assistant.resolveItem) y regresión del Dialog de motivos y de la transcripción en vivo solo en entrevista."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e Playwright no aplica en este proyecto (decisión humana 2026-07-03); verificación end-to-end manual. El lado captura de AC-10 (la captura sigue sin área de transcripción en vivo) queda co-cubierto por la suite de SPEC-035 (tests/unit/captures/CaptureDetailPage.liveTranscript.test.tsx), verde tras la adaptación posicional.",
+    "notes": "Derogación posicional aplicada (precedente SPEC-030): SPEC-035 · AC-05 asertaba el panel del asistente DENTRO de la sección «Grabación» de la captura (within(section).getByText del empty state) y se adaptó citando SPEC-041 — el aserto funcional se conserva (el panel sigue presente durante la grabación, ahora en assistant-live-section) y se añade el aserto negativo dentro de la sección. Las demás suites del panel (AssistantPanel.test.tsx, AssistantPanel.queue.test.tsx, AssistantPanel.actions.test.tsx, AssistantPanel.aiCost.test.tsx, RecordingSection.test.tsx, DiscardReasonsDialog.test.tsx, CaptureDetailPage.recordingControls.test.tsx, ObjectivesSection.test.tsx, InterviewDetailPage.test.tsx) consultan a nivel de página y quedaron verificadas en verde sin cambios tras la reubicación. El orden de SPEC-030 (Objetivos → Nota/Guión → Grabación) sigue vigente: el panel se inserta entre Objetivos y Nota/Guión sin alterar aquellos asertos.",
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/recording/AssistantLiveSection.test.tsx::AssistantLiveSection (panel arriba SPEC-041)::interview detail::renders the assistant panel after the Objetivos section and before the Nota/Guión sections while recording",
+      "AC-02": "tests/unit/recording/AssistantLiveSection.test.tsx::AssistantLiveSection (panel arriba SPEC-041)::interview detail::keeps the Grabación section without the assistant panel while chronometer, Detener, meters and live transcript remain",
+      "AC-03": "tests/unit/recording/AssistantLiveSection.test.tsx::AssistantLiveSection (panel arriba SPEC-041)::interview detail::does not render the assistant panel anywhere before the recording starts",
+      "AC-04": "tests/unit/recording/AssistantLiveSection.test.tsx::AssistantLiveSection (panel arriba SPEC-041)::interview detail::does not render the assistant panel on an already recorded interview",
+      "AC-05": "tests/unit/recording/AssistantLiveSection.test.tsx::AssistantLiveSection (panel arriba SPEC-041)::capture detail::renders the assistant panel right above the Nota/Guión sections while recording a capture",
+      "AC-06": "tests/unit/recording/AssistantLiveSection.test.tsx::AssistantLiveSection (panel arriba SPEC-041)::capture detail::does not render the assistant panel on the capture detail without a recording in progress",
+      "AC-07": "tests/unit/recording/AssistantLiveSection.test.tsx::AssistantLiveSection (panel arriba SPEC-041)::interview detail::renders the queued question in the new location with its badges, question, reason and the SPEC-039 actions",
+      "AC-08": "tests/unit/recording/AssistantLiveSection.test.tsx::AssistantLiveSection (panel arriba SPEC-041)::interview detail::invokes the same assistant action from the new location when a question action is pressed",
+      "AC-09": "tests/unit/recording/AssistantLiveSection.test.tsx::AssistantLiveSection (panel arriba SPEC-041)::interview detail::still opens the Preguntas descartadas dialog after a stop with discarded questions",
+      "AC-10": "tests/unit/recording/AssistantLiveSection.test.tsx::AssistantLiveSection (panel arriba SPEC-041)::interview detail::keeps the live transcript area rendering inside the interview Grabación section only"
     },
     "created_at": "2026-07-15",
     "updated_at": "2026-07-15"

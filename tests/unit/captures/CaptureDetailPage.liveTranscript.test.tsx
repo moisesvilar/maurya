@@ -223,7 +223,14 @@ describe('CaptureDetailPage (SPEC-035 capture UI cleanup)', () => {
       expect(within(section).getAllByRole('progressbar')).toHaveLength(2)
       expect(within(section).getByLabelText('Nivel de Micrófono')).toBeInTheDocument()
       expect(within(section).getByLabelText('Nivel de Sistema')).toBeInTheDocument()
-      expect(within(section).getByText(ASSISTANT_INITIAL_TEXT)).toBeInTheDocument()
+      // SPEC-041 (derogación posicional, precedente SPEC-030): el panel del
+      // asistente ya no vive dentro de la sección «Grabación» — la página lo
+      // pinta arriba, en el contenedor assistant-live-section, mientras se
+      // graba. El aserto funcional (panel presente durante la grabación de la
+      // captura) se conserva en la nueva ubicación.
+      expect(within(section).queryByText(ASSISTANT_INITIAL_TEXT)).not.toBeInTheDocument()
+      const liveSection = screen.getByTestId('assistant-live-section')
+      expect(within(liveSection).getByText(ASSISTANT_INITIAL_TEXT)).toBeInTheDocument()
     })
 
     // SPEC-035 · AC-06
