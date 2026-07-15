@@ -73,9 +73,13 @@ Origen: petición humana directa (2026-07-15), §1 de
      ser fija y determinista).
   3. Reducción singular/plural ingenua: a cada token de más de 3 caracteres se le recorta una
      «s» final («citas»→«cita», «herramientas»→«herramienta»).
-  4. Similitud = **coeficiente de solapamiento** `|A∩B| / min(|A|,|B|)` entre los conjuntos de
-     tokens resultantes. Umbral: `>= 0.7` → casi idéntica → se descarta.
-  5. Salvaguardas: si alguno de los dos conjuntos queda vacío tras las stopwords, se cae a la
+  4. **Equivalencia de tokens**: dos tokens cuentan como el mismo si son idénticos **o** si su
+     prefijo común tiene al menos 5 caracteres («gestionar»≡«gestión», «comprar»≡«comprasteis»;
+     «gestor»≢«gestión» — prefijo común 4). Cubre derivaciones y conjugaciones sin stemming real.
+  5. Similitud = **coeficiente de solapamiento** `|A∩B| / min(|A|,|B|)` entre los conjuntos de
+     tokens resultantes, donde la intersección cuenta tokens de A con algún equivalente en B.
+     Umbral: `>= 0.7` → casi idéntica → se descarta.
+  6. Salvaguardas: si alguno de los dos conjuntos queda vacío tras las stopwords, se cae a la
      comparación de SPEC-036 (igualdad de textos normalizados). La igualdad exacta de
      normalizados sigue descartando siempre (superconjunto del comportamiento anterior).
 - La comparación se hace contra **toda** la cola (pendientes + ancladas), como en SPEC-036.
@@ -97,6 +101,11 @@ Origen: petición humana directa (2026-07-15), §1 de
   conservarla solo para la nueva métrica y dejar `normalizeQuestion` intacta); se asume que la
   igualdad exacta de SPEC-036 también pasa a ser insensible a diacríticos, comportamiento
   estrictamente más conservador (descarta más duplicados, nunca menos).
+- [equivalencia de tokens] → añadida en autoría (pre-QA) tras verificación numérica del
+  implementador: sin ella, «gestionar las citas» vs «gestión de las citas» daba 0.67 < 0.7 y el
+  AC de sufijos fallaba. Se asume equivalencia por prefijo común ≥ 5 caracteres (alternativa:
+  bajar el umbral a 0.6, descartada por sobre-suprimir preguntas distintas que comparten 2 de 3
+  tokens; o stemming real, descartado por complejidad/dependencia).
 - [instrucción de repetición literal] → asumido pedir al modelo repetir el texto exacto de la
   cola cuando la mejor jugada ya esté encolada (alternativa: permitir `suggestedQuestion` vacía
   en el schema; se descarta por tocar el contrato del structured output y su parseo defensivo).

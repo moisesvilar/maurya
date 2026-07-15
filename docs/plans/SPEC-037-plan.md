@@ -25,7 +25,13 @@ Junto a `normalizeQuestion` (que se mantiene con su firma actual):
 - `export function areQuestionsSimilar(a: string, b: string): boolean` —
   1. igualdad de `normalizeQuestion(a) === normalizeQuestion(b)` → `true` (superconjunto SPEC-036);
   2. conjuntos de tokens significativos; si alguno vacío → `false` (ya se comprobó la igualdad);
-  3. solapamiento `|A∩B| / min(|A|,|B|) >= SIMILARITY_THRESHOLD` → `true`.
+  3. equivalencia de tokens: idénticos O prefijo común ≥ 5 caracteres (constante
+     `TOKEN_PREFIX_EQUIVALENCE_CHARS = 5`); la intersección cuenta tokens de A con algún
+     equivalente en B;
+  4. solapamiento `|A∩B| / min(|A|,|B|) >= SIMILARITY_THRESHOLD` → `true`.
+
+> Ajuste de autoría pre-QA (2026-07-15): la equivalencia por prefijo se añadió tras la
+> verificación numérica del implementador («gestionar»/«gestión» daba 0.67 < 0.7).
 
 ### 2. `isSimilarToQueue` usa la nueva métrica
 
