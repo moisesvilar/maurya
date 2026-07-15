@@ -63,6 +63,14 @@ const MAX_TOKENS = 512
 // SPEC-026: viven en prompts/defaults.ts para que las reglas bloqueadas que
 // muestra Ajustes nunca divergan de las que se envían.
 
+/**
+ * Tope de longitud del cursor de guión (SPEC-040): suficiente para
+ * «bloque — pregunta», acota la latencia de salida (coherente con SPEC-023).
+ * DEBE ser el mismo número en el schema y en el texto del prompt. Documentada
+ * y ajustable por el humano sin cambiar el contrato (patrón MIN_NEW_FINAL_LINES).
+ */
+export const SCRIPT_CURSOR_MAX_CHARS = 120
+
 /** Schema de structured outputs: la respuesta del análisis es SIEMPRE este JSON. */
 const OUTPUT_SCHEMA = {
   type: 'object' as const,
@@ -78,7 +86,10 @@ const OUTPUT_SCHEMA = {
     objectivesMet: { type: 'array' as const, items: { type: 'integer' as const } },
     // SPEC-036: índices (0-based) de las preguntas en cola cuyo tema ya quedó
     // cubierto por la conversación (resolución automática de la cola)
-    resolvedQueueIndexes: { type: 'array' as const, items: { type: 'integer' as const } }
+    resolvedQueueIndexes: { type: 'array' as const, items: { type: 'integer' as const } },
+    // SPEC-040: cursor de guión — required con vacío permitido («» cuando el
+    // modelo no sabe); el parseo defensivo cubre ambos casos
+    scriptCursor: { type: 'string' as const, maxLength: SCRIPT_CURSOR_MAX_CHARS }
   },
   required: [
     'action',
@@ -86,7 +97,8 @@ const OUTPUT_SCHEMA = {
     'reason',
     'alarms',
     'objectivesMet',
-    'resolvedQueueIndexes'
+    'resolvedQueueIndexes',
+    'scriptCursor'
   ],
   additionalProperties: false
 }
@@ -118,6 +130,13 @@ interface AssistantSession {
   objectivesMet: Set<number>
   /** Candidatas ACEPTADAS en cola (SPEC-036): las suprimidas no cuentan. */
   suggestionCount: number
+  /**
+   * Cursor de guión (SPEC-040): último punto del guión reportado por un
+   * análisis (bloque o pregunta en curso), realimentado en el mensaje de
+   * usuario siguiente. Estado de sesión en memoria: nace null y muere con la
+   * sesión; un cursor vacío o inválido NUNCA borra el último válido.
+   */
+  scriptCursor: string | null
   /** Uso de IA acumulado de la SESIÓN (SPEC-021): en memoria, volcado al parar. */
   usage: AiUsage
   /** Coste persistido de la entrevista al arrancar (base de la comparación con el límite). */
@@ -394,6 +413,8 @@ export function startAssistant(sender: WebContents, interviewId: string): void {
     maxPending,
     objectivesMet: new Set<number>(),
     suggestionCount: 0,
+    // SPEC-040: sin cursor hasta el primer análisis que lo devuelva válido
+    scriptCursor: null,
     usage: { calls: 0, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 },
     persistedBaseUsd,
     pausedByLimit: false,
@@ -595,6 +616,11 @@ async function runAnalysis(target: AssistantSession): Promise<void> {
     for (const index of outcome.objectivesMet) {
       target.objectivesMet.add(index)
     }
+    // 3. Cursor de guión (SPEC-040): solo un cursor válido sustituye al
+    // previo — el vacío o inválido conserva el último punto conocido.
+    if (outcome.scriptCursor !== null) {
+      target.scriptCursor = outcome.scriptCursor
+    }
     // Medición de la sesión (SPEC-021): SOLO en el camino de éxito completo
     // (una llamada que falla no cambia el acumulado, AC). SPEC-023: se
     // acumulan los 4 componentes y el coste se recomputa desde los totales
@@ -657,6 +683,12 @@ function buildSystemPrompt(personaBlock: string): string {
     '- Escribe TODO en español.',
     "- `action`: 'dig_deeper' si la última respuesta del interlocutor carece de evidencia concreta (hechos pasados, cifras, ejemplos reales) o toca un objetivo aún no cubierto; 'continue' si ya hay material concreto suficiente para avanzar con el guión.",
     `- \`suggestedQuestion\`: la siguiente pregunta exacta que debe hacer el entrevistador, breve (máximo ${SUGGESTED_QUESTION_MAX_CHARS} caracteres) y sobre hechos pasados y comportamiento concreto.`,
+    // SPEC-040: adherencia al guión y a su orden + cursor de posición. Texto
+    // estático: cambia entre releases, no dentro de la sesión — la
+    // byte-estabilidad del prefijo cacheado (SPEC-023) queda intacta.
+    "- Con `action` 'continue', la `suggestedQuestion` debe ser la SIGUIENTE pregunta del guión aún no cubierta, respetando el orden del guión.",
+    '- Desvíate del guión solo con justificación The Mom Test (falta de evidencia concreta o señal de alarma); tras profundizar, vuelve al punto del guión donde te quedaste.',
+    `- \`scriptCursor\`: el bloque o pregunta del guión que se está tratando ahora mismo (máximo ${SCRIPT_CURSOR_MAX_CHARS} caracteres; string vacío si no hay guión o no se sabe).`,
     `- \`reason\`: el porqué en UNA sola frase corta (máximo ${REASON_MAX_CHARS} caracteres). Con 'dig_deeper', referencia el motivo concreto: la evidencia que falta según The Mom Test o el objetivo aún no cubierto.`,
     "- `alarms`: señales de alarma detectadas en las últimas intervenciones del interlocutor: 'compliment' (cumplidos: «suena interesante»), 'generic' (genéricos: «normalmente hacemos»), 'hypothetical' (futuros hipotéticos: «lo compraríamos»). Array vacío si no hay. Si detectas una alarma, la pregunta sugerida debe reconducir a lo concreto (hechos pasados, casos reales).",
     '- `objectivesMet`: índices (0-based) de los objetivos YA cubiertos por la conversación, incluidos los que se marcaron cubiertos en análisis anteriores. Array vacío si no hay objetivos.',
@@ -724,6 +756,13 @@ function buildUserPrompt(target: AssistantSession): string {
     )
   }
 
+  // Cursor de guión (SPEC-040): realimentación del último punto reportado.
+  // Solo si hay cursor válido; viaja SOLO aquí, nunca en systemBlocks
+  // (byte-estabilidad del prefijo cacheado, SPEC-023).
+  if (target.scriptCursor !== null) {
+    sections.push(`## Punto actual del guión\n${target.scriptCursor}`)
+  }
+
   const conversation = target.lines
     .map((line) => {
       const speaker = line.speaker !== null ? ` s${line.speaker}` : ''
@@ -778,6 +817,8 @@ interface AnalysisOutcome {
   objectivesMet: number[]
   /** Índices de la cola (tal como viajó en el prompt) ya cubiertos (SPEC-036). */
   resolvedQueueIndexes: number[]
+  /** Cursor de guión (SPEC-040): string no vacío tras trim, o null (se conserva el previo). */
+  scriptCursor: string | null
 }
 
 /**
@@ -839,6 +880,12 @@ function parseAnalysis(raw: string, objectiveCount: number, queueCount: number):
           typeof item === 'number' && Number.isInteger(item) && item >= 0 && item < queueCount
       )
     : []
+  // SPEC-040: extracción defensiva del cursor (patrón objectivesMet) — solo
+  // un string con contenido tras trim vale; ausente, no-string o vacío → null,
+  // sin invalidar el análisis (nunca lanza por esto)
+  const rawCursor = record.scriptCursor
+  const scriptCursor =
+    typeof rawCursor === 'string' && rawCursor.trim() !== '' ? rawCursor.trim() : null
   return {
     suggestion: {
       action,
@@ -847,7 +894,8 @@ function parseAnalysis(raw: string, objectiveCount: number, queueCount: number):
       alarms
     },
     objectivesMet,
-    resolvedQueueIndexes
+    resolvedQueueIndexes,
+    scriptCursor
   }
 }
 
