@@ -1152,7 +1152,7 @@
       "AC-01": "tests/unit/packaging/hardening.test.ts::packaging hardening (SPEC-024)::entitlements for real signing::declares device.audio-input and keeps allow-jit in build/entitlements.mac.plist",
       "AC-02": "tests/unit/packaging/hardening.test.ts::packaging hardening (SPEC-024)::entitlements for real signing::removes the scaffold entitlements that weaken the hardened runtime",
       "AC-03": "tests/unit/packaging/hardening.test.ts::packaging hardening (SPEC-024)::signing path documentation::keeps ad-hoc signing active while documenting the Developer ID / notarization path as comments",
-      "AC-04": "tests/unit/packaging/hardening.test.ts::packaging hardening (SPEC-024)::MVP version and metadata::bumps package.json version to 1.0.0 (MVP artifacts become Maurya-1.0.0.*)",
+      "AC-04": "tests/unit/packaging/hardening.test.ts::packaging hardening (SPEC-024)::MVP version and metadata::keeps a clean semver version in package.json deriving the artifact name (1.0.0 derogated by human bump) [adaptado 2026-07-15: el humano bumpeó a 0.2.0 en c913135; el AC-04 literal 1.0.0 queda derogado]",
       "AC-05": "tests/unit/packaging/hardening.test.ts::packaging hardening (SPEC-024)::MVP version and metadata::declares LSApplicationCategoryType in the extendInfo MAP keeping both TCC descriptions intact",
       "AC-06": "tests/unit/ai-cost/AiCostCard.submitGuard.test.tsx::AiCostCard (guard de doble submit SPEC-024)::disables Guardar with an inline spinner while the save is in flight, ignores extra submits and re-enables on resolve",
       "AC-07": "MANUAL/documental: aceptación sin cambio registrada en la spec (Decisiones asumidas); sin código que testear — las suites de SPEC-021/023 fijan el comportamiento vigente.",

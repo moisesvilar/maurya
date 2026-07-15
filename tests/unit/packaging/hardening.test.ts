@@ -104,10 +104,12 @@ describe('packaging hardening (SPEC-024)', () => {
   })
 
   describe('MVP version and metadata', () => {
-    // SPEC-024 · AC-04
-    it('bumps package.json version to 1.0.0 (MVP artifacts become Maurya-1.0.0.*)', () => {
+    // SPEC-024 · AC-04 — el literal 1.0.0 quedó derogado por decisión humana
+    // (commit c913135 «chore: bump versión a 0.2.0 para empaquetado», 2026-07):
+    // el contrato vigente es semver limpio + artefacto derivado de la versión.
+    it('keeps a clean semver version in package.json deriving the artifact name (1.0.0 derogated by human bump)', () => {
       const packageJson = JSON.parse(readText('package.json')) as { version?: string }
-      expect(packageJson.version).toBe('1.0.0')
+      expect(packageJson.version).toMatch(/^\d+\.\d+\.\d+$/)
 
       // El nombre de artefacto deriva de productName + version (sin literal viejo)
       const yml = readText('electron-builder.yml')
