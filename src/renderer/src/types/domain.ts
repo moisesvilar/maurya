@@ -116,6 +116,17 @@ export interface ObjectiveOverride {
   text: string
 }
 
+/**
+ * Desenlace manual de una pregunta del asistente persistido en la entrevista
+ * (SPEC-039). `reason` es el motivo del descarte que el entrevistador deja al
+ * finalizar (opcional; solo aplica a 'discarded').
+ */
+export interface InterviewQuestionOutcome {
+  question: string
+  outcome: 'discarded' | 'answered'
+  reason?: string | null
+}
+
 export interface Interview {
   id: string
   /**
@@ -163,6 +174,14 @@ export interface Interview {
    * (invariante del repositorio).
    */
   objectiveOverrides?: Array<ObjectiveOverride | null> | null
+  /**
+   * Preguntas descartadas/respondidas manualmente en la sesión del asistente
+   * (SPEC-039), descartadas primero. Opcional y sin bump de schemaVersion
+   * (patrón aiUsage/objectiveResults): ausente = sin acciones manuales. Solo
+   * lo escribe main (recording:stop y el guardado de motivos); nunca es
+   * escribible por patch.
+   */
+  questionOutcomes?: InterviewQuestionOutcome[] | null
   createdAt: string
   updatedAt: string
 }
@@ -392,6 +411,15 @@ export interface DbApi {
   deleteInterview: (id: string) => Promise<DbResult<null>>
   /** Listado global de capturas (SPEC-020): contexto resuelto, updatedAt desc. */
   listAllInterviews: () => Promise<DbResult<CaptureListItem[]>>
+  /**
+   * Motivos de las preguntas descartadas (SPEC-039): índices contra el array
+   * `questionOutcomes` completo; solo rellena `reason` de entradas
+   * 'discarded', ignora índices inválidos. Mutación atómica única.
+   */
+  setInterviewDiscardReasons: (
+    interviewId: string,
+    reasons: Array<{ index: number; reason: string }>
+  ) => Promise<DbResult<Interview>>
   /** Asignación diferida de empresa/contacto (SPEC-020): mutación compuesta atómica. */
   assignInterviewCompany: (
     interviewId: string,

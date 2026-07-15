@@ -16,6 +16,7 @@ import type {
   CustomPromptOverride,
   Discovery,
   Interview,
+  InterviewQuestionOutcome,
   InterviewTemplate,
   Note,
   NoteTemplate,
@@ -866,6 +867,55 @@ export function setInterviewObjectiveOverride(
     )
     overrides[index] = override
     interview.objectiveOverrides = overrides
+    return interview
+  })
+}
+
+/**
+ * Persiste los desenlaces manuales de las preguntas del asistente (SPEC-039),
+ * descartadas primero. NO toca `updatedAt` (patrón setInterviewObjectiveResults
+ * /addInterviewAiUsage: no es una edición del usuario). No se expone por IPC
+ * como escritura de patch — solo lo usa main desde `recording:stop`.
+ */
+export function setInterviewQuestionOutcomes(
+  id: string,
+  outcomes: InterviewQuestionOutcome[]
+): Interview {
+  return mutate((draft) => {
+    const interview = findOrThrow(draft.interviews, id, 'entrevista')
+    interview.questionOutcomes = outcomes
+    return interview
+  })
+}
+
+/**
+ * Rellena los motivos de las preguntas descartadas (SPEC-039) en una única
+ * mutación atómica. Cada índice apunta al array `questionOutcomes` COMPLETO;
+ * solo se aplica si la entrada existe y es `outcome === 'discarded'` (los
+ * índices inválidos y los motivos vacíos tras trim se ignoran en silencio).
+ * NO toca `updatedAt` (mismo patrón que setInterviewQuestionOutcomes).
+ */
+export function setInterviewDiscardReasons(
+  id: string,
+  reasons: Array<{ index: number; reason: string }>
+): Interview {
+  return mutate((draft) => {
+    const interview = findOrThrow(draft.interviews, id, 'entrevista')
+    const outcomes = interview.questionOutcomes ?? []
+    for (const entry of reasons) {
+      if (!Number.isInteger(entry.index) || entry.index < 0 || entry.index >= outcomes.length) {
+        continue
+      }
+      const outcome = outcomes[entry.index]
+      if (outcome.outcome !== 'discarded' || typeof entry.reason !== 'string') {
+        continue
+      }
+      const trimmed = entry.reason.trim()
+      if (trimmed === '') {
+        continue
+      }
+      outcome.reason = trimmed
+    }
     return interview
   })
 }

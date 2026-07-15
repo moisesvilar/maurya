@@ -6,6 +6,8 @@ import type {
   AssistantAlarm,
   AssistantQueue,
   AssistantQueueItem,
+  AssistantQuestionOutcome,
+  AssistantQuestionRecord,
   AssistantSessionSummary,
   AssistantSuggestion,
   AssistantUpdateEvent
@@ -106,6 +108,10 @@ interface AssistantSession {
   pending: AssistantQueueItem[]
   /** Preguntas ancladas por el usuario (SPEC-036), en orden de anclado. */
   pinned: AssistantQueueItem[]
+  /** Descartadas manualmente en la sesión (SPEC-039): no vuelven a sugerirse. */
+  discarded: AssistantQueueItem[]
+  /** Respondidas manualmente en la sesión (SPEC-039): no vuelven a sugerirse. */
+  answered: AssistantQueueItem[]
   /** Máximo de pendientes de la sesión (SPEC-036): leído UNA vez al arrancar. */
   maxPending: number
   /** Acumulativo: un objetivo marcado cubierto no vuelve a pendiente. */
@@ -307,12 +313,15 @@ export function areQuestionsSimilar(a: string, b: string): boolean {
 /**
  * Segunda barrera de similitud (SPEC-036, robustecida por SPEC-037): una
  * candidata igual O casi idéntica a cualquier pregunta de TODA la cola
- * (pendientes + ancladas) se descarta. Esta comprobación determinista es la
- * que garantizan los ACs; la instrucción del prompt es la primera barrera.
+ * (pendientes + ancladas) se descarta. SPEC-039: el ámbito se amplía al
+ * histórico manual de la sesión (descartadas + respondidas) — el
+ * entrevistador ya se pronunció sobre esos temas y no vuelven a sugerirse.
+ * Esta comprobación determinista es la que garantizan los ACs; la
+ * instrucción del prompt es la primera barrera.
  */
 function isSimilarToQueue(target: AssistantSession, question: string): boolean {
-  return [...target.pending, ...target.pinned].some((item) =>
-    areQuestionsSimilar(item.suggestedQuestion, question)
+  return [...target.pending, ...target.pinned, ...target.discarded, ...target.answered].some(
+    (item) => areQuestionsSimilar(item.suggestedQuestion, question)
   )
 }
 
@@ -379,6 +388,9 @@ export function startAssistant(sender: WebContents, interviewId: string): void {
     // SPEC-036: la cola es estado de sesión — nace vacía en cada grabación
     pending: [],
     pinned: [],
+    // SPEC-039: el histórico manual también es estado de sesión
+    discarded: [],
+    answered: [],
     maxPending,
     objectivesMet: new Set<number>(),
     suggestionCount: 0,
@@ -474,6 +486,41 @@ function readLimitUsd(): number | null {
 }
 
 /**
+ * Gate de límite de coste (SPEC-021), extraído como helper en SPEC-039 para
+ * compartirlo entre maybeAnalyze y el análisis inmediato de 'answered' SIN
+ * cambiar el comportamiento: persistido + sesión, redondeado hacia arriba para
+ * pausar ANTES de excederlo; el evento 'paused' solo se emite en la
+ * transición. "Reanudar" lo desactiva para la sesión.
+ * @returns true si el análisis queda bloqueado por el límite.
+ */
+function blockedByCostLimit(target: AssistantSession): boolean {
+  if (target.limitOverridden) {
+    return false
+  }
+  const limitUsd = readLimitUsd()
+  if (
+    limitUsd === null ||
+    roundUpUsd(target.persistedBaseUsd + target.usage.estimatedCostUsd) < limitUsd
+  ) {
+    return false
+  }
+  if (!target.pausedByLimit) {
+    target.pausedByLimit = true
+    const event: AssistantUpdateEvent = {
+      state: 'paused',
+      queue: buildQueuePayload(target),
+      objectivesMet: sortedObjectivesMet(target),
+      pauseLimitUsd: limitUsd
+    }
+    if (target.usage.calls > 0) {
+      event.usage = { ...target.usage }
+    }
+    emitUpdate(target, event)
+  }
+  return true
+}
+
+/**
  * Evalúa los disparadores del análisis (control de coste): guard in-flight,
  * material nuevo mínimo (`minLines`: 3 por línea, 1 desde el respaldo) e
  * intervalo mínimo entre llamadas. Sin material nuevo → sin llamada.
@@ -490,29 +537,8 @@ function maybeAnalyze(target: AssistantSession, minLines: number): void {
   if (Date.now() - target.lastCallAtMs < MIN_INTERVAL_MS) {
     return
   }
-  // Límite de coste (SPEC-021): persistido + sesión, redondeado hacia arriba
-  // para pausar ANTES de excederlo. "Reanudar" lo desactiva para la sesión.
-  if (!target.limitOverridden) {
-    const limitUsd = readLimitUsd()
-    if (
-      limitUsd !== null &&
-      roundUpUsd(target.persistedBaseUsd + target.usage.estimatedCostUsd) >= limitUsd
-    ) {
-      if (!target.pausedByLimit) {
-        target.pausedByLimit = true
-        const event: AssistantUpdateEvent = {
-          state: 'paused',
-          queue: buildQueuePayload(target),
-          objectivesMet: sortedObjectivesMet(target),
-          pauseLimitUsd: limitUsd
-        }
-        if (target.usage.calls > 0) {
-          event.usage = { ...target.usage }
-        }
-        emitUpdate(target, event)
-      }
-      return
-    }
+  if (blockedByCostLimit(target)) {
+    return
   }
   void runAnalysis(target)
 }
@@ -724,6 +750,16 @@ function buildUserPrompt(target: AssistantSession): string {
       : 'ninguna'
   sections.push(`## Preguntas en cola (índices 0-based)\n${queueLines}`)
 
+  // Histórico manual de la sesión (SPEC-039): solo si hay ≥1. Viaja SOLO en
+  // el mensaje de usuario, nunca en systemBlocks (byte-estabilidad SPEC-023).
+  const resolvedItems = [...target.discarded, ...target.answered]
+  if (resolvedItems.length > 0) {
+    const resolvedLines = resolvedItems.map((item) => `- ${item.suggestedQuestion}`).join('\n')
+    sections.push(
+      `## Preguntas ya descartadas o respondidas por el entrevistador (NO las repitas ni propongas variantes)\n${resolvedLines}`
+    )
+  }
+
   // SPEC-038: primero la revisión de la cola (preguntas ya respondidas),
   // después la siguiente jugada. Parte variable: sin restricción de bytes.
   sections.push(
@@ -904,6 +940,58 @@ export function setAssistantPinned(itemId: string, pinned: boolean): void {
 }
 
 /**
+ * Descarta o marca respondida una pregunta de la cola (SPEC-039). Sin sesión
+ * o con id inexistente es un no-op silencioso (patrón setAssistantPinned).
+ * La acción manual sí puede retirar una anclada (la protección del anclado
+ * solo blinda contra la resolución automática). El ítem pasa al histórico de
+ * la sesión (`discarded`/`answered`): no vuelve a sugerirse (supresión
+ * SPEC-037 ampliada) y se persiste al parar. suggestionCount no se toca.
+ * Con 'answered' y sin análisis en vuelo se dispara UNA llamada inmediata en
+ * background (sin exigir material nuevo ni intervalo), respetando el gate de
+ * límite de coste de SPEC-021; los contadores de disparo no se resetean.
+ */
+export function resolveAssistantItem(itemId: string, outcome: AssistantQuestionOutcome): void {
+  if (session === null) {
+    return
+  }
+  const target = session
+  const item =
+    target.pending.find((candidate) => candidate.id === itemId) ??
+    target.pinned.find((candidate) => candidate.id === itemId)
+  if (item === undefined) {
+    return
+  }
+  target.pending = target.pending.filter((candidate) => candidate.id !== itemId)
+  target.pinned = target.pinned.filter((candidate) => candidate.id !== itemId)
+  if (outcome === 'discarded') {
+    target.discarded.push(item)
+  } else {
+    target.answered.push(item)
+  }
+  // Patrón de estado derivado de setAssistantPinned: un análisis en vuelo
+  // conserva su spinner; si no, active/idle según el contenido de la cola.
+  const event: AssistantUpdateEvent = {
+    state: target.inFlight
+      ? 'analyzing'
+      : target.pending.length + target.pinned.length > 0
+        ? 'active'
+        : 'idle',
+    queue: buildQueuePayload(target),
+    objectivesMet: sortedObjectivesMet(target)
+  }
+  if (target.usage.calls > 0) {
+    event.usage = { ...target.usage }
+  }
+  emitUpdate(target, event)
+  // Análisis inmediato de 'answered' (SPEC-039): actualiza los objetivos en
+  // vivo sin esperar a los disparadores de 3 líneas/20 s. Guard in-flight y
+  // gate de límite (SPEC-021) intactos: pausado o en vuelo → sin llamada.
+  if (outcome === 'answered' && !target.inFlight && !blockedByCostLimit(target)) {
+    void runAnalysis(target)
+  }
+}
+
+/**
  * Reanuda el asistente pausado por límite de coste (SPEC-021): desactiva la
  * comprobación del límite para el RESTO de la sesión (no vuelve a pausar, AC)
  * y reintenta el análisis respetando los disparadores de SPEC-016. Sin sesión
@@ -955,8 +1043,21 @@ export function stopAssistant(): AssistantSessionSummary | null {
     clearInterval(target.fallbackTimer)
     target.fallbackTimer = null
   }
+  // Desenlaces manuales de la sesión (SPEC-039): descartadas primero,
+  // respondidas después — mismo orden en transcript.json y en la entrevista.
+  const questionOutcomes: AssistantQuestionRecord[] = [
+    ...target.discarded.map((item): AssistantQuestionRecord => ({
+      question: item.suggestedQuestion,
+      outcome: 'discarded'
+    })),
+    ...target.answered.map((item): AssistantQuestionRecord => ({
+      question: item.suggestedQuestion,
+      outcome: 'answered'
+    }))
+  ]
   return {
     suggestionCount: target.suggestionCount,
-    usage: { ...target.usage }
+    usage: { ...target.usage },
+    questionOutcomes
   }
 }

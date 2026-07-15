@@ -62,6 +62,9 @@ export function registerDbIpcHandlers(): void {
   // Capture-first (SPEC-020): listado global + asignación compuesta atómica.
   handleDb('db:interview:list-all', repository.listAllInterviews)
   handleDb('db:interview:assign-company', repository.assignInterviewCompany)
+  // Motivos de las preguntas descartadas del asistente (SPEC-039): única
+  // escritura de questionOutcomes expuesta por IPC (solo rellena `reason`).
+  handleDb('db:set-discard-reasons', repository.setInterviewDiscardReasons)
 
   handleDb('db:note-template:create', repository.createNoteTemplate)
   handleDb('db:note-template:list', repository.listNoteTemplates)

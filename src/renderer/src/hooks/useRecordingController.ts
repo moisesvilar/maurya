@@ -8,7 +8,7 @@ import { useConsentPreference } from '@/hooks/useConsentPreference'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useTranscription } from '@/hooks/useTranscription'
 import type { TranscriptLineView, TranscriptPartials } from '@/hooks/useTranscription'
-import type { AssistantQueue, AssistantState } from '@/types/assistant'
+import type { AssistantQueue, AssistantQuestionOutcome, AssistantState } from '@/types/assistant'
 import type {
   AudioInputDevice,
   AudioLevels,
@@ -41,6 +41,8 @@ export interface RecordingControllerAssistant {
   pauseLimitUsd: number | null
   /** Ancla/desancla una pregunta de la cola (SPEC-036). */
   setPinned: (itemId: string, pinned: boolean) => void
+  /** Descarta o marca respondida una pregunta (SPEC-039). */
+  resolveItem: (itemId: string, outcome: AssistantQuestionOutcome) => void
   resume: () => void
 }
 
@@ -114,6 +116,7 @@ export function useRecordingController(
     usage: assistantUsage,
     pauseLimitUsd: assistantPauseLimitUsd,
     setPinned: setAssistantPinned,
+    resolveItem: resolveAssistantItem,
     resume: resumeAssistant,
     reset: resetAssistant
   } = useAssistant()
@@ -304,6 +307,7 @@ export function useRecordingController(
       usage: assistantUsage,
       pauseLimitUsd: assistantPauseLimitUsd,
       setPinned: setAssistantPinned,
+      resolveItem: resolveAssistantItem,
       resume: resumeAssistant
     },
     consentDialogOpen,

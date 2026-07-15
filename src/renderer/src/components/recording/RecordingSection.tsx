@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { FolderOpen, Mic, Square } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,6 +14,10 @@ import {
 import { Button } from '@/components/ui/button'
 import { AssistantPanel } from '@/components/recording/AssistantPanel'
 import { ConsentDialog } from '@/components/recording/ConsentDialog'
+import {
+  DiscardReasonsDialog,
+  type DiscardedQuestionEntry
+} from '@/components/recording/DiscardReasonsDialog'
 import { DegradedTranscriptionAlert } from '@/components/recording/DegradedTranscriptionAlert'
 import { LatencyRow } from '@/components/recording/LatencyRow'
 import { MicSelect } from '@/components/recording/MicSelect'
@@ -63,6 +68,7 @@ export function RecordingSection(props: RecordingSectionProps): React.ReactEleme
         controller={props.controller}
         interview={props.interview}
         variant="capture"
+        onInterviewUpdated={props.onInterviewUpdated}
       />
     )
   }
@@ -85,13 +91,28 @@ function SelfControlledRecordingSection({
   onInterviewUpdated
 }: SelfControlledRecordingSectionProps): React.ReactElement {
   const controller = useRecordingController(interview, onInterviewUpdated)
-  return <RecordingSectionView controller={controller} interview={interview} variant="interview" />
+  return (
+    <RecordingSectionView
+      controller={controller}
+      interview={interview}
+      variant="interview"
+      onInterviewUpdated={onInterviewUpdated}
+    />
+  )
 }
 
 interface RecordingSectionViewProps {
   controller: RecordingController
   interview: Interview
   variant: 'interview' | 'capture'
+  /** Propaga la Interview actualizada tras guardar los motivos (SPEC-039). */
+  onInterviewUpdated: (interview: Interview) => void
+}
+
+/** Estado del Dialog de motivos (SPEC-039): solo lo que la vista consume. */
+interface DiscardDialogState {
+  interviewId: string
+  entries: DiscardedQuestionEntry[]
 }
 
 /**
@@ -105,9 +126,12 @@ interface RecordingSectionViewProps {
 function RecordingSectionView({
   controller,
   interview,
-  variant
+  variant,
+  onInterviewUpdated
 }: RecordingSectionViewProps): React.ReactElement {
   const [confirmOverwrite, setConfirmOverwrite] = useState(false)
+  /** Dialog «Preguntas descartadas» (SPEC-039); null = cerrado. */
+  const [discardDialog, setDiscardDialog] = useState<DiscardDialogState | null>(null)
   const {
     permissions,
     devices,
@@ -134,6 +158,53 @@ function RecordingSectionView({
     cancelClose,
     confirmClose
   } = controller
+
+  // SPEC-039: el Dialog de motivos se abre UNA sola vez por parada (el ref de
+  // identidad marca el resultado ya tratado; al navegar de vuelta no hay
+  // result en memoria y no reaparece) y solo con ≥1 pregunta descartada.
+  // Diferido para no hacer setState síncrono dentro del cuerpo del efecto
+  // (patrón useRecordingController / react-hooks/set-state-in-effect).
+  const handledStopRef = useRef<unknown>(null)
+  useEffect(() => {
+    if (result === null || handledStopRef.current === result) {
+      return
+    }
+    handledStopRef.current = result
+    const stoppedInterview = result.interview ?? null
+    if (stoppedInterview === null) {
+      return
+    }
+    const entries: DiscardedQuestionEntry[] = (stoppedInterview.questionOutcomes ?? [])
+      .map((outcome, index) => ({ index, question: outcome.question, outcome: outcome.outcome }))
+      .filter((entry) => entry.outcome === 'discarded')
+      .map((entry) => ({ index: entry.index, question: entry.question }))
+    if (entries.length === 0) {
+      return
+    }
+    const timer = window.setTimeout(() => {
+      setDiscardDialog({ interviewId: stoppedInterview.id, entries })
+    }, 0)
+    return (): void => {
+      window.clearTimeout(timer)
+    }
+  }, [result])
+
+  // «Guardar motivos» → persistencia atómica en main + Toast + propagación de
+  // la Interview actualizada. «Omitir»/Escape/cerrar → sin llamada (los
+  // outcomes ya están guardados; solo se omiten los motivos).
+  const handleDiscardReasonsSave = (reasons: Array<{ index: number; reason: string }>): void => {
+    if (discardDialog === null) {
+      return
+    }
+    const interviewId = discardDialog.interviewId
+    setDiscardDialog(null)
+    void window.api.db.setInterviewDiscardReasons(interviewId, reasons).then((response) => {
+      if (response.ok) {
+        toast('Motivos guardados')
+        onInterviewUpdated(response.data)
+      }
+    })
+  }
 
   return (
     <section className="flex flex-col gap-4">
@@ -175,6 +246,7 @@ function RecordingSectionView({
             usage={assistant.usage}
             pauseLimitUsd={assistant.pauseLimitUsd}
             onSetPinned={assistant.setPinned}
+            onResolveItem={assistant.resolveItem}
             onResume={assistant.resume}
           />
           {/* SPEC-025: el seguimiento en vivo de objetivos se pinta en la
@@ -262,6 +334,14 @@ function RecordingSectionView({
         open={closeDialogOpen}
         onCancel={cancelClose}
         onConfirm={() => void confirmClose()}
+      />
+
+      {/* Motivos de las preguntas descartadas (SPEC-039): una vez por parada */}
+      <DiscardReasonsDialog
+        open={discardDialog !== null}
+        entries={discardDialog?.entries ?? []}
+        onSave={handleDiscardReasonsSave}
+        onSkip={() => setDiscardDialog(null)}
       />
 
       <AlertDialog open={confirmOverwrite} onOpenChange={setConfirmOverwrite}>
