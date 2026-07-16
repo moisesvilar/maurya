@@ -12,8 +12,12 @@ export type InterviewsState =
  * Valores del formulario de entrevista (sentinels ya mapeados a null).
  * `contactId` es el valor de UI del selector único transicional (SPEC-043):
  * el hook lo persiste como `contactIds` de 0 o 1 elemento.
+ * SPEC-044: `discoveryId` viaja en los values (elegido en el Select del
+ * Dialog en creación; en edición es el de la propia entrevista, pero
+ * `updateInterview` NO lo envía en el patch).
  */
 export interface InterviewFormValues {
+  discoveryId: string
   title: string
   contactId: string | null
   templateId: string | null
@@ -24,9 +28,10 @@ export interface UseInterviewsResult {
   /** Crea una entrevista (main fija status draft); true si se creó. */
   createInterview: (values: InterviewFormValues) => Promise<boolean>
   /**
-   * Edita una entrevista. El patch lleva SOLO los 3 campos del formulario
-   * (null limpia la referencia); NUNCA envía `status` ni los campos de
-   * H3/H4 (scriptMarkdown, objectives, wavPath, transcriptPath).
+   * Edita una entrevista. El patch lleva SOLO título, contactos y template
+   * (null limpia la referencia); NUNCA envía `discoveryId` (SPEC-044) ni
+   * `status` ni los campos de H3/H4 (scriptMarkdown, objectives, wavPath,
+   * transcriptPath).
    */
   updateInterview: (id: string, values: InterviewFormValues) => Promise<boolean>
   /** Elimina una entrevista (la cascada de notas la resuelve SPEC-006). */
@@ -44,10 +49,12 @@ function sortByCreatedAtAsc(interviews: Interview[]): Interview[] {
  * viajan como `{ ok: false, error }` y se mapean a error state (listar) o
  * Toast destructive (mutaciones, sin tocar el estado). Orden por `createdAt`
  * asc; la edición no re-ordena (mantiene el orden de alta). Calco del patrón
- * useContacts (SPEC-011). SPEC-020: la creación exige también el discoveryId
- * de la empresa (ancla obligatoria de toda entrevista en el schema v2).
+ * useContacts (SPEC-011). SPEC-044: la sección Entrevistas vive en
+ * /companies/:companyId, sin discovery en la URL — el `discoveryId` (ancla
+ * obligatoria de toda entrevista) viaja en los values del formulario; el
+ * listado sigue siendo `listInterviews(companyId)`.
  */
-export function useInterviews(discoveryId: string, companyId: string): UseInterviewsResult {
+export function useInterviews(companyId: string): UseInterviewsResult {
   const [state, setState] = useState<InterviewsState>({ status: 'loading' })
 
   // El estado inicial ya es loading, así el efecto de montaje no hace setState
@@ -67,8 +74,9 @@ export function useInterviews(discoveryId: string, companyId: string): UseInterv
     async (values: InterviewFormValues): Promise<boolean> => {
       // Sin `status`: el repositorio de main fija 'draft' en la creación.
       // SPEC-043: el contacto único del selector viaja como contactIds de 0/1.
+      // SPEC-044: el discovery es el elegido en el Select del Dialog.
       const result = await window.api.db.createInterview({
-        discoveryId,
+        discoveryId: values.discoveryId,
         companyId,
         title: values.title,
         contactIds: values.contactId !== null ? [values.contactId] : [],
@@ -86,7 +94,7 @@ export function useInterviews(discoveryId: string, companyId: string): UseInterv
       toast('Entrevista creada')
       return true
     },
-    [discoveryId, companyId]
+    [companyId]
   )
 
   const updateInterview = useCallback(
