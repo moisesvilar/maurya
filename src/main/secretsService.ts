@@ -26,7 +26,7 @@ import { writeFileAtomicSync } from './atomicFile'
  */
 
 const SCHEMA_VERSION = 1
-const SECRET_KINDS: readonly SecretKind[] = ['deepgram', 'anthropic'] as const
+const SECRET_KINDS: readonly SecretKind[] = ['deepgram', 'anthropic', 'linkedinMcp'] as const
 
 /** Blob cifrado (base64) + últimos 4 en claro para mostrar estado sin descifrar. */
 interface StoredSecret {
@@ -167,7 +167,8 @@ export function getSecretsStatus(): SecretsStatus {
   return {
     available: safeStorage.isEncryptionAvailable(),
     deepgram: toKeyStatus(store.keys.deepgram),
-    anthropic: toKeyStatus(store.keys.anthropic)
+    anthropic: toKeyStatus(store.keys.anthropic),
+    linkedinMcp: toKeyStatus(store.keys.linkedinMcp)
   }
 }
 

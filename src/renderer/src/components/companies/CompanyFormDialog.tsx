@@ -8,6 +8,7 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { MarkdownEditor } from '@/components/markdown/MarkdownEditor'
 import { normalizeOptional } from '@/lib/normalizeOptional'
 import type { CompanyFormValues } from '@/hooks/useCompanies'
 import type { Company } from '@/types/domain'
@@ -48,6 +49,7 @@ function CompanyForm({
   const [name, setName] = useState(company?.name ?? '')
   const [website, setWebsite] = useState(company?.website ?? '')
   const [linkedinUrl, setLinkedinUrl] = useState(company?.linkedinUrl ?? '')
+  const [context, setContext] = useState(company?.context ?? '')
   const [showRequiredError, setShowRequiredError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -62,7 +64,8 @@ function CompanyForm({
     void onSubmit({
       name: trimmedName,
       website: normalizeOptional(website),
-      linkedinUrl: normalizeOptional(linkedinUrl)
+      linkedinUrl: normalizeOptional(linkedinUrl),
+      context: normalizeOptional(context)
     }).then((succeeded) => {
       setSubmitting(false)
       if (succeeded) {
@@ -72,44 +75,57 @@ function CompanyForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <label htmlFor="company-name" className="text-sm font-medium">
-          Nombre
-        </label>
-        <Input
-          ref={nameInputRef}
-          id="company-name"
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value)
-            setShowRequiredError(false)
-          }}
-          aria-invalid={showRequiredError || undefined}
-        />
-        {showRequiredError && <p className="text-sm text-destructive">Campo requerido</p>}
-      </div>
-      <div className="flex flex-col gap-2">
-        <label htmlFor="company-website" className="text-sm font-medium">
-          Website
-        </label>
-        <Input
-          id="company-website"
-          placeholder="https://empresa.com"
-          value={website}
-          onChange={(event) => setWebsite(event.target.value)}
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <label htmlFor="company-linkedin" className="text-sm font-medium">
-          LinkedIn
-        </label>
-        <Input
-          id="company-linkedin"
-          placeholder="https://linkedin.com/company/..."
-          value={linkedinUrl}
-          onChange={(event) => setLinkedinUrl(event.target.value)}
-        />
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-col gap-4">
+      {/* Zona de campos con scroll propio: el footer queda siempre visible */}
+      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="company-name" className="text-sm font-medium">
+            Nombre
+          </label>
+          <Input
+            ref={nameInputRef}
+            id="company-name"
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value)
+              setShowRequiredError(false)
+            }}
+            aria-invalid={showRequiredError || undefined}
+          />
+          {showRequiredError && <p className="text-sm text-destructive">Campo requerido</p>}
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="company-website" className="text-sm font-medium">
+            Website
+          </label>
+          <Input
+            id="company-website"
+            placeholder="https://empresa.com"
+            value={website}
+            onChange={(event) => setWebsite(event.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="company-linkedin" className="text-sm font-medium">
+            LinkedIn
+          </label>
+          <Input
+            id="company-linkedin"
+            placeholder="https://linkedin.com/company/..."
+            value={linkedinUrl}
+            onChange={(event) => setLinkedinUrl(event.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">Contexto</span>
+          <MarkdownEditor
+            initialMarkdown={context}
+            onChange={setContext}
+            ariaLabel="Contexto"
+            testId="company-context-editor"
+            size="compact"
+          />
+        </div>
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -142,7 +158,10 @@ export function CompanyFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+      {/* Ancho 3xl y altura acotada: el editor de contexto necesita sitio y el
+          contenido largo hace scroll dentro del form, nunca desborda la ventana */}
       <DialogContent
+        className="max-h-[85vh] grid-rows-[auto_minmax(0,1fr)] sm:max-w-3xl"
         onOpenAutoFocus={(event) => {
           event.preventDefault()
           nameInputRef.current?.focus()

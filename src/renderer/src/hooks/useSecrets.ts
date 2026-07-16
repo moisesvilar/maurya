@@ -4,14 +4,16 @@ import type { SecretKind, SecretsStatus } from '@/types/secrets'
 
 const KIND_LABELS: Record<SecretKind, string> = {
   deepgram: 'Deepgram',
-  anthropic: 'Anthropic'
+  anthropic: 'Anthropic',
+  linkedinMcp: 'MCP de LinkedIn'
 }
 
 /** Fallback si get-status falla: sin cifrado disponible = guardado deshabilitado. */
 const UNAVAILABLE_STATUS: SecretsStatus = {
   available: false,
   deepgram: { configured: false, last4: null },
-  anthropic: { configured: false, last4: null }
+  anthropic: { configured: false, last4: null },
+  linkedinMcp: { configured: false, last4: null }
 }
 
 export interface UseSecretsResult {

@@ -83,6 +83,10 @@ export function registerDbIpcHandlers(): void {
   handleDb('db:assistant-settings:get', repository.getAssistantSettings)
   handleDb('db:assistant-settings:set', repository.setAssistantSettings)
 
+  // Ajustes del MCP de LinkedIn: URL del servidor (el token va por secrets:*).
+  handleDb('db:linkedin-mcp-settings:get', repository.getLinkedinMcpSettings)
+  handleDb('db:linkedin-mcp-settings:set', repository.setLinkedinMcpSettings)
+
   // Prompts de IA personalizables (SPEC-026): catálogo fijo, override→default.
   handleDb('db:custom-prompt:list', listCustomPrompts)
   handleDb('db:custom-prompt:save', saveCustomPrompt)

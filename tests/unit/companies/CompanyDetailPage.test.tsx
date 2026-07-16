@@ -184,7 +184,8 @@ describe('CompanyDetailPage', () => {
         companyId: 'c-1',
         name: 'Jane Doe',
         position: 'CTO',
-        linkedinUrl: null
+        linkedinUrl: null,
+        context: null
       })
       const toasts = await screen.findAllByText('Contacto creado')
       expect(toasts.length).toBeGreaterThanOrEqual(1)
@@ -232,7 +233,8 @@ describe('CompanyDetailPage', () => {
       expect(vi.mocked(mockApi.api.db.updateContact)).toHaveBeenCalledWith('ct-1', {
         name: 'Jane Doe',
         position: 'VP of Engineering',
-        linkedinUrl: 'https://linkedin.com/in/janedoe'
+        linkedinUrl: 'https://linkedin.com/in/janedoe',
+        context: null
       })
       const toasts = await screen.findAllByText('Cambios guardados')
       expect(toasts.length).toBeGreaterThanOrEqual(1)

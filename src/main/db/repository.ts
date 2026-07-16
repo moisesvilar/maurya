@@ -18,6 +18,7 @@ import type {
   Interview,
   InterviewQuestionOutcome,
   InterviewTemplate,
+  LinkedinMcpSettings,
   Note,
   NoteTemplate,
   ObjectiveOverride,
@@ -176,6 +177,7 @@ export function createCompany(input: CreateCompanyInput): Company {
       name: input.name,
       website: input.website ?? null,
       linkedinUrl: input.linkedinUrl ?? null,
+      context: input.context ?? null,
       createdAt: now,
       updatedAt: now
     }
@@ -207,6 +209,9 @@ export function updateCompany(id: string, patch: UpdateCompanyPatch): Company {
     if (patch.linkedinUrl !== undefined) {
       company.linkedinUrl = patch.linkedinUrl
     }
+    if (patch.context !== undefined) {
+      company.context = patch.context
+    }
     company.updatedAt = touched(company.updatedAt)
     return company
   })
@@ -235,6 +240,7 @@ export function createContact(input: CreateContactInput): Contact {
       name: input.name,
       position: input.position ?? null,
       linkedinUrl: input.linkedinUrl ?? null,
+      context: input.context ?? null,
       createdAt: now,
       updatedAt: now
     }
@@ -265,6 +271,9 @@ export function updateContact(id: string, patch: UpdateContactPatch): Contact {
     }
     if (patch.linkedinUrl !== undefined) {
       contact.linkedinUrl = patch.linkedinUrl
+    }
+    if (patch.context !== undefined) {
+      contact.context = patch.context
     }
     contact.updatedAt = touched(contact.updatedAt)
     return contact
@@ -537,6 +546,7 @@ export function assignInterviewCompany(
         name: input.newCompany.name,
         website: input.newCompany.website ?? null,
         linkedinUrl: input.newCompany.linkedinUrl ?? null,
+        context: null,
         createdAt: now,
         updatedAt: now
       }
@@ -557,6 +567,7 @@ export function assignInterviewCompany(
         name: input.newContact.name,
         position: input.newContact.position ?? null,
         linkedinUrl: input.newContact.linkedinUrl ?? null,
+        context: null,
         createdAt: now,
         updatedAt: now
       }
@@ -814,6 +825,41 @@ export function setAssistantSettings(settings: AssistantSettings): AssistantSett
   return mutate((draft) => {
     draft.assistantSettings = { queueSize }
     return { queueSize }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// MCP de LinkedIn
+// ---------------------------------------------------------------------------
+
+/**
+ * Ajustes del MCP de LinkedIn con normalización defensiva (patrón
+ * assistantSettings): si el singleton no es un objeto o `url` no es un string
+ * http(s) no vacío → { url: null } (MCP no configurado) sin crashear.
+ */
+export function getLinkedinMcpSettings(): LinkedinMcpSettings {
+  return read((store) => {
+    const raw: unknown = store.linkedinMcpSettings
+    if (typeof raw !== 'object' || raw === null) {
+      return { url: null }
+    }
+    const url = (raw as Record<string, unknown>).url
+    if (typeof url === 'string' && /^https?:\/\/\S+$/.test(url)) {
+      return { url }
+    }
+    return { url: null }
+  })
+}
+
+export function setLinkedinMcpSettings(settings: LinkedinMcpSettings): LinkedinMcpSettings {
+  const trimmed = typeof settings.url === 'string' ? settings.url.trim() : null
+  const url = trimmed === '' ? null : trimmed
+  if (url !== null && !/^https?:\/\/\S+$/.test(url)) {
+    throw validationError('Introduce una URL http(s) válida o deja el campo vacío')
+  }
+  return mutate((draft) => {
+    draft.linkedinMcpSettings = { url }
+    return { url }
   })
 }
 

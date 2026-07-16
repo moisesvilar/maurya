@@ -42,6 +42,14 @@ function createMockLlmApi(
       ok: true,
       data: { hasAnthropicKey: false }
     }),
+    // Contexto de empresas/contactos: capacidades conservadoras por defecto
+    // (sin clave y sin MCP); la generación se configura por test.
+    getContextCapabilities: vi.fn<LlmApi['getContextCapabilities']>().mockResolvedValue({
+      ok: true,
+      data: { hasAnthropicKey: false, linkedinMcpConfigured: false }
+    }),
+    generateCompanyContext: vi.fn<LlmApi['generateCompanyContext']>(),
+    generateContactContext: vi.fn<LlmApi['generateContactContext']>(),
     generateScript: vi.fn<LlmApi['generateScript']>(),
     generateNote: vi.fn<LlmApi['generateNote']>(),
     evaluateObjectives: vi.fn<LlmApi['evaluateObjectives']>(),
@@ -97,7 +105,8 @@ function createMockSecretsApi(): SecretsApi {
       data: {
         available: true,
         deepgram: { configured: false, last4: null },
-        anthropic: { configured: false, last4: null }
+        anthropic: { configured: false, last4: null },
+        linkedinMcp: { configured: false, last4: null }
       }
     }),
     save: vi.fn<SecretsApi['save']>(),
@@ -208,6 +217,13 @@ function createMockDbApi(): DbApi {
       .fn<DbApi['getAssistantSettings']>()
       .mockResolvedValue({ ok: true, data: { queueSize: 3 } }),
     setAssistantSettings: vi.fn<DbApi['setAssistantSettings']>(),
+
+    // MCP de LinkedIn (default de solo-lectura seguro: no configurado; el set
+    // se configura por test)
+    getLinkedinMcpSettings: vi
+      .fn<DbApi['getLinkedinMcpSettings']>()
+      .mockResolvedValue({ ok: true, data: { url: null } }),
+    setLinkedinMcpSettings: vi.fn<DbApi['setLinkedinMcpSettings']>(),
 
     // SPEC-026: prompts de IA personalizables (default de solo-lectura seguro:
     // catálogo vacío; save/reset se configuran por test)

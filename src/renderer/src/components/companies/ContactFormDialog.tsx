@@ -8,6 +8,7 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { MarkdownEditor } from '@/components/markdown/MarkdownEditor'
 import { normalizeOptional } from '@/lib/normalizeOptional'
 import type { ContactFormValues } from '@/hooks/useContacts'
 import type { Contact } from '@/types/domain'
@@ -48,6 +49,7 @@ function ContactForm({
   const [name, setName] = useState(contact?.name ?? '')
   const [position, setPosition] = useState(contact?.position ?? '')
   const [linkedinUrl, setLinkedinUrl] = useState(contact?.linkedinUrl ?? '')
+  const [context, setContext] = useState(contact?.context ?? '')
   const [showRequiredError, setShowRequiredError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -62,7 +64,8 @@ function ContactForm({
     void onSubmit({
       name: trimmedName,
       position: normalizeOptional(position),
-      linkedinUrl: normalizeOptional(linkedinUrl)
+      linkedinUrl: normalizeOptional(linkedinUrl),
+      context: normalizeOptional(context)
     }).then((succeeded) => {
       setSubmitting(false)
       if (succeeded) {
@@ -72,44 +75,57 @@ function ContactForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <label htmlFor="contact-name" className="text-sm font-medium">
-          Nombre
-        </label>
-        <Input
-          ref={nameInputRef}
-          id="contact-name"
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value)
-            setShowRequiredError(false)
-          }}
-          aria-invalid={showRequiredError || undefined}
-        />
-        {showRequiredError && <p className="text-sm text-destructive">Campo requerido</p>}
-      </div>
-      <div className="flex flex-col gap-2">
-        <label htmlFor="contact-position" className="text-sm font-medium">
-          Posición
-        </label>
-        <Input
-          id="contact-position"
-          placeholder="CEO, Head of Product…"
-          value={position}
-          onChange={(event) => setPosition(event.target.value)}
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <label htmlFor="contact-linkedin" className="text-sm font-medium">
-          LinkedIn
-        </label>
-        <Input
-          id="contact-linkedin"
-          placeholder="https://linkedin.com/in/..."
-          value={linkedinUrl}
-          onChange={(event) => setLinkedinUrl(event.target.value)}
-        />
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-col gap-4">
+      {/* Zona de campos con scroll propio: el footer queda siempre visible */}
+      <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="contact-name" className="text-sm font-medium">
+            Nombre
+          </label>
+          <Input
+            ref={nameInputRef}
+            id="contact-name"
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value)
+              setShowRequiredError(false)
+            }}
+            aria-invalid={showRequiredError || undefined}
+          />
+          {showRequiredError && <p className="text-sm text-destructive">Campo requerido</p>}
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="contact-position" className="text-sm font-medium">
+            Posición
+          </label>
+          <Input
+            id="contact-position"
+            placeholder="CEO, Head of Product…"
+            value={position}
+            onChange={(event) => setPosition(event.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="contact-linkedin" className="text-sm font-medium">
+            LinkedIn
+          </label>
+          <Input
+            id="contact-linkedin"
+            placeholder="https://linkedin.com/in/..."
+            value={linkedinUrl}
+            onChange={(event) => setLinkedinUrl(event.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">Contexto</span>
+          <MarkdownEditor
+            initialMarkdown={context}
+            onChange={setContext}
+            ariaLabel="Contexto"
+            testId="contact-context-editor"
+            size="compact"
+          />
+        </div>
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -142,7 +158,10 @@ export function ContactFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+      {/* Ancho 3xl y altura acotada: el editor de contexto necesita sitio y el
+          contenido largo hace scroll dentro del form, nunca desborda la ventana */}
       <DialogContent
+        className="max-h-[85vh] grid-rows-[auto_minmax(0,1fr)] sm:max-w-3xl"
         onOpenAutoFocus={(event) => {
           event.preventDefault()
           nameInputRef.current?.focus()

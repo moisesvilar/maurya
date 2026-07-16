@@ -13,6 +13,7 @@ export interface CompanyFormValues {
   name: string
   website: string | null
   linkedinUrl: string | null
+  context: string | null
 }
 
 export interface UseCompaniesResult {

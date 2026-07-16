@@ -2,14 +2,17 @@ import React, { useEffect, useState } from 'react'
 import {
   ArrowLeft,
   Globe,
+  Loader2,
   MessagesSquare,
   MoreHorizontal,
   Pencil,
   Plus,
+  Sparkles,
   Trash2,
   Users
 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,14 +33,19 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { CompanyFormDialog } from '@/components/companies/CompanyFormDialog'
 import { ContactFormDialog } from '@/components/companies/ContactFormDialog'
 import { ExternalIconLink, LinkedinIcon } from '@/components/companies/ExternalIconLink'
 import { InterviewFormDialog } from '@/components/interviews/InterviewFormDialog'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
+import { MarkdownView } from '@/components/markdown/MarkdownView'
 import { useContacts } from '@/hooks/useContacts'
 import { useInterviews } from '@/hooks/useInterviews'
 import { useInterviewTemplates } from '@/hooks/useInterviewTemplates'
+import type { CompanyFormValues } from '@/hooks/useCompanies'
 import type { Company, Contact, Interview } from '@/types/domain'
+import type { ContextCapabilities } from '@/types/llm'
 
 type CompanyDetailState =
   | { status: 'loading' }
@@ -73,7 +81,8 @@ export function CompanyDetailPage(): React.ReactElement {
     state: contactsState,
     createContact,
     updateContact,
-    removeContact
+    removeContact,
+    generateContext: generateContactContext
   } = useContacts(companyId ?? '')
   const {
     state: interviewsState,
@@ -92,6 +101,11 @@ export function CompanyDetailPage(): React.ReactElement {
   const [interviewCreateOpen, setInterviewCreateOpen] = useState(false)
   const [pendingInterviewEdit, setPendingInterviewEdit] = useState<Interview | null>(null)
   const [pendingInterviewDelete, setPendingInterviewDelete] = useState<Interview | null>(null)
+  // Contexto de la empresa: capacidades (clave + MCP), edición y generación IA
+  const [capabilities, setCapabilities] = useState<ContextCapabilities | null>(null)
+  const [companyEditOpen, setCompanyEditOpen] = useState(false)
+  const [generatingCompany, setGeneratingCompany] = useState(false)
+  const [generatingContactId, setGeneratingContactId] = useState<string | null>(null)
 
   // No marca loading por sí mismo: el estado inicial ya lo es y el efecto de
   // montaje no debe hacer setState síncrono (react-hooks/set-state-in-effect);
@@ -105,6 +119,56 @@ export function CompanyDetailPage(): React.ReactElement {
       setState({ status: 'ready', company: result.data })
     })
   }, [companyId])
+
+  // Capacidades de la generación de contexto (clave de Anthropic + MCP de
+  // LinkedIn): un fallo del bridge degrada a botones deshabilitados.
+  useEffect(() => {
+    void window.api.llm.getContextCapabilities().then((result) => {
+      if (result.ok) {
+        setCapabilities(result.data)
+      }
+    })
+  }, [])
+
+  const handleCompanyEdit = async (values: CompanyFormValues): Promise<boolean> => {
+    if (state.status !== 'ready') {
+      return false
+    }
+    const result = await window.api.db.updateCompany(state.company.id, values)
+    if (!result.ok) {
+      toast.error(result.error.message)
+      return false
+    }
+    setState({ status: 'ready', company: result.data })
+    toast('Cambios guardados')
+    return true
+  }
+
+  const handleGenerateCompanyContext = (): void => {
+    if (state.status !== 'ready' || generatingCompany) {
+      return
+    }
+    setGeneratingCompany(true)
+    void window.api.llm.generateCompanyContext(state.company.id).then((result) => {
+      setGeneratingCompany(false)
+      if (!result.ok) {
+        toast.error(result.error.message)
+        return
+      }
+      setState({ status: 'ready', company: result.data })
+      toast('Contexto de la empresa generado')
+    })
+  }
+
+  const handleGenerateContactContext = (contactId: string): void => {
+    if (generatingContactId !== null) {
+      return
+    }
+    setGeneratingContactId(contactId)
+    void generateContactContext(contactId).finally(() => {
+      setGeneratingContactId(null)
+    })
+  }
 
   const openEdit = (contact: Contact): void => {
     setTimeout(() => setPendingEdit(contact), 0)
@@ -138,6 +202,20 @@ export function CompanyDetailPage(): React.ReactElement {
 
   const contacts = contactsState.status === 'ready' ? contactsState.contacts : []
   const templates = templatesState.status === 'ready' ? templatesState.templates : []
+
+  const company = state.status === 'ready' ? state.company : null
+  // Generación del contexto de empresa: clave de Anthropic + al menos una
+  // fuente (web, o LinkedIn con el MCP configurado en Ajustes).
+  const canGenerateCompanyContext =
+    company !== null &&
+    capabilities !== null &&
+    capabilities.hasAnthropicKey &&
+    (company.website !== null ||
+      (company.linkedinUrl !== null && capabilities.linkedinMcpConfigured))
+  // Generación del contexto de contacto: doble condición (MCP configurado y
+  // LinkedIn del contacto) + clave de Anthropic.
+  const canGenerateContactContext =
+    capabilities !== null && capabilities.hasAnthropicKey && capabilities.linkedinMcpConfigured
 
   /**
    * Fila muted "{contacto} · {template}" (solo los nombres que existan y se
@@ -208,6 +286,50 @@ export function CompanyDetailPage(): React.ReactElement {
 
           <section className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-4">
+              <h3 className="text-lg font-semibold">Contexto</h3>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" onClick={() => setCompanyEditOpen(true)}>
+                  <Pencil />
+                  Editar
+                </Button>
+                {canGenerateCompanyContext ? (
+                  <Button onClick={handleGenerateCompanyContext} disabled={generatingCompany}>
+                    {generatingCompany ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                    {generatingCompany ? 'Generando…' : 'Generar con IA'}
+                  </Button>
+                ) : (
+                  <Tooltip>
+                    {/* span tabIndex: un botón disabled no dispara eventos de puntero */}
+                    <TooltipTrigger asChild>
+                      <span tabIndex={0}>
+                        <Button disabled>
+                          <Sparkles />
+                          Generar con IA
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Necesitas la clave de Anthropic y al menos una fuente: la web de la empresa, o
+                      su LinkedIn con el MCP de LinkedIn configurado en Ajustes.
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            </div>
+            {state.company.context != null && state.company.context.trim() !== '' ? (
+              <div className="rounded-md border px-4 py-3">
+                <MarkdownView markdown={state.company.context} testId="company-context" />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Aún no hay contexto. Escríbelo con «Editar» o genéralo con IA desde la web y
+                LinkedIn de la empresa.
+              </p>
+            )}
+          </section>
+
+          <section className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-4">
               <h3 className="text-lg font-semibold">Contactos</h3>
               <Button onClick={() => setCreateOpen(true)}>
                 <Plus />
@@ -257,27 +379,64 @@ export function CompanyDetailPage(): React.ReactElement {
                         />
                       )}
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label="Acciones">
-                          <MoreHorizontal />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => openEdit(contact)}>
-                          <Pencil />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onSelect={() => openDelete(contact)}
-                        >
-                          <Trash2 />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <div className="flex items-center gap-1">
+                      {contact.linkedinUrl !== null &&
+                        (canGenerateContactContext ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Generar contexto desde LinkedIn"
+                            disabled={generatingContactId !== null}
+                            onClick={() => handleGenerateContactContext(contact.id)}
+                          >
+                            {generatingContactId === contact.id ? (
+                              <Loader2 className="animate-spin" />
+                            ) : (
+                              <Sparkles />
+                            )}
+                          </Button>
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span tabIndex={0}>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label="Generar contexto desde LinkedIn"
+                                  disabled
+                                >
+                                  <Sparkles />
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Configura el MCP de LinkedIn y la clave de Anthropic en Ajustes para
+                              generar el contexto del contacto.
+                            </TooltipContent>
+                          </Tooltip>
+                        ))}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" aria-label="Acciones">
+                            <MoreHorizontal />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => openEdit(contact)}>
+                            <Pencil />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onSelect={() => openDelete(contact)}
+                          >
+                            <Trash2 />
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -367,6 +526,15 @@ export function CompanyDetailPage(): React.ReactElement {
           </section>
         </>
       )}
+
+      <CompanyFormDialog
+        open={companyEditOpen}
+        onOpenChange={setCompanyEditOpen}
+        title="Editar empresa"
+        submitLabel="Guardar"
+        company={company}
+        onSubmit={handleCompanyEdit}
+      />
 
       <ContactFormDialog
         open={createOpen}
