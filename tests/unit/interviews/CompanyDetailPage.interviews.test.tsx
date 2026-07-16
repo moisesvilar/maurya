@@ -256,14 +256,18 @@ describe('CompanyDetailPage (entrevistas)', () => {
       expect(screen.getByRole('option', { name: 'Entrevista MDR (Problema)' })).toBeInTheDocument()
     })
 
-    // SPEC-013 · AC-05 (envío con click en "Crear" y referencias elegidas)
-    it('creates in draft with the chosen refs on "Crear" click, shows the toast and lists the row', async () => {
+    // SPEC-013 · AC-05 (envío con click en "Crear" y referencias elegidas).
+    // DEROGACIÓN SPEC-044-iter-1: tras crear se navega al detalle de la
+    // entrevista — la fila ya no es observable (la vista abandona el listado);
+    // el assert de fila se sustituye por el de navegación. Payload y toast
+    // se conservan.
+    it('creates in draft with the chosen refs on "Crear" click, shows the toast and navigates to the created interview detail', async () => {
       setContacts([CONTACT])
       setTemplates([TEMPLATE])
-      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({
-        ok: true,
-        data: interview({ title: 'Entrevista con Jane' })
-      })
+      const created = interview({ title: 'Entrevista con Jane' })
+      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({ ok: true, data: created })
+      // Destino de la navegación (ruta anidada): getInterview del detalle
+      vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({ ok: true, data: created })
       const user = userEvent.setup()
       renderCompany()
 
@@ -287,17 +291,21 @@ describe('CompanyDetailPage (entrevistas)', () => {
       })
       const toasts = await screen.findAllByText('Entrevista creada')
       expect(toasts.length).toBeGreaterThanOrEqual(1)
+      // SPEC-044-iter-1 (AC-01): navegación al detalle de la entrevista creada
+      expect(
+        await screen.findByRole('heading', { name: 'Entrevista con Jane', level: 1 })
+      ).toBeInTheDocument()
+      expect(vi.mocked(mockApi.api.db.getInterview)).toHaveBeenCalledWith('i-1')
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-      expect(screen.getByRole('link', { name: 'Entrevista con Jane' })).toBeInTheDocument()
     })
 
     // SPEC-013 · AC-05 (envío con Enter y sentinels → null sin tocar los
     // Selects OPCIONALES; el Discovery requerido de SPEC-044 sí se elige)
     it('creates on Enter mapping the untouched selects to null refs', async () => {
-      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({
-        ok: true,
-        data: interview({ title: 'Sin referencias', contactIds: [], templateId: null })
-      })
+      const created = interview({ title: 'Sin referencias', contactIds: [], templateId: null })
+      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({ ok: true, data: created })
+      // SPEC-044-iter-1: la creación navega al detalle → getInterview mockeado
+      vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({ ok: true, data: created })
       const user = userEvent.setup()
       renderCompany()
 
@@ -322,10 +330,10 @@ describe('CompanyDetailPage (entrevistas)', () => {
     it('does not fire the script auto-generation when creating an interview from the company flow (SPEC-033)', async () => {
       setContacts([CONTACT])
       setTemplates([TEMPLATE])
-      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({
-        ok: true,
-        data: interview({ title: 'Entrevista con Jane' })
-      })
+      const created = interview({ title: 'Entrevista con Jane' })
+      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({ ok: true, data: created })
+      // SPEC-044-iter-1: la creación navega al detalle → getInterview mockeado
+      vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({ ok: true, data: created })
       const user = userEvent.setup()
       renderCompany()
 
@@ -358,10 +366,10 @@ describe('CompanyDetailPage (entrevistas)', () => {
 
     // SPEC-013 · AC-07
     it('offers only the sentinels when there are no contacts nor templates, and creation still works', async () => {
-      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({
-        ok: true,
-        data: interview({ title: 'Solo título', contactIds: [], templateId: null })
-      })
+      const created = interview({ title: 'Solo título', contactIds: [], templateId: null })
+      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({ ok: true, data: created })
+      // SPEC-044-iter-1: la creación navega al detalle → getInterview mockeado
+      vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({ ok: true, data: created })
       const user = userEvent.setup()
       renderCompany()
 
@@ -391,7 +399,8 @@ describe('CompanyDetailPage (entrevistas)', () => {
   })
 
   describe('editing an interview', () => {
-    // SPEC-013 · AC-08
+    // SPEC-013 · AC-08 (+ SPEC-044-iter-1 · AC-03: la EDICIÓN no navega — la
+    // fila editada sigue observable en el listado de la empresa tras guardar)
     it('opens the edit dialog preloaded, saves the three fields via updateInterview and shows "Cambios guardados"', async () => {
       setInterviews([interview()])
       setContacts([CONTACT])
@@ -472,7 +481,8 @@ describe('CompanyDetailPage (entrevistas)', () => {
   })
 
   describe('mutation errors', () => {
-    // SPEC-013 · AC-14
+    // SPEC-013 · AC-14 (+ SPEC-044-iter-1 · AC-02: con envelope ok:false NO se
+    // navega — el Dialog sigue abierto sobre el detalle de la empresa)
     it('shows an error toast, keeps the dialog open and leaves the list untouched when the bridge fails', async () => {
       vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({
         ok: false,
