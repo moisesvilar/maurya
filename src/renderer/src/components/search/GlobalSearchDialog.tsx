@@ -104,9 +104,6 @@ export function GlobalSearchDialog({
                     >
                       <Building2 />
                       <span className="truncate">{hit.name}</span>
-                      <span className="ml-auto truncate text-xs text-muted-foreground">
-                        {hit.discoveryName}
-                      </span>
                     </CommandItem>
                   ))}
                 </CommandGroup>

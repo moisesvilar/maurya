@@ -5,7 +5,7 @@ import type {
   SearchInterviewHit,
   SearchResults
 } from '../../renderer/src/types/search'
-import type { Company, Discovery } from '../../renderer/src/types/domain'
+import type { Company } from '../../renderer/src/types/domain'
 import { read } from './store'
 
 /** Máximo de resultados por grupo (regla de densidad 8.2 de la spec). */
@@ -45,12 +45,24 @@ export function searchGlobal(query: string): SearchResults {
   return read((store) => {
     const matches = (text: string): boolean => normalizeSearchText(text).includes(normalizedQuery)
 
-    const discoveriesById = new Map<string, Discovery>(
-      store.discoveries.map((discovery) => [discovery.id, discovery])
-    )
     const companiesById = new Map<string, Company>(
       store.companies.map((company) => [company.id, company])
     )
+
+    // Ancla transicional (SPEC-043): la ruta de detalle de empresa sigue
+    // anidada bajo un discovery hasta H11.2. Se usa el discovery de la primera
+    // entrevista de la empresa y, si no tiene, el primer discovery del
+    // sistema; sin ancla, el hit se omite (mismo patrón defensivo que la
+    // omisión actual por referencia rota).
+    const anchorDiscoveryByCompany = new Map<string, string>()
+    for (const interview of store.interviews) {
+      if (interview.companyId !== null && !anchorDiscoveryByCompany.has(interview.companyId)) {
+        anchorDiscoveryByCompany.set(interview.companyId, interview.discoveryId)
+      }
+    }
+    const fallbackDiscoveryId = store.discoveries[0]?.id
+    const anchorFor = (companyId: string): string | undefined =>
+      anchorDiscoveryByCompany.get(companyId) ?? fallbackDiscoveryId
 
     const discoveries: SearchDiscoveryHit[] = []
     for (const discovery of store.discoveries) {
@@ -70,15 +82,14 @@ export function searchGlobal(query: string): SearchResults {
       if (!matches(company.name)) {
         continue
       }
-      const discovery = discoveriesById.get(company.discoveryId)
-      if (discovery === undefined) {
+      const anchor = anchorFor(company.id)
+      if (anchor === undefined) {
         continue
       }
       companies.push({
         id: company.id,
-        discoveryId: company.discoveryId,
-        name: company.name,
-        discoveryName: discovery.name
+        discoveryId: anchor,
+        name: company.name
       })
     }
 
@@ -94,11 +105,15 @@ export function searchGlobal(query: string): SearchResults {
       if (company === undefined) {
         continue
       }
+      const anchor = anchorFor(company.id)
+      if (anchor === undefined) {
+        continue
+      }
       contacts.push({
         id: contact.id,
         name: contact.name,
         companyId: company.id,
-        companyDiscoveryId: company.discoveryId,
+        companyDiscoveryId: anchor,
         companyName: company.name
       })
     }

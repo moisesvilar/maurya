@@ -93,7 +93,10 @@ export function useCaptures(): UseCapturesResult {
       const result = await window.api.db.updateInterview(id, {
         title: values.title,
         templateId: values.templateId,
-        ...(values.contactId !== undefined ? { contactId: values.contactId } : {})
+        // SPEC-043: el contacto único del selector viaja como contactIds de 0/1.
+        ...(values.contactId !== undefined
+          ? { contactIds: values.contactId !== null ? [values.contactId] : [] }
+          : {})
       })
       if (!result.ok) {
         toast.error(result.error.message)

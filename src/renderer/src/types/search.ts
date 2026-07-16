@@ -14,17 +14,23 @@ export interface SearchDiscoveryHit {
   name: string
 }
 
-/** Coincidencia de una empresa por nombre, con su discovery como contexto. */
+/**
+ * Coincidencia de una empresa por nombre. SPEC-043: las empresas son globales
+ * y `discoveryId` pasa a ser un *ancla de navegación transicional* — la ruta
+ * anidada `/discoveries/:discoveryId/companies/:companyId` sigue siendo la
+ * única de detalle de empresa hasta H11.2 — resuelta en main (ya no procede de
+ * `company.discoveryId`, que desaparece).
+ */
 export interface SearchCompanyHit {
   id: string
   discoveryId: string
   name: string
-  discoveryName: string
 }
 
 /**
  * Coincidencia de un contacto por nombre. El destino de navegación es el
- * detalle de su empresa, por eso viajan companyId + companyDiscoveryId.
+ * detalle de su empresa, por eso viajan companyId + companyDiscoveryId
+ * (SPEC-043: esta última es la misma ancla transicional resuelta en main).
  */
 export interface SearchContactHit {
   id: string

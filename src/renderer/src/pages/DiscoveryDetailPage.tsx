@@ -47,12 +47,7 @@ export function DiscoveryDetailPage(): React.ReactElement {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [state, setState] = useState<DiscoveryDetailState>({ status: 'loading' })
-  const {
-    state: companiesState,
-    createCompany,
-    updateCompany,
-    removeCompany
-  } = useCompanies(id ?? '')
+  const { state: companiesState, createCompany, updateCompany, removeCompany } = useCompanies()
   const [createOpen, setCreateOpen] = useState(false)
   const [pendingEdit, setPendingEdit] = useState<Company | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Company | null>(null)

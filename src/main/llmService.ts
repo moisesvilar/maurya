@@ -405,7 +405,10 @@ async function doGenerate(interviewId: string): Promise<Interview> {
   // tras asignar empresa, el branch vuelve solo al camino completo.
   const discovery = repository.getDiscovery(interview.discoveryId)
   const company = interview.companyId !== null ? repository.getCompany(interview.companyId) : null
-  const contact = interview.contactId !== null ? repository.getContact(interview.contactId) : null
+  // SPEC-043: adaptación mecánica a N contactos — se usa el PRIMERO de
+  // contactIds (la personalización con varios contactos llega en H11.4).
+  const firstContactId = interview.contactIds[0] ?? null
+  const contact = firstContactId !== null ? repository.getContact(firstContactId) : null
   const template = repository.getInterviewTemplate(interview.templateId)
   const history =
     interview.companyId !== null ? collectHistoricalContext(interview.companyId, interview.id) : []

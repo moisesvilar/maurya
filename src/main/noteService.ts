@@ -321,7 +321,10 @@ async function doGenerate(
 
   // SPEC-020: empresa nullable en capturas capture-first; el prompt degrada.
   const company = interview.companyId !== null ? repository.getCompany(interview.companyId) : null
-  const contact = interview.contactId !== null ? repository.getContact(interview.contactId) : null
+  // SPEC-043: adaptación mecánica a N contactos — se usa el PRIMERO de
+  // contactIds (la personalización con varios contactos llega en H11.4).
+  const firstContactId = interview.contactIds[0] ?? null
+  const contact = firstContactId !== null ? repository.getContact(firstContactId) : null
 
   const client = new Anthropic({ apiKey })
   let response: Anthropic.Message

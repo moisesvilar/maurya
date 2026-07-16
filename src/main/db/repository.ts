@@ -8,6 +8,7 @@ import type {
   CreateCompanyInput,
   CreateContactInput,
   CreateDiscoveryInput,
+  CreateInterviewGroupInput,
   CreateInterviewInput,
   CreateInterviewTemplateInput,
   CreateNoteInput,
@@ -16,6 +17,7 @@ import type {
   CustomPromptOverride,
   Discovery,
   Interview,
+  InterviewGroup,
   InterviewQuestionOutcome,
   InterviewTemplate,
   LinkedinMcpSettings,
@@ -26,6 +28,7 @@ import type {
   UpdateCompanyPatch,
   UpdateContactPatch,
   UpdateDiscoveryPatch,
+  UpdateInterviewGroupPatch,
   UpdateInterviewPatch,
   UpdateInterviewTemplatePatch,
   UpdateNotePatch,
@@ -82,21 +85,81 @@ function assertReference<T extends { id: string }>(items: T[], id: string, entit
   }
 }
 
+/**
+ * Invariante v3 de contactIds (SPEC-043): sin duplicados (validation), y si
+ * no está vacío exige companyId ≠ null (reference) y que TODOS los ids sean
+ * contactos existentes de esa empresa (reference).
+ */
+function assertInterviewContacts(
+  draft: DbData,
+  companyId: string | null,
+  contactIds: string[]
+): void {
+  const seen = new Set<string>()
+  for (const contactId of contactIds) {
+    if (seen.has(contactId)) {
+      throw validationError('La lista de contactos contiene ids duplicados')
+    }
+    seen.add(contactId)
+  }
+  if (contactIds.length === 0) {
+    return
+  }
+  if (companyId === null) {
+    throw referenceError('No se pueden asignar contactos a una entrevista sin empresa')
+  }
+  for (const contactId of contactIds) {
+    const contact = draft.contacts.find((candidate) => candidate.id === contactId)
+    if (contact === undefined || contact.companyId !== companyId) {
+      throw referenceError(
+        `El contacto ${contactId} no existe o no pertenece a la empresa de la entrevista`
+      )
+    }
+  }
+}
+
+/** Invariante v3 de grupo (SPEC-043): existe y pertenece al discovery de la entrevista. */
+function assertInterviewGroup(draft: DbData, discoveryId: string, interviewGroupId: string): void {
+  const group = draft.interviewGroups.find((candidate) => candidate.id === interviewGroupId)
+  if (group === undefined || group.discoveryId !== discoveryId) {
+    throw referenceError('El grupo no existe o no pertenece al discovery de la entrevista')
+  }
+}
+
+/** Valida las referencias opcionales a templates de un grupo (reference si no existen). */
+function assertGroupTemplateRefs(
+  draft: DbData,
+  interviewTemplateId: string | null | undefined,
+  noteTemplateId: string | null | undefined
+): void {
+  if (interviewTemplateId !== undefined && interviewTemplateId !== null) {
+    assertReference(draft.interviewTemplates, interviewTemplateId, 'template de entrevista')
+  }
+  if (noteTemplateId !== undefined && noteTemplateId !== null) {
+    assertReference(draft.noteTemplates, noteTemplateId, 'note-template')
+  }
+}
+
 /** Cascada: borra las entrevistas indicadas y sus notas asociadas. */
 function deleteInterviewsCascade(draft: DbData, interviewIds: Set<string>): void {
   draft.notes = draft.notes.filter((note) => !interviewIds.has(note.interviewId))
   draft.interviews = draft.interviews.filter((interview) => !interviewIds.has(interview.id))
 }
 
-/** Cascada: borra las empresas indicadas con sus contactos, entrevistas y notas. */
+/**
+ * Cascada v3 (SPEC-043): borra empresas con sus contactos; las entrevistas
+ * SOBREVIVEN con companyId null y contactIds vacío (SET NULL, conservando
+ * guión, objetivos, WAV, transcript y nota; no toca `updatedAt`, patrón de
+ * los SET NULL existentes).
+ */
 function deleteCompaniesCascade(draft: DbData, companyIds: Set<string>): void {
   draft.contacts = draft.contacts.filter((contact) => !companyIds.has(contact.companyId))
-  const interviewIds = new Set(
-    draft.interviews
-      .filter((interview) => interview.companyId !== null && companyIds.has(interview.companyId))
-      .map((interview) => interview.id)
-  )
-  deleteInterviewsCascade(draft, interviewIds)
+  for (const interview of draft.interviews) {
+    if (interview.companyId !== null && companyIds.has(interview.companyId)) {
+      interview.companyId = null
+      interview.contactIds = []
+    }
+  }
   draft.companies = draft.companies.filter((company) => !companyIds.has(company.id))
 }
 
@@ -111,6 +174,7 @@ export function createDiscovery(input: CreateDiscoveryInput): Discovery {
     const discovery: Discovery = {
       id: randomUUID(),
       name: input.name,
+      objectives: input.objectives ?? null,
       createdAt: now,
       updatedAt: now
     }
@@ -136,6 +200,9 @@ export function updateDiscovery(id: string, patch: UpdateDiscoveryPatch): Discov
     if (patch.name !== undefined) {
       discovery.name = patch.name
     }
+    if (patch.objectives !== undefined) {
+      discovery.objectives = patch.objectives
+    }
     discovery.updatedAt = touched(discovery.updatedAt)
     return discovery
   })
@@ -144,19 +211,15 @@ export function updateDiscovery(id: string, patch: UpdateDiscoveryPatch): Discov
 export function deleteDiscovery(id: string): null {
   return mutate((draft) => {
     findOrThrow(draft.discoveries, id, 'discovery')
-    // SPEC-020: las capturas del discovery (con o sin empresa) caen en cascada;
-    // las de empresa caerían igual por deleteCompaniesCascade, pero borrarlas
-    // por discoveryId cubre también las que aún no tienen empresa asignada.
+    // SPEC-043: caen en cascada las entrevistas del discovery (con sus notas)
+    // y sus grupos; las empresas y contactos son globales y SOBREVIVEN.
     const interviewIds = new Set(
       draft.interviews
         .filter((interview) => interview.discoveryId === id)
         .map((interview) => interview.id)
     )
     deleteInterviewsCascade(draft, interviewIds)
-    const companyIds = new Set(
-      draft.companies.filter((company) => company.discoveryId === id).map((company) => company.id)
-    )
-    deleteCompaniesCascade(draft, companyIds)
+    draft.interviewGroups = draft.interviewGroups.filter((group) => group.discoveryId !== id)
     draft.discoveries = draft.discoveries.filter((discovery) => discovery.id !== id)
     return null
   })
@@ -166,14 +229,13 @@ export function deleteDiscovery(id: string): null {
 // Company
 // ---------------------------------------------------------------------------
 
+/** Crea una empresa GLOBAL (SPEC-043): sin discovery, reutilizable en cualquiera. */
 export function createCompany(input: CreateCompanyInput): Company {
   assertName(input.name, 'empresa')
   return mutate((draft) => {
-    assertReference(draft.discoveries, input.discoveryId, 'discovery')
     const now = nowIso()
     const company: Company = {
       id: randomUUID(),
-      discoveryId: input.discoveryId,
       name: input.name,
       website: input.website ?? null,
       linkedinUrl: input.linkedinUrl ?? null,
@@ -186,8 +248,9 @@ export function createCompany(input: CreateCompanyInput): Company {
   })
 }
 
-export function listCompanies(discoveryId: string): Company[] {
-  return read((store) => store.companies.filter((company) => company.discoveryId === discoveryId))
+/** Todas las empresas del sistema (SPEC-043: globales, sin filtro por discovery). */
+export function listCompanies(): Company[] {
+  return read((store) => store.companies)
 }
 
 export function getCompany(id: string): Company {
@@ -280,13 +343,16 @@ export function updateContact(id: string, patch: UpdateContactPatch): Contact {
   })
 }
 
-/** Borra el contacto; las entrevistas que lo referencian sobreviven con contactId a null. */
+/**
+ * Borra el contacto; las entrevistas que lo referencian sobreviven con el id
+ * retirado de su `contactIds` (SPEC-043: los demás contactos se conservan).
+ */
 export function deleteContact(id: string): null {
   return mutate((draft) => {
     findOrThrow(draft.contacts, id, 'contacto')
     for (const interview of draft.interviews) {
-      if (interview.contactId === id) {
-        interview.contactId = null
+      if (interview.contactIds.includes(id)) {
+        interview.contactIds = interview.contactIds.filter((contactId) => contactId !== id)
       }
     }
     draft.contacts = draft.contacts.filter((contact) => contact.id !== id)
@@ -346,7 +412,11 @@ export function updateInterviewTemplate(
   })
 }
 
-/** Borra el template; las entrevistas que lo referencian sobreviven con templateId a null (SET NULL). */
+/**
+ * Borra el template; las entrevistas que lo referencian sobreviven con
+ * templateId a null (SET NULL) y los grupos con interviewTemplateId a null
+ * (SPEC-043).
+ */
 export function deleteInterviewTemplate(id: string): null {
   return mutate((draft) => {
     findOrThrow(draft.interviewTemplates, id, 'template de entrevista')
@@ -355,7 +425,83 @@ export function deleteInterviewTemplate(id: string): null {
         interview.templateId = null
       }
     }
+    for (const group of draft.interviewGroups) {
+      if (group.interviewTemplateId === id) {
+        group.interviewTemplateId = null
+      }
+    }
     draft.interviewTemplates = draft.interviewTemplates.filter((template) => template.id !== id)
+    return null
+  })
+}
+
+// ---------------------------------------------------------------------------
+// InterviewGroup (SPEC-043)
+// ---------------------------------------------------------------------------
+
+export function createInterviewGroup(input: CreateInterviewGroupInput): InterviewGroup {
+  assertName(input.name, 'grupo de entrevistas')
+  return mutate((draft) => {
+    assertReference(draft.discoveries, input.discoveryId, 'discovery')
+    assertGroupTemplateRefs(draft, input.interviewTemplateId, input.noteTemplateId)
+    const now = nowIso()
+    const group: InterviewGroup = {
+      id: randomUUID(),
+      discoveryId: input.discoveryId,
+      name: input.name,
+      objective: input.objective ?? null,
+      interviewTemplateId: input.interviewTemplateId ?? null,
+      noteTemplateId: input.noteTemplateId ?? null,
+      createdAt: now,
+      updatedAt: now
+    }
+    draft.interviewGroups.push(group)
+    return group
+  })
+}
+
+export function listInterviewGroups(discoveryId: string): InterviewGroup[] {
+  return read((store) => store.interviewGroups.filter((group) => group.discoveryId === discoveryId))
+}
+
+export function getInterviewGroup(id: string): InterviewGroup {
+  return read((store) => findOrThrow(store.interviewGroups, id, 'grupo de entrevistas'))
+}
+
+export function updateInterviewGroup(id: string, patch: UpdateInterviewGroupPatch): InterviewGroup {
+  if (patch.name !== undefined) {
+    assertName(patch.name, 'grupo de entrevistas')
+  }
+  return mutate((draft) => {
+    const group = findOrThrow(draft.interviewGroups, id, 'grupo de entrevistas')
+    assertGroupTemplateRefs(draft, patch.interviewTemplateId, patch.noteTemplateId)
+    if (patch.name !== undefined) {
+      group.name = patch.name
+    }
+    if (patch.objective !== undefined) {
+      group.objective = patch.objective
+    }
+    if (patch.interviewTemplateId !== undefined) {
+      group.interviewTemplateId = patch.interviewTemplateId
+    }
+    if (patch.noteTemplateId !== undefined) {
+      group.noteTemplateId = patch.noteTemplateId
+    }
+    group.updatedAt = touched(group.updatedAt)
+    return group
+  })
+}
+
+/** Borra el grupo; sus entrevistas SOBREVIVEN con interviewGroupId null (SET NULL). */
+export function deleteInterviewGroup(id: string): null {
+  return mutate((draft) => {
+    findOrThrow(draft.interviewGroups, id, 'grupo de entrevistas')
+    for (const interview of draft.interviews) {
+      if (interview.interviewGroupId === id) {
+        interview.interviewGroupId = null
+      }
+    }
+    draft.interviewGroups = draft.interviewGroups.filter((group) => group.id !== id)
     return null
   })
 }
@@ -368,23 +514,17 @@ export function createInterview(input: CreateInterviewInput): Interview {
   assertName(input.title, 'entrevista (título)')
   return mutate((draft) => {
     assertReference(draft.discoveries, input.discoveryId, 'discovery')
+    // SPEC-043: las empresas son globales — derogada la invariante SPEC-020
+    // «empresa ∈ discovery»; basta con que la empresa exista.
     const companyId = input.companyId ?? null
     if (companyId !== null) {
-      const company = findOrThrow(draft.companies, companyId, 'empresa')
-      // Invariante SPEC-020: la empresa asignada debe pertenecer al discovery.
-      if (company.discoveryId !== input.discoveryId) {
-        throw referenceError('La empresa no pertenece al discovery indicado')
-      }
+      assertReference(draft.companies, companyId, 'empresa')
     }
-    if (input.contactId !== undefined && input.contactId !== null) {
-      // Invariante SPEC-020: contacto exige empresa y debe pertenecer a ella.
-      if (companyId === null) {
-        throw referenceError('No se puede asignar un contacto sin empresa')
-      }
-      const contact = findOrThrow(draft.contacts, input.contactId, 'contacto')
-      if (contact.companyId !== companyId) {
-        throw referenceError('El contacto no pertenece a la empresa indicada')
-      }
+    const contactIds = input.contactIds ?? []
+    assertInterviewContacts(draft, companyId, contactIds)
+    const interviewGroupId = input.interviewGroupId ?? null
+    if (interviewGroupId !== null) {
+      assertInterviewGroup(draft, input.discoveryId, interviewGroupId)
     }
     if (input.templateId !== undefined && input.templateId !== null) {
       assertReference(draft.interviewTemplates, input.templateId, 'template de entrevista')
@@ -394,7 +534,8 @@ export function createInterview(input: CreateInterviewInput): Interview {
       id: randomUUID(),
       discoveryId: input.discoveryId,
       companyId,
-      contactId: input.contactId ?? null,
+      contactIds,
+      interviewGroupId,
       templateId: input.templateId ?? null,
       title: input.title,
       status: 'draft',
@@ -424,16 +565,10 @@ export function updateInterview(id: string, patch: UpdateInterviewPatch): Interv
   }
   return mutate((draft) => {
     const interview = findOrThrow(draft.interviews, id, 'entrevista')
-    if (patch.contactId !== undefined && patch.contactId !== null) {
-      // Invariante SPEC-020: contacto exige empresa y debe pertenecer a ella
-      // (la asignación de empresa va SOLO por assignInterviewCompany).
-      if (interview.companyId === null) {
-        throw referenceError('No se puede asignar un contacto a una captura sin empresa')
-      }
-      const contact = findOrThrow(draft.contacts, patch.contactId, 'contacto')
-      if (contact.companyId !== interview.companyId) {
-        throw referenceError('El contacto no pertenece a la empresa de la entrevista')
-      }
+    if (patch.contactIds !== undefined) {
+      // Invariante v3 (SPEC-043): contactos exigen empresa y deben pertenecer
+      // a ella (la asignación de empresa va SOLO por assignInterviewCompany).
+      assertInterviewContacts(draft, interview.companyId, patch.contactIds)
     }
     if (patch.templateId !== undefined && patch.templateId !== null) {
       assertReference(draft.interviewTemplates, patch.templateId, 'template de entrevista')
@@ -444,8 +579,8 @@ export function updateInterview(id: string, patch: UpdateInterviewPatch): Interv
     if (patch.status !== undefined) {
       interview.status = patch.status
     }
-    if (patch.contactId !== undefined) {
-      interview.contactId = patch.contactId
+    if (patch.contactIds !== undefined) {
+      interview.contactIds = patch.contactIds
     }
     if (patch.templateId !== undefined) {
       interview.templateId = patch.templateId
@@ -501,8 +636,11 @@ export function listAllInterviews(): CaptureListItem[] {
         discoveryName: discoveryNames.get(interview.discoveryId) ?? '',
         companyName:
           interview.companyId !== null ? (companyNames.get(interview.companyId) ?? null) : null,
-        contactName:
-          interview.contactId !== null ? (contactNames.get(interview.contactId) ?? null) : null,
+        // SPEC-043: nombres de TODOS los contactos en el orden de contactIds;
+        // los ids irresolubles se omiten (defensivo).
+        contactNames: interview.contactIds
+          .map((contactId) => contactNames.get(contactId))
+          .filter((name): name is string => name !== undefined),
         templateName:
           interview.templateId !== null ? (templateNames.get(interview.templateId) ?? null) : null
       }))
@@ -511,8 +649,9 @@ export function listAllInterviews(): CaptureListItem[] {
 
 /**
  * Asignación diferida de empresa y contacto (SPEC-020): resuelve-o-crea la
- * empresa (nueva → en el discovery de la captura) y el contacto (nuevo → en
- * esa empresa) y actualiza la entrevista, todo en UN SOLO mutate — atómico por
+ * empresa (SPEC-043: cualquier empresa del sistema; nueva → GLOBAL, sin
+ * discovery) y el contacto (nuevo → en esa empresa) y actualiza la entrevista
+ * (`contactIds` = [contacto] o []), todo en UN SOLO mutate — atómico por
  * diseño del store: si cualquier validación lanza, cero escrituras ("sin
  * estado a medias" del AC).
  */
@@ -539,10 +678,9 @@ export function assignInterviewCompany(
 
     let company: Company
     if (input.newCompany !== undefined) {
-      assertReference(draft.discoveries, interview.discoveryId, 'discovery')
+      // SPEC-043: la empresa nueva se crea GLOBAL (sin discovery).
       company = {
         id: randomUUID(),
-        discoveryId: interview.discoveryId,
         name: input.newCompany.name,
         website: input.newCompany.website ?? null,
         linkedinUrl: input.newCompany.linkedinUrl ?? null,
@@ -552,11 +690,9 @@ export function assignInterviewCompany(
       }
       draft.companies.push(company)
     } else {
+      // SPEC-043: se acepta cualquier empresa del sistema (derogada la
+      // invariante SPEC-020 «empresa ∈ discovery de la captura»).
       company = findOrThrow(draft.companies, input.companyId ?? '', 'empresa')
-      // Invariante SPEC-020: la empresa debe pertenecer al discovery de la captura.
-      if (company.discoveryId !== interview.discoveryId) {
-        throw referenceError('La empresa no pertenece al discovery de la captura')
-      }
     }
 
     let contact: Contact | null = null
@@ -581,7 +717,7 @@ export function assignInterviewCompany(
     }
 
     interview.companyId = company.id
-    interview.contactId = contact !== null ? contact.id : null
+    interview.contactIds = contact !== null ? [contact.id] : []
     interview.updatedAt = touched(interview.updatedAt)
     return { interview, company, contact }
   })
@@ -645,9 +781,15 @@ export function updateNoteTemplate(id: string, patch: UpdateNoteTemplatePatch): 
   })
 }
 
+/** Borra el note-template; los grupos que lo referencian sobreviven con noteTemplateId a null (SPEC-043). */
 export function deleteNoteTemplate(id: string): null {
   return mutate((draft) => {
     findOrThrow(draft.noteTemplates, id, 'note-template')
+    for (const group of draft.interviewGroups) {
+      if (group.noteTemplateId === id) {
+        group.noteTemplateId = null
+      }
+    }
     draft.noteTemplates = draft.noteTemplates.filter((template) => template.id !== id)
     return null
   })

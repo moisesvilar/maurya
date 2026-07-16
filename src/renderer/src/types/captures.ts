@@ -12,13 +12,15 @@ import type { Company, Contact, Interview } from './domain'
 /**
  * Fila del listado global de capturas: la entrevista más los nombres de sus
  * referencias resueltos en main. Referencias ausentes o irresolubles → null
- * (defensivo: el listado nunca rompe por un dato inconsistente).
+ * (defensivo: el listado nunca rompe por un dato inconsistente). SPEC-043:
+ * `contactNames` lleva los nombres de TODOS los contactos en el orden de
+ * `contactIds`; los ids irresolubles se omiten.
  */
 export interface CaptureListItem {
   interview: Interview
   discoveryName: string
   companyName: string | null
-  contactName: string | null
+  contactNames: string[]
   templateName: string | null
 }
 
@@ -37,10 +39,12 @@ export interface AssignNewContactInput {
 }
 
 /**
- * Input de la asignación (SPEC-020): exactamente UNO de `companyId` (empresa
- * existente del discovery de la captura) o `newCompany` (creación inline).
- * Contacto opcional: `contactId` (existente de esa empresa, o null para "Sin
- * contacto"), `newContact` (creación inline), o nada.
+ * Input de la asignación (SPEC-020): exactamente UNO de `companyId` (SPEC-043:
+ * cualquier empresa existente del SISTEMA, ya no solo del discovery de la
+ * captura) o `newCompany` (creación inline de una empresa GLOBAL). Contacto
+ * opcional: `contactId` (existente de esa empresa, o null para "Sin
+ * contacto"), `newContact` (creación inline), o nada. La entrevista resultante
+ * lleva `contactIds` = [contacto] o [].
  */
 export interface AssignCompanyInput {
   companyId?: string

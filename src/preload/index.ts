@@ -39,7 +39,7 @@ const db: DbApi = {
   deleteDiscovery: (id) => ipcRenderer.invoke('db:discovery:delete', id),
 
   createCompany: (input) => ipcRenderer.invoke('db:company:create', input),
-  listCompanies: (discoveryId) => ipcRenderer.invoke('db:company:list', discoveryId),
+  listCompanies: () => ipcRenderer.invoke('db:company:list'),
   getCompany: (id) => ipcRenderer.invoke('db:company:get', id),
   updateCompany: (id, patch) => ipcRenderer.invoke('db:company:update', id, patch),
   deleteCompany: (id) => ipcRenderer.invoke('db:company:delete', id),
@@ -56,6 +56,13 @@ const db: DbApi = {
   updateInterviewTemplate: (id, patch) =>
     ipcRenderer.invoke('db:interview-template:update', id, patch),
   deleteInterviewTemplate: (id) => ipcRenderer.invoke('db:interview-template:delete', id),
+
+  // Grupos de entrevistas (SPEC-043): CRUD por discovery.
+  createInterviewGroup: (input) => ipcRenderer.invoke('db:interview-group:create', input),
+  listInterviewGroups: (discoveryId) => ipcRenderer.invoke('db:interview-group:list', discoveryId),
+  getInterviewGroup: (id) => ipcRenderer.invoke('db:interview-group:get', id),
+  updateInterviewGroup: (id, patch) => ipcRenderer.invoke('db:interview-group:update', id, patch),
+  deleteInterviewGroup: (id) => ipcRenderer.invoke('db:interview-group:delete', id),
 
   createInterview: (input) => ipcRenderer.invoke('db:interview:create', input),
   listInterviews: (companyId) => ipcRenderer.invoke('db:interview:list', companyId),

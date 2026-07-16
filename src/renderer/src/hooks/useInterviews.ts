@@ -8,7 +8,11 @@ export type InterviewsState =
   | { status: 'error'; message: string }
   | { status: 'ready'; interviews: Interview[] }
 
-/** Valores del formulario de entrevista (sentinels ya mapeados a null). */
+/**
+ * Valores del formulario de entrevista (sentinels ya mapeados a null).
+ * `contactId` es el valor de UI del selector único transicional (SPEC-043):
+ * el hook lo persiste como `contactIds` de 0 o 1 elemento.
+ */
 export interface InterviewFormValues {
   title: string
   contactId: string | null
@@ -62,7 +66,14 @@ export function useInterviews(discoveryId: string, companyId: string): UseInterv
   const createInterview = useCallback(
     async (values: InterviewFormValues): Promise<boolean> => {
       // Sin `status`: el repositorio de main fija 'draft' en la creación.
-      const result = await window.api.db.createInterview({ discoveryId, companyId, ...values })
+      // SPEC-043: el contacto único del selector viaja como contactIds de 0/1.
+      const result = await window.api.db.createInterview({
+        discoveryId,
+        companyId,
+        title: values.title,
+        contactIds: values.contactId !== null ? [values.contactId] : [],
+        templateId: values.templateId
+      })
       if (!result.ok) {
         toast.error(result.error.message)
         return false
@@ -82,7 +93,7 @@ export function useInterviews(discoveryId: string, companyId: string): UseInterv
     async (id: string, values: InterviewFormValues): Promise<boolean> => {
       const result = await window.api.db.updateInterview(id, {
         title: values.title,
-        contactId: values.contactId,
+        contactIds: values.contactId !== null ? [values.contactId] : [],
         templateId: values.templateId
       })
       if (!result.ok) {

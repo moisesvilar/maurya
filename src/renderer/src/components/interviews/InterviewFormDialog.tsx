@@ -72,7 +72,9 @@ function InterviewForm({
   titleInputRef
 }: InterviewFormProps): React.ReactElement {
   const [title, setTitle] = useState(interview?.title ?? '')
-  const [contactId, setContactId] = useState(interview?.contactId ?? NONE)
+  // SPEC-043 transicional: el selector sigue siendo de UN contacto (el
+  // primero de contactIds); la multiselección llega en H11.4.
+  const [contactId, setContactId] = useState(interview?.contactIds[0] ?? NONE)
   const [templateId, setTemplateId] = useState(interview?.templateId ?? NONE)
   const [showRequiredError, setShowRequiredError] = useState(false)
   const [submitting, setSubmitting] = useState(false)

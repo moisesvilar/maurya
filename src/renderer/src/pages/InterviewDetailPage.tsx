@@ -81,12 +81,17 @@ export function InterviewDetailPage(): React.ReactElement {
     []
   )
 
-  /** Nombre del contacto asignado; "Sin contacto" si no hay o no se resuelve. */
+  /**
+   * Nombres de los contactos asignados unidos por ", " (SPEC-043, en el orden
+   * de `contactIds`); "Sin contacto" si no hay o ninguno se resuelve.
+   */
   const contactLabel = (interview: Interview): string => {
-    if (interview.contactId !== null && contactsState.status === 'ready') {
-      const contact = contactsState.contacts.find((item) => item.id === interview.contactId)
-      if (contact !== undefined) {
-        return contact.name
+    if (contactsState.status === 'ready') {
+      const names = interview.contactIds
+        .map((contactId) => contactsState.contacts.find((item) => item.id === contactId)?.name)
+        .filter((name): name is string => name !== undefined)
+      if (names.length > 0) {
+        return names.join(', ')
       }
     }
     return 'Sin contacto'

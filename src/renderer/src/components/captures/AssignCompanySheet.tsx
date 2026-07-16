@@ -73,16 +73,17 @@ function AssignCompanyForm({
   const [showContactNameError, setShowContactNameError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  // Empresas del discovery de la captura, cargadas al abrir el Sheet.
+  // SPEC-043: la asignación acepta cualquier empresa, ya no solo las del
+  // discovery — se cargan TODAS las del sistema al abrir el Sheet.
   useEffect(() => {
-    void window.api.db.listCompanies(interview.discoveryId).then((result) => {
+    void window.api.db.listCompanies().then((result) => {
       if (result.ok) {
         setCompanies(result.data)
       } else {
         toast.error(result.error.message)
       }
     })
-  }, [interview.discoveryId])
+  }, [])
 
   // Contactos de la empresa EXISTENTE elegida, cargados lazy; con empresa
   // nueva no hay contactos que listar (solo "Sin contacto" / "+ Nuevo").

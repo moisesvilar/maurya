@@ -34,12 +34,18 @@ import type { CaptureListItem } from '@/types/captures'
 type CapturesFilter = 'all' | 'unassigned'
 
 /**
- * Fila muted "{discovery} · {empresa} · {contacto} · {template}": solo las
+ * Fila muted "{discovery} · {empresa} · {contactos} · {template}": solo las
  * partes que existan y se resuelvan (referencias rotas o null se omiten; el
- * caso "Sin empresa" lo cubre el Badge outline, no este texto).
+ * caso "Sin empresa" lo cubre el Badge outline, no este texto). SPEC-043: los
+ * contactos de `contactNames` se unen por ", " en su orden.
  */
 function captureRefsLabel(item: CaptureListItem): string {
-  return [item.discoveryName, item.companyName, item.contactName, item.templateName]
+  return [
+    item.discoveryName,
+    item.companyName,
+    item.contactNames.length > 0 ? item.contactNames.join(', ') : null,
+    item.templateName
+  ]
     .filter((name): name is string => name !== null && name !== '')
     .join(' · ')
 }

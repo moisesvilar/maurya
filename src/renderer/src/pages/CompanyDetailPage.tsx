@@ -218,19 +218,22 @@ export function CompanyDetailPage(): React.ReactElement {
     capabilities !== null && capabilities.hasAnthropicKey && capabilities.linkedinMcpConfigured
 
   /**
-   * Fila muted "{contacto} · {template}" (solo los nombres que existan y se
+   * Fila muted "{contactos} · {template}" (solo los nombres que existan y se
    * resuelvan con los listados ya cargados; referencias rotas se omiten).
+   * SPEC-043: los contactos de `contactIds` se unen por ", " en su orden.
    */
   const interviewRefsLabel = (interview: Interview): string => {
-    const contactName =
-      interview.contactId !== null
-        ? (contacts.find((contact) => contact.id === interview.contactId)?.name ?? null)
-        : null
+    const contactLabel = interview.contactIds
+      .map((contactId) => contacts.find((contact) => contact.id === contactId)?.name)
+      .filter((name): name is string => name !== undefined)
+      .join(', ')
     const templateName =
       interview.templateId !== null
         ? (templates.find((template) => template.id === interview.templateId)?.name ?? null)
         : null
-    return [contactName, templateName].filter((name): name is string => name !== null).join(' · ')
+    return [contactLabel === '' ? null : contactLabel, templateName]
+      .filter((name): name is string => name !== null)
+      .join(' · ')
   }
 
   return (
