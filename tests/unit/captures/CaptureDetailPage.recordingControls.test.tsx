@@ -79,13 +79,13 @@ let mockApi: MockApiHandle
 const DISCOVERY: Discovery = {
   id: 'd-1',
   name: 'Vertical Sanidad',
+  objectives: null,
   createdAt: '2026-07-01T09:00:00.000Z',
   updatedAt: '2026-07-01T09:00:00.000Z'
 }
 
 const COMPANY: Company = {
   id: 'c-1',
-  discoveryId: 'd-1',
   name: 'Acme Corp',
   website: null,
   linkedinUrl: null,
@@ -108,7 +108,8 @@ function capture(overrides: Partial<Interview> = {}): Interview {
     id: 'i-1',
     discoveryId: 'd-1',
     companyId: null,
-    contactId: null,
+    contactIds: [],
+    interviewGroupId: null,
     templateId: null,
     title: 'Captura sin empresa',
     status: 'draft',
@@ -295,7 +296,7 @@ describe('CaptureDetailPage (SPEC-034 recording controls)', () => {
 
     // SPEC-034 · AC-05
     it('renders only "Iniciar grabación" in the header when the capture already has a company', async () => {
-      setInterview(capture({ companyId: 'c-1', contactId: 'ct-1' }))
+      setInterview(capture({ companyId: 'c-1', contactIds: ['ct-1'] }))
       renderAt('/captures/i-1')
 
       expect(await screen.findByTestId('capture-start-button')).toBeInTheDocument()

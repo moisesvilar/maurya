@@ -23,14 +23,15 @@ let mockApi: MockApiHandle
 const DISCOVERY: Discovery = {
   id: 'd-1',
   name: 'Discovery Maurya',
+  objectives: null,
   createdAt: '2026-07-01T12:00:00.000Z',
   updatedAt: '2026-07-01T12:00:00.000Z'
 }
 
+// SPEC-043: las empresas son globales (sin discoveryId)
 function company(overrides: Partial<Company> = {}): Company {
   return {
     id: 'c-1',
-    discoveryId: 'd-1',
     name: 'Acme Corp',
     website: 'https://acme.example',
     linkedinUrl: 'https://linkedin.com/company/acme',
@@ -133,8 +134,8 @@ describe('DiscoveryDetailPage (empresas)', () => {
       await user.type(screen.getByLabelText('Website'), 'https://acme.example  ')
       await user.click(screen.getByRole('button', { name: 'Crear' }))
 
+      // SPEC-043: el alta crea una empresa GLOBAL — sin discoveryId en el input
       expect(vi.mocked(mockApi.api.db.createCompany)).toHaveBeenCalledWith({
-        discoveryId: 'd-1',
         name: 'Acme Corp',
         website: 'https://acme.example',
         linkedinUrl: null,

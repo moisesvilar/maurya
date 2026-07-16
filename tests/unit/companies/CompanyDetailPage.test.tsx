@@ -20,13 +20,13 @@ let mockApi: MockApiHandle
 const DISCOVERY: Discovery = {
   id: 'd-1',
   name: 'Discovery Maurya',
+  objectives: null,
   createdAt: '2026-07-01T12:00:00.000Z',
   updatedAt: '2026-07-01T12:00:00.000Z'
 }
 
 const COMPANY: Company = {
   id: 'c-1',
-  discoveryId: 'd-1',
   name: 'Acme Corp',
   website: 'https://acme.example/about',
   linkedinUrl: 'https://linkedin.com/company/acme',

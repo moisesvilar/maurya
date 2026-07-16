@@ -26,6 +26,7 @@ let mockApi: MockApiHandle
 const DISCOVERY: Discovery = {
   id: 'd-1',
   name: 'Vertical Sanidad',
+  objectives: null,
   createdAt: '2026-07-01T09:00:00.000Z',
   updatedAt: '2026-07-01T09:00:00.000Z'
 }
@@ -45,7 +46,8 @@ function interview(overrides: Partial<Interview> = {}): Interview {
     id: 'i-1',
     discoveryId: 'd-1',
     companyId: null,
-    contactId: null,
+    contactIds: [],
+    interviewGroupId: null,
     templateId: null,
     title: 'Captura sin empresa',
     status: 'draft',
@@ -64,7 +66,7 @@ const UNASSIGNED: CaptureListItem = {
   interview: interview(),
   discoveryName: 'Vertical Sanidad',
   companyName: null,
-  contactName: null,
+  contactNames: [],
   templateName: null
 }
 
@@ -73,7 +75,8 @@ const ASSIGNED: CaptureListItem = {
   interview: interview({
     id: 'i-2',
     companyId: 'c-1',
-    contactId: 'ct-1',
+    // SPEC-043: N contactos por entrevista (contactIds sustituye a contactId)
+    contactIds: ['ct-1'],
     templateId: 'tpl-1',
     title: 'Entrevista con Acme',
     status: 'recorded',
@@ -81,7 +84,7 @@ const ASSIGNED: CaptureListItem = {
   }),
   discoveryName: 'Vertical Sanidad',
   companyName: 'Acme Corp',
-  contactName: 'Jane Doe',
+  contactNames: ['Jane Doe'],
   templateName: 'Entrevista MDR'
 }
 

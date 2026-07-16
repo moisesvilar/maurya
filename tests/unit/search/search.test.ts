@@ -32,8 +32,10 @@ describe('searchGlobal', () => {
     it('matches names regardless of case and diacritics in both directions', () => {
       expect(normalizeSearchText('Ácmé CÓRP')).toBe('acme corp')
 
-      const discovery = repository.createDiscovery({ name: 'Vertical Sanidad' })
-      repository.createCompany({ discoveryId: discovery.id, name: 'Acmé Córp' })
+      // SPEC-043: las empresas son globales (createCompany sin discovery); el
+      // discovery sigue existiendo como ancla transicional de navegación
+      repository.createDiscovery({ name: 'Vertical Sanidad' })
+      repository.createCompany({ name: 'Acmé Córp' })
 
       // Query sin acentos encuentra el nombre acentuado…
       expect(searchGlobal('acme corp').companies).toHaveLength(1)
@@ -47,10 +49,8 @@ describe('searchGlobal', () => {
     // SPEC-018 · refuerzo de AC-05..AC-08 (capa main: hits con contexto resuelto)
     it('matches by substring on each entity type returning the nested navigation context', () => {
       const discovery = repository.createDiscovery({ name: 'Vertical Sanidad' })
-      const company = repository.createCompany({
-        discoveryId: discovery.id,
-        name: 'Acmé Córp'
-      })
+      // SPEC-043: empresa global; su hit resuelve el discovery ancla en main
+      const company = repository.createCompany({ name: 'Acmé Córp' })
       const contact = repository.createContact({ companyId: company.id, name: 'María López' })
       const interview = repository.createInterview({
         discoveryId: discovery.id,
@@ -62,13 +62,14 @@ describe('searchGlobal', () => {
       expect(searchGlobal('sanid').discoveries).toEqual([
         { id: discovery.id, name: 'Vertical Sanidad' }
       ])
-      // Empresa con el nombre de su discovery como contexto
+      // Empresa (SPEC-043, deroga el contexto discoveryName de SPEC-018): el
+      // hit viaja sin nombre de discovery y con el discovery de su primera
+      // entrevista como ancla transicional de navegación
       expect(searchGlobal('corp').companies).toEqual([
         {
           id: company.id,
           discoveryId: discovery.id,
-          name: 'Acmé Córp',
-          discoveryName: 'Vertical Sanidad'
+          name: 'Acmé Córp'
         }
       ])
       // Contacto con su empresa como contexto Y companyDiscoveryId para la
@@ -99,9 +100,10 @@ describe('searchGlobal', () => {
   describe('group limit', () => {
     // SPEC-018 · AC-11 (máximo 8 resultados por grupo)
     it('caps each group at 8 results', () => {
-      const discovery = repository.createDiscovery({ name: 'Discovery base' })
+      // SPEC-043: empresas globales; el discovery queda como ancla de navegación
+      repository.createDiscovery({ name: 'Discovery base' })
       for (let index = 1; index <= 10; index += 1) {
-        repository.createCompany({ discoveryId: discovery.id, name: `Empresa ${index}` })
+        repository.createCompany({ name: `Empresa ${index}` })
       }
 
       const results = searchGlobal('empresa')
@@ -114,8 +116,8 @@ describe('searchGlobal', () => {
   describe('blank query', () => {
     // SPEC-018 · refuerzo de AC-17 (query vacía o en blanco → grupos vacíos)
     it('returns empty groups for empty or whitespace-only queries', () => {
-      const discovery = repository.createDiscovery({ name: 'Discovery base' })
-      repository.createCompany({ discoveryId: discovery.id, name: 'Acme Corp' })
+      repository.createDiscovery({ name: 'Discovery base' })
+      repository.createCompany({ name: 'Acme Corp' })
 
       expect(searchGlobal('')).toEqual(EMPTY_RESULTS)
       expect(searchGlobal('   ')).toEqual(EMPTY_RESULTS)

@@ -175,6 +175,16 @@ function createMockDbApi(): DbApi {
     updateInterviewTemplate: vi.fn<DbApi['updateInterviewTemplate']>(),
     deleteInterviewTemplate: vi.fn<DbApi['deleteInterviewTemplate']>(),
 
+    // SPEC-043: grupos de entrevistas (listado con default vacío seguro; el
+    // resto se configura por test)
+    createInterviewGroup: vi.fn<DbApi['createInterviewGroup']>(),
+    listInterviewGroups: vi
+      .fn<DbApi['listInterviewGroups']>()
+      .mockResolvedValue({ ok: true, data: [] }),
+    getInterviewGroup: vi.fn<DbApi['getInterviewGroup']>(),
+    updateInterviewGroup: vi.fn<DbApi['updateInterviewGroup']>(),
+    deleteInterviewGroup: vi.fn<DbApi['deleteInterviewGroup']>(),
+
     createInterview: vi.fn<DbApi['createInterview']>(),
     listInterviews: vi.fn<DbApi['listInterviews']>().mockResolvedValue({ ok: true, data: [] }),
     getInterview: vi.fn<DbApi['getInterview']>(),

@@ -24,9 +24,9 @@ let mockApi: MockApiHandle
 
 const RESULTS: SearchResults = {
   discoveries: [{ id: 'd-1', name: 'Vertical Sanidad' }],
-  companies: [
-    { id: 'c-1', discoveryId: 'd-1', name: 'Acmé Córp', discoveryName: 'Vertical Sanidad' }
-  ],
+  // SPEC-043: el hit de empresa viaja sin discoveryName (empresas globales);
+  // discoveryId es el ancla transicional de navegación resuelta en main
+  companies: [{ id: 'c-1', discoveryId: 'd-1', name: 'Acmé Córp' }],
   contacts: [
     {
       id: 'ct-1',
@@ -177,8 +177,9 @@ describe('GlobalSearch', () => {
       expect(vi.mocked(mockApi.api.db.search)).toHaveBeenCalledWith('sanid')
     })
 
-    // SPEC-018 · AC-06
-    it('shows a matching company under "Empresas" with its discovery name as context', async () => {
+    // SPEC-018 · AC-06, adaptado por SPEC-043: las empresas son globales — el
+    // hit se muestra SIN el nombre del discovery como contexto
+    it('shows a matching company under "Empresas" without a discovery name context', async () => {
       const user = userEvent.setup()
       renderTopBar()
       const input = await openSearch(user)
@@ -187,7 +188,7 @@ describe('GlobalSearch', () => {
 
       const group = await findGroup('Empresas')
       expect(within(group).getByText('Acmé Córp')).toBeInTheDocument()
-      expect(within(group).getByText('Vertical Sanidad')).toBeInTheDocument()
+      expect(within(group).queryByText('Vertical Sanidad')).not.toBeInTheDocument()
     })
 
     // SPEC-018 · AC-07

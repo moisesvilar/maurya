@@ -24,7 +24,6 @@ let onOpenChange: ReturnType<typeof vi.fn<(open: boolean) => void>>
 
 const COMPANY: Company = {
   id: 'c-1',
-  discoveryId: 'd-1',
   name: 'Acme Corp',
   website: null,
   linkedinUrl: null,
@@ -46,7 +45,8 @@ const INTERVIEW: Interview = {
   id: 'i-1',
   discoveryId: 'd-1',
   companyId: null,
-  contactId: null,
+  contactIds: [],
+  interviewGroupId: null,
   templateId: null,
   title: 'Captura sin empresa',
   status: 'draft',
@@ -97,8 +97,9 @@ beforeEach(() => {
 })
 
 describe('AssignCompanySheet', () => {
-  // SPEC-020 · AC-23
-  it('offers the discovery companies plus "+ Nueva empresa", and gates the contact select behind choosing a company', async () => {
+  // SPEC-020 · AC-23, adaptado por SPEC-043: las empresas son globales — el
+  // Sheet ofrece TODAS las empresas del sistema (listCompanies sin parámetro)
+  it('offers every company in the system plus "+ Nueva empresa", and gates the contact select behind choosing a company', async () => {
     const user = userEvent.setup()
     renderSheet()
 
@@ -119,11 +120,11 @@ describe('AssignCompanySheet', () => {
     const hints = await screen.findAllByText('Selecciona primero una empresa')
     expect(hints.length).toBeGreaterThanOrEqual(1)
 
-    // Empresa: empresas del discovery + "+ Nueva empresa"
+    // Empresa: TODAS las empresas del sistema (SPEC-043) + "+ Nueva empresa"
     await user.click(within(sheet).getByRole('combobox', { name: 'Empresa' }))
     expect(await screen.findByRole('option', { name: 'Acme Corp' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: '+ Nueva empresa' })).toBeInTheDocument()
-    expect(vi.mocked(mockApi.api.db.listCompanies)).toHaveBeenCalledWith('d-1')
+    expect(vi.mocked(mockApi.api.db.listCompanies)).toHaveBeenCalledWith()
     await user.click(screen.getByRole('option', { name: 'Acme Corp' }))
 
     // Con empresa existente elegida: "Sin contacto" + contactos + "+ Nuevo contacto"
@@ -189,7 +190,7 @@ describe('AssignCompanySheet', () => {
   // SPEC-020 · AC-28 (renderer: UNA sola operación compuesta con los datos inline)
   it('assigns creating the new company and contact in a single bridge operation and notifies the assignment', async () => {
     const assigned: AssignCompanyResult = {
-      interview: { ...INTERVIEW, companyId: 'c-9', contactId: 'ct-9' },
+      interview: { ...INTERVIEW, companyId: 'c-9', contactIds: ['ct-9'] },
       company: { ...COMPANY, id: 'c-9', name: 'Globex' },
       contact: { ...CONTACT, id: 'ct-9', companyId: 'c-9', name: 'John Smith' }
     }

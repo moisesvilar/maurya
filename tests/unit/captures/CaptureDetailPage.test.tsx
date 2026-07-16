@@ -52,13 +52,14 @@ let mockApi: MockApiHandle
 const DISCOVERY: Discovery = {
   id: 'd-1',
   name: 'Vertical Sanidad',
+  objectives: null,
   createdAt: '2026-07-01T09:00:00.000Z',
   updatedAt: '2026-07-01T09:00:00.000Z'
 }
 
+// SPEC-043: las empresas son globales (sin discoveryId)
 const COMPANY: Company = {
   id: 'c-1',
-  discoveryId: 'd-1',
   name: 'Acme Corp',
   website: null,
   linkedinUrl: null,
@@ -81,7 +82,8 @@ function capture(overrides: Partial<Interview> = {}): Interview {
     id: 'i-1',
     discoveryId: 'd-1',
     companyId: null,
-    contactId: null,
+    contactIds: [],
+    interviewGroupId: null,
     templateId: null,
     title: 'Captura sin empresa',
     status: 'draft',
@@ -218,7 +220,7 @@ describe('CaptureDetailPage', () => {
 
       // Con empresa asignada el botón no existe y la cabecera resuelve nombres
       unmount()
-      setInterview(capture({ companyId: 'c-1', contactId: 'ct-1' }))
+      setInterview(capture({ companyId: 'c-1', contactIds: ['ct-1'] }))
       renderDetail()
       await screen.findByRole('heading', { level: 1, name: 'Captura sin empresa' })
       expect(screen.queryByTestId('assign-company-button')).not.toBeInTheDocument()

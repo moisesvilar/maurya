@@ -20,9 +20,9 @@ import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
 
 let mockApi: MockApiHandle
 
+// SPEC-043: las empresas son globales (sin discoveryId)
 const COMPANY: Company = {
   id: 'c-1',
-  discoveryId: 'd-1',
   name: 'Acme Corp',
   website: null,
   linkedinUrl: null,
@@ -55,7 +55,9 @@ function interview(overrides: Partial<Interview> = {}): Interview {
     // SPEC-020 (schema v2): toda entrevista ancla su discovery directamente.
     discoveryId: 'd-1',
     companyId: 'c-1',
-    contactId: 'ct-1',
+    // SPEC-043: N contactos por entrevista y grupo opcional
+    contactIds: ['ct-1'],
+    interviewGroupId: null,
     templateId: 'tpl-1',
     title: 'Discovery con Acme',
     status: 'draft',
@@ -237,7 +239,7 @@ describe('CompanyDetailPage (entrevistas)', () => {
         discoveryId: 'd-1',
         companyId: 'c-1',
         title: 'Entrevista con Jane',
-        contactId: 'ct-1',
+        contactIds: ['ct-1'],
         templateId: 'tpl-1'
       })
       const toasts = await screen.findAllByText('Entrevista creada')
@@ -250,7 +252,7 @@ describe('CompanyDetailPage (entrevistas)', () => {
     it('creates on Enter mapping the untouched selects to null refs', async () => {
       vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({
         ok: true,
-        data: interview({ title: 'Sin referencias', contactId: null, templateId: null })
+        data: interview({ title: 'Sin referencias', contactIds: [], templateId: null })
       })
       const user = userEvent.setup()
       renderCompany()
@@ -262,7 +264,7 @@ describe('CompanyDetailPage (entrevistas)', () => {
         discoveryId: 'd-1',
         companyId: 'c-1',
         title: 'Sin referencias',
-        contactId: null,
+        contactIds: [],
         templateId: null
       })
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -309,7 +311,7 @@ describe('CompanyDetailPage (entrevistas)', () => {
     it('offers only the sentinels when there are no contacts nor templates, and creation still works', async () => {
       vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({
         ok: true,
-        data: interview({ title: 'Solo título', contactId: null, templateId: null })
+        data: interview({ title: 'Solo título', contactIds: [], templateId: null })
       })
       const user = userEvent.setup()
       renderCompany()
@@ -332,7 +334,7 @@ describe('CompanyDetailPage (entrevistas)', () => {
         discoveryId: 'd-1',
         companyId: 'c-1',
         title: 'Solo título',
-        contactId: null,
+        contactIds: [],
         templateId: null
       })
     })
@@ -368,7 +370,7 @@ describe('CompanyDetailPage (entrevistas)', () => {
 
       expect(vi.mocked(mockApi.api.db.updateInterview)).toHaveBeenCalledWith('i-1', {
         title: 'Título editado',
-        contactId: 'ct-1',
+        contactIds: ['ct-1'],
         templateId: 'tpl-1'
       })
       const toasts = await screen.findAllByText('Cambios guardados')

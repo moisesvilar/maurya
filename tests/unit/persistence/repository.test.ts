@@ -84,25 +84,23 @@ describe('repository', () => {
       expect(listDiscoveries()).toEqual([discovery])
     })
 
-    // SPEC-006 · AC-02
-    it('creates a company under a discovery and lists it among the discovery companies', () => {
-      const discovery = createDiscovery({ name: 'Discovery Maurya' })
+    // SPEC-006 · AC-02, adaptado por SPEC-043: la empresa es GLOBAL (sin
+    // discovery) y el listado devuelve todas las del sistema
+    it('creates a global company and lists it among every company in the system', () => {
       const company = createCompany({
-        discoveryId: discovery.id,
         name: 'Acme Corp',
         website: 'https://acme.example',
         linkedinUrl: 'https://linkedin.com/company/acme'
       })
-      expect(company.discoveryId).toBe(discovery.id)
+      expect(company).not.toHaveProperty('discoveryId')
       expect(company.website).toBe('https://acme.example')
       expect(company.linkedinUrl).toBe('https://linkedin.com/company/acme')
-      expect(listCompanies(discovery.id)).toEqual([company])
+      expect(listCompanies()).toEqual([company])
     })
 
     // SPEC-006 · AC-03
     it('creates a contact associated to its company', () => {
-      const discovery = createDiscovery({ name: 'Discovery Maurya' })
-      const company = createCompany({ discoveryId: discovery.id, name: 'Acme Corp' })
+      const company = createCompany({ name: 'Acme Corp' })
       const contact = createContact({
         companyId: company.id,
         name: 'Jane Doe',
@@ -152,7 +150,7 @@ describe('repository', () => {
     // SPEC-006 · AC-05
     it('creates an interview in draft status with correct contact and template references', () => {
       const discovery = createDiscovery({ name: 'Discovery Maurya' })
-      const company = createCompany({ discoveryId: discovery.id, name: 'Acme Corp' })
+      const company = createCompany({ name: 'Acme Corp' })
       const contact = createContact({ companyId: company.id, name: 'Jane Doe' })
       const template = createInterviewTemplate({ name: 'Guión exploratorio' })
 
@@ -160,14 +158,17 @@ describe('repository', () => {
         discoveryId: discovery.id,
         companyId: company.id,
         title: 'Entrevista con Jane',
-        contactId: contact.id,
+        // SPEC-043 (schema v3): N contactos por entrevista
+        contactIds: [contact.id],
         templateId: template.id
       })
       expect(interview.status).toBe('draft')
       // SPEC-020 (schema v2): la entrevista ancla su discovery directamente
       expect(interview.discoveryId).toBe(discovery.id)
       expect(interview.companyId).toBe(company.id)
-      expect(interview.contactId).toBe(contact.id)
+      expect(interview.contactIds).toEqual([contact.id])
+      // SPEC-043: sin grupo asignado → null explícito
+      expect(interview.interviewGroupId).toBeNull()
       expect(interview.templateId).toBe(template.id)
       // Opcionales aún sin valor: null explícito, no undefined
       expect(interview.scriptMarkdown).toBeNull()
@@ -221,22 +222,28 @@ describe('repository', () => {
       expect(persisted.noteTemplates).toEqual([])
     })
 
-    // SPEC-006 · AC-10
-    it('rejects a company creation with a nonexistent discoveryId with a reference error without persisting anything', () => {
+    // SPEC-006 · AC-10, reescrito por SPEC-043: «crear empresa exige
+    // discovery» queda DEROGADO (las empresas son globales). El comportamiento
+    // v3 equivalente que conserva la intención — una referencia rota en el
+    // create se rechaza con error reference y cero escrituras — se verifica
+    // sobre el contacto, cuya empresa sigue siendo obligatoria.
+    it('rejects a contact creation with a nonexistent companyId with a reference error without persisting anything', () => {
       expectDbError(
-        () => createCompany({ discoveryId: 'discovery-inexistente', name: 'Acme Corp' }),
+        () => createContact({ companyId: 'empresa-inexistente', name: 'Jane Doe' }),
         'reference'
       )
-      expect(readDbFile().companies).toEqual([])
+      expect(readDbFile().contacts).toEqual([])
     })
   })
 
   describe('referential integrity and deletion', () => {
-    // SPEC-006 · AC-11
-    it('deletes a discovery cascading to its companies, contacts, interviews and notes while global templates survive', () => {
+    // SPEC-006 · AC-11, adaptado por SPEC-043: la cascada del discovery sigue
+    // llevándose sus entrevistas y las notas de estas, pero las empresas y los
+    // contactos son GLOBALES y sobreviven (igual que los templates).
+    it('deletes a discovery cascading to its interviews and notes while global companies, contacts and templates survive', () => {
       const discovery = createDiscovery({ name: 'Discovery Maurya' })
-      const companyA = createCompany({ discoveryId: discovery.id, name: 'Acme Corp' })
-      const companyB = createCompany({ discoveryId: discovery.id, name: 'Globex' })
+      const companyA = createCompany({ name: 'Acme Corp' })
+      const companyB = createCompany({ name: 'Globex' })
       const contact = createContact({ companyId: companyA.id, name: 'Jane Doe' })
       const interviewTemplate = createInterviewTemplate({ name: 'Guión exploratorio' })
       const noteTemplate = createNoteTemplate({ name: 'Notas de entrevista' })
@@ -244,7 +251,7 @@ describe('repository', () => {
         discoveryId: discovery.id,
         companyId: companyA.id,
         title: 'Entrevista A',
-        contactId: contact.id,
+        contactIds: [contact.id],
         templateId: interviewTemplate.id
       })
       createInterview({ discoveryId: discovery.id, companyId: companyB.id, title: 'Entrevista B' })
@@ -254,10 +261,11 @@ describe('repository', () => {
 
       const persisted = readDbFile()
       expect(persisted.discoveries).toEqual([])
-      expect(persisted.companies).toEqual([])
-      expect(persisted.contacts).toEqual([])
       expect(persisted.interviews).toEqual([])
       expect(persisted.notes).toEqual([])
+      // SPEC-043: empresas y contactos globales — la cascada NO los toca
+      expect(persisted.companies).toEqual([companyA, companyB])
+      expect(persisted.contacts).toEqual([contact])
       // Los templates son globales: la cascada no los toca
       expect(persisted.interviewTemplates).toEqual([interviewTemplate])
       expect(persisted.noteTemplates).toEqual([noteTemplate])
@@ -266,7 +274,7 @@ describe('repository', () => {
     // SPEC-006 · AC-12
     it('deletes a referenced interview template leaving the interview alive with templateId set to null', () => {
       const discovery = createDiscovery({ name: 'Discovery Maurya' })
-      const company = createCompany({ discoveryId: discovery.id, name: 'Acme Corp' })
+      const company = createCompany({ name: 'Acme Corp' })
       const template = createInterviewTemplate({ name: 'Guión exploratorio' })
       const interview = createInterview({
         discoveryId: discovery.id,
@@ -286,7 +294,7 @@ describe('repository', () => {
     // SPEC-006 · AC-13
     it('deletes an interview removing its note as well', () => {
       const discovery = createDiscovery({ name: 'Discovery Maurya' })
-      const company = createCompany({ discoveryId: discovery.id, name: 'Acme Corp' })
+      const company = createCompany({ name: 'Acme Corp' })
       const interview = createInterview({
         discoveryId: discovery.id,
         companyId: company.id,

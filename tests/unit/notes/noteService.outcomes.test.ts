@@ -112,7 +112,7 @@ function writeTranscriptFile(): string {
 
 function seedBase(): { interview: Interview; template: NoteTemplate } {
   const discovery = repository.createDiscovery({ name: 'Discovery Maurya' })
-  const company = repository.createCompany({ discoveryId: discovery.id, name: 'Acme Corp' })
+  const company = repository.createCompany({ name: 'Acme Corp' })
   const template = repository.createNoteTemplate({
     name: 'Notas discovery',
     context: 'Céntrate en dolores y evidencias.',

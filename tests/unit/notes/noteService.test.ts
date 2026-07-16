@@ -120,7 +120,7 @@ function writeTranscriptFile(): string {
 function seedBase(options: { withTranscript?: boolean } = {}): Seeded {
   const { withTranscript = true } = options
   const discovery = repository.createDiscovery({ name: 'Discovery Maurya' })
-  const company = repository.createCompany({ discoveryId: discovery.id, name: 'Acme Corp' })
+  const company = repository.createCompany({ name: 'Acme Corp' })
   repository.createContact({ companyId: company.id, name: 'Jane Doe', position: 'CTO' })
   const template = repository.createNoteTemplate({
     name: 'Notas discovery',

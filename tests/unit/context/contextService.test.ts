@@ -22,7 +22,6 @@ import { LlmOperationError } from '../../../src/main/llmService'
 import {
   createCompany,
   createContact,
-  createDiscovery,
   setLinkedinMcpSettings
 } from '../../../src/main/db/repository'
 import { initStore } from '../../../src/main/db/store'
@@ -135,9 +134,7 @@ describe('contextService (capacidades y guards de generación)', () => {
   })
 
   it('rejects company generation without an Anthropic key (no-key) before touching any source', async () => {
-    const discovery = createDiscovery({ name: 'Disco' })
     const company = createCompany({
-      discoveryId: discovery.id,
       name: 'Acme',
       website: 'https://acme.test'
     })
@@ -146,15 +143,13 @@ describe('contextService (capacidades y guards de generación)', () => {
 
   it('rejects company generation without any usable source (no-source)', async () => {
     saveSecret('anthropic', 'sk-ant-test-1234')
-    const discovery = createDiscovery({ name: 'Disco' })
 
     // Sin web ni LinkedIn
-    const bare = createCompany({ discoveryId: discovery.id, name: 'Acme' })
+    const bare = createCompany({ name: 'Acme' })
     await expectLlmError(generateCompanyContext(bare.id), 'no-source')
 
     // Con LinkedIn pero sin MCP configurado: LinkedIn no cuenta como fuente
     const onlyLinkedin = createCompany({
-      discoveryId: discovery.id,
       name: 'Globex',
       linkedinUrl: 'https://linkedin.com/company/globex'
     })
@@ -163,8 +158,7 @@ describe('contextService (capacidades y guards de generación)', () => {
 
   it('rejects contact generation unless BOTH the MCP is configured and the contact has LinkedIn', async () => {
     saveSecret('anthropic', 'sk-ant-test-1234')
-    const discovery = createDiscovery({ name: 'Disco' })
-    const company = createCompany({ discoveryId: discovery.id, name: 'Acme' })
+    const company = createCompany({ name: 'Acme' })
 
     // Contacto con LinkedIn pero MCP sin configurar
     const withLinkedin = createContact({
@@ -182,8 +176,7 @@ describe('contextService (capacidades y guards de generación)', () => {
 
   it('rejects contact generation without an Anthropic key (no-key)', async () => {
     setLinkedinMcpSettings({ url: 'https://mcp.apify.com' })
-    const discovery = createDiscovery({ name: 'Disco' })
-    const company = createCompany({ discoveryId: discovery.id, name: 'Acme' })
+    const company = createCompany({ name: 'Acme' })
     const contact = createContact({
       companyId: company.id,
       name: 'Ada',
