@@ -2176,5 +2176,30 @@
     "notes": "Derogaciones presupuestadas aplicadas (spec §Notas técnicas): SPEC-013/044 (Select de contacto único del Dialog de entrevista), SPEC-020 (Select de contacto del Sheet y de la edición de captura; AssignCompanyResult.contact→contacts; AssignCompanyInput.contactId→contactIds), SPEC-045 (filas de grupo sin navegación) y SPEC-014/017 (forma exacta de las secciones Empresa/Contacto de los prompts) — las suites afectadas se adaptaron conservando la intención y sus entradas llevan nota + identificadores renombrados actualizados. La referencia rota de grupo (getInterviewGroup tolerante → sección omitida) no es alcanzable vía la API del repositorio (deleteInterviewGroup hace SET NULL sobre las entrevistas), así que se cubre el caso «sin grupo»; el branch try/catch queda como defensivo sin test. También se corrigieron los warnings de prettier preexistentes en tests/unit/discoveries/*. Suite completa del repo en verde (808/808) tras la generación.",
     "created_at": "2026-07-16",
     "updated_at": "2026-07-16T20:10:00Z"
+  },
+  "SPEC-047": {
+    "spec_file": "specs/SPEC-047-nota-template-grupo.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición (7) — Template del grupo por defecto ×3 (AC-01 Select preseleccionado con el template del grupo, AC-02 «Generar nota» sin tocar el selector invoca la generación con el template del grupo, AC-03 «Regenerar» vuelve a ofrecer el default del grupo y elegir otro regenera con el elegido sin tocar el grupo); Degradaciones ×4 (AC-04 sin grupo → primer template y cero llamadas a getInterviewGroup, AC-05 grupo sin noteTemplateId → primero, AC-06 grupo borrado/envelope ok:false o referencia de template que no resuelve en la lista → primero sin errores, AC-07 la elección manual del usuario no la pisa la preselección del grupo).",
+    "unit": [
+      {
+        "file": "tests/unit/notes/NoteSection.test.tsx",
+        "test_count": 8,
+        "description": "Describe \"group note-template default (SPEC-047)\" dentro de la suite existente de NoteSection (montada vía InterviewDetailPage con installMockApi): preselección del Select (aria-label «Note-template») con el noteTemplateId del grupo, generación y regeneración con el template del grupo por defecto y override manual (promesa controlada de getInterviewGroup para el orden manual→grupo), degradaciones a primer template (sin grupo con cero lookups, grupo sin template, envelope ok:false, referencia que no resuelve) sin Alert de error."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/notes/NoteSection.test.tsx::NoteSection::group note-template default (SPEC-047)::preselects the selector with the group note-template instead of the first of the list",
+      "AC-02": "tests/unit/notes/NoteSection.test.tsx::NoteSection::group note-template default (SPEC-047)::calls the generation with the group template when \"Generar nota\" is clicked without touching the selector",
+      "AC-03": "tests/unit/notes/NoteSection.test.tsx::NoteSection::group note-template default (SPEC-047)::offers the group template by default on Regenerar and regenerates with a manually chosen one without touching the group",
+      "AC-04": "tests/unit/notes/NoteSection.test.tsx::NoteSection::group note-template default (SPEC-047)::preselects the first template and makes zero group lookups for an interview without group",
+      "AC-05": "tests/unit/notes/NoteSection.test.tsx::NoteSection::group note-template default (SPEC-047)::falls back to the first template when the group has no note-template assigned",
+      "AC-06": "tests/unit/notes/NoteSection.test.tsx::NoteSection::group note-template default (SPEC-047)::falls back to the first template without errors when the group lookup fails (group deleted) + tests/unit/notes/NoteSection.test.tsx::NoteSection::group note-template default (SPEC-047)::falls back to the first template when the group note-template reference does not resolve in the list",
+      "AC-07": "tests/unit/notes/NoteSection.test.tsx::NoteSection::group note-template default (SPEC-047)::respects the manual selection over the group preselection when generating"
+    },
+    "notes": "Sin adaptaciones en las suites existentes: los fixtures previos de NoteSection llevan interviewGroupId null, con el que el efecto SPEC-047 ni llama a getInterviewGroup (mock sin default, instalado por SPEC-043) — cero interferencia verificada con la suite completa en verde. AC-03 asserta además que updateInterviewGroup no se invoca (el override es solo de la entrevista).",
+    "created_at": "2026-07-16",
+    "updated_at": "2026-07-16T20:05:00Z"
   }
 }

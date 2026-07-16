@@ -22,8 +22,12 @@
  * derogado por SPEC-035 (rama eliminada de NoteSection); tras generar la nota
  * la sección se remonta reordenada → re-anclar el section y encadenar el mock
  * de getNoteByInterview (2 lecturas iniciales null, después la nota persistida).
+ * SPEC-047 (describe "group note-template default"): con entrevista de grupo el
+ * Select se preselecciona con el noteTemplateId del grupo (getInterviewGroup,
+ * sin default en el mock: los fixtures base llevan interviewGroupId null y el
+ * efecto ni lo llama); degradaciones → primer template, elección manual manda.
  */
-import { render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
+import { act, render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -32,7 +36,14 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { InterviewDetailPage } from '@/pages/InterviewDetailPage'
 import { listAudioInputDevices } from '@/services/captureService'
 import { getPermissionsStatus } from '@/services/permissionsService'
-import type { Company, Interview, Note, NoteTemplate } from '@/types/domain'
+import type {
+  Company,
+  DbResult,
+  Interview,
+  InterviewGroup,
+  Note,
+  NoteTemplate
+} from '@/types/domain'
 import type { NoteGenerationResult } from '@/types/llm'
 import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
 
@@ -116,6 +127,45 @@ const NOTE_TEMPLATE: NoteTemplate = {
 }
 
 const GENERATION_RESULT: NoteGenerationResult = { interview: SUMMARIZED, note: NOTE }
+
+// SPEC-047: segundo y tercer template para distinguir «primero de la lista»,
+// «template del grupo» y «elección manual» en la preselección del Select.
+const GROUP_NOTE_TEMPLATE: NoteTemplate = {
+  id: 'nt-2',
+  name: 'Notas grupo CTOs',
+  context: 'Céntrate en decisiones técnicas.',
+  sections: [{ title: 'Decisiones', description: 'Decisiones técnicas tomadas' }],
+  createdAt: '2026-07-10T09:00:00.000Z',
+  updatedAt: '2026-07-10T09:00:00.000Z'
+}
+
+const EXTRA_NOTE_TEMPLATE: NoteTemplate = {
+  id: 'nt-3',
+  name: 'Notas ventas',
+  context: 'Céntrate en el proceso de compra.',
+  sections: [{ title: 'Compra', description: 'Cómo compran hoy' }],
+  createdAt: '2026-07-11T09:00:00.000Z',
+  updatedAt: '2026-07-11T09:00:00.000Z'
+}
+
+/** Grupo de entrevistas (SPEC-043) con template de notas asignado por defecto. */
+function interviewGroup(overrides: Partial<InterviewGroup> = {}): InterviewGroup {
+  return {
+    id: 'g-1',
+    discoveryId: 'd-1',
+    name: 'Ronda CTOs',
+    objective: null,
+    interviewTemplateId: null,
+    noteTemplateId: 'nt-2',
+    createdAt: '2026-07-10T09:00:00.000Z',
+    updatedAt: '2026-07-10T09:00:00.000Z',
+    ...overrides
+  }
+}
+
+function setGroup(value: InterviewGroup): void {
+  vi.mocked(mockApi.api.db.getInterviewGroup).mockResolvedValue({ ok: true, data: value })
+}
 
 function setInterview(value: Interview): void {
   vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({ ok: true, data: value })
@@ -869,6 +919,214 @@ describe('NoteSection', () => {
 
       const toasts = await screen.findAllByText('No se pudo exportar')
       expect(toasts.length).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  describe('group note-template default (SPEC-047)', () => {
+    const GROUPED = interview({ interviewGroupId: 'g-1' })
+    const GROUPED_SUMMARIZED = interview({ status: 'summarized', interviewGroupId: 'g-1' })
+
+    // SPEC-047 · AC-01
+    it('preselects the selector with the group note-template instead of the first of the list', async () => {
+      setInterview(GROUPED)
+      setTemplates([NOTE_TEMPLATE, GROUP_NOTE_TEMPLATE])
+      setGroup(interviewGroup())
+      renderDetail()
+      const section = await noteSection()
+
+      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      await waitFor(() => expect(combobox).toHaveTextContent('Notas grupo CTOs'))
+      expect(combobox).not.toHaveTextContent('Notas discovery')
+      expect(vi.mocked(mockApi.api.db.getInterviewGroup)).toHaveBeenCalledWith('g-1')
+    })
+
+    // SPEC-047 · AC-02
+    it('calls the generation with the group template when "Generar nota" is clicked without touching the selector', async () => {
+      const user = userEvent.setup()
+      setInterview(GROUPED)
+      setTemplates([NOTE_TEMPLATE, GROUP_NOTE_TEMPLATE])
+      setGroup(interviewGroup())
+      vi.mocked(mockApi.api.llm.generateNote).mockResolvedValue({
+        ok: true,
+        data: { interview: GROUPED_SUMMARIZED, note: NOTE }
+      })
+      renderDetail()
+      const section = await noteSection()
+
+      // Esperar la preselección resuelta ANTES de generar (sin tocar el Select)
+      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      await waitFor(() => expect(combobox).toHaveTextContent('Notas grupo CTOs'))
+      await waitFor(() =>
+        expect(within(section).getByRole('button', { name: 'Generar nota' })).toBeEnabled()
+      )
+      await user.click(within(section).getByRole('button', { name: 'Generar nota' }))
+
+      await waitFor(() =>
+        expect(vi.mocked(mockApi.api.llm.generateNote)).toHaveBeenCalledWith('i-1', 'nt-2')
+      )
+    })
+
+    // SPEC-047 · AC-03 (el "Regenerar" deshabilitado va envuelto en tooltip y
+    // se remonta al habilitarse → esperar toBeEnabled y re-consultar, patrón
+    // SPEC-029 de esta misma suite)
+    it('offers the group template by default on Regenerar and regenerates with a manually chosen one without touching the group', async () => {
+      const user = userEvent.setup()
+      setInterview(GROUPED_SUMMARIZED)
+      setNote(NOTE)
+      setTemplates([NOTE_TEMPLATE, GROUP_NOTE_TEMPLATE])
+      setGroup(interviewGroup())
+      const regenerated: Note = { ...NOTE, contentMarkdown: '## Dolores\n\nContenido regenerado' }
+      vi.mocked(mockApi.api.llm.generateNote).mockResolvedValue({
+        ok: true,
+        data: { interview: GROUPED_SUMMARIZED, note: regenerated }
+      })
+      renderDetail()
+      const section = await noteSection()
+
+      // El flujo de regeneración vuelve a ofrecer por defecto el template del grupo
+      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      await waitFor(() => expect(combobox).toHaveTextContent('Notas grupo CTOs'))
+
+      // Elegir otro template manualmente…
+      await user.click(combobox)
+      await user.click(await screen.findByRole('option', { name: 'Notas discovery' }))
+      await waitFor(() =>
+        expect(within(section).getByRole('combobox', { name: 'Note-template' })).toHaveTextContent(
+          'Notas discovery'
+        )
+      )
+
+      // …y regenerar: la nota se regenera con el elegido SOLO para esta
+      // entrevista — el grupo no se modifica
+      await waitFor(() =>
+        expect(within(section).getByTestId('note-regenerate-button')).toBeEnabled()
+      )
+      await user.click(within(section).getByTestId('note-regenerate-button'))
+      const dialog = await screen.findByRole('alertdialog')
+      await user.click(within(dialog).getByRole('button', { name: 'Regenerar' }))
+
+      expect(vi.mocked(mockApi.api.llm.generateNote)).toHaveBeenCalledWith('i-1', 'nt-1')
+      expect(await within(section).findByText('Contenido regenerado')).toBeInTheDocument()
+      expect(vi.mocked(mockApi.api.db.updateInterviewGroup)).not.toHaveBeenCalled()
+    })
+
+    // SPEC-047 · AC-04 (degradación: sin grupo, comportamiento SPEC-017 y cero
+    // llamadas extra — flujo de capturas intacto)
+    it('preselects the first template and makes zero group lookups for an interview without group', async () => {
+      // interview() por defecto (beforeEach): interviewGroupId null
+      setTemplates([NOTE_TEMPLATE, GROUP_NOTE_TEMPLATE])
+      renderDetail()
+      const section = await noteSection()
+
+      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      await waitFor(() =>
+        expect(within(section).getByRole('button', { name: 'Generar nota' })).toBeEnabled()
+      )
+      expect(combobox).toHaveTextContent('Notas discovery')
+      expect(vi.mocked(mockApi.api.db.getInterviewGroup)).not.toHaveBeenCalled()
+    })
+
+    // SPEC-047 · AC-05
+    it('falls back to the first template when the group has no note-template assigned', async () => {
+      setInterview(GROUPED)
+      setTemplates([NOTE_TEMPLATE, GROUP_NOTE_TEMPLATE])
+      setGroup(interviewGroup({ noteTemplateId: null }))
+      renderDetail()
+      const section = await noteSection()
+
+      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      await waitFor(() =>
+        expect(vi.mocked(mockApi.api.db.getInterviewGroup)).toHaveBeenCalledWith('g-1')
+      )
+      await waitFor(() => expect(combobox).toHaveTextContent('Notas discovery'))
+      expect(combobox).not.toHaveTextContent('Notas grupo CTOs')
+    })
+
+    // SPEC-047 · AC-06 (caso a: envelope ok:false — grupo borrado con la
+    // página abierta)
+    it('falls back to the first template without errors when the group lookup fails (group deleted)', async () => {
+      setInterview(GROUPED)
+      setTemplates([NOTE_TEMPLATE, GROUP_NOTE_TEMPLATE])
+      vi.mocked(mockApi.api.db.getInterviewGroup).mockResolvedValue({
+        ok: false,
+        error: { kind: 'not-found', message: 'El grupo no existe' }
+      })
+      renderDetail()
+      const section = await noteSection()
+
+      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      await waitFor(() =>
+        expect(vi.mocked(mockApi.api.db.getInterviewGroup)).toHaveBeenCalledWith('g-1')
+      )
+      await waitFor(() => expect(combobox).toHaveTextContent('Notas discovery'))
+      // Sin errores: la generación sigue disponible y no hay Alert alguno
+      await waitFor(() =>
+        expect(within(section).getByRole('button', { name: 'Generar nota' })).toBeEnabled()
+      )
+      expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    // SPEC-047 · AC-06 (caso b: la referencia del grupo no resuelve en la
+    // lista de templates cargada)
+    it('falls back to the first template when the group note-template reference does not resolve in the list', async () => {
+      setInterview(GROUPED)
+      setTemplates([NOTE_TEMPLATE, GROUP_NOTE_TEMPLATE])
+      setGroup(interviewGroup({ noteTemplateId: 'nt-eliminado' }))
+      renderDetail()
+      const section = await noteSection()
+
+      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      await waitFor(() =>
+        expect(vi.mocked(mockApi.api.db.getInterviewGroup)).toHaveBeenCalledWith('g-1')
+      )
+      await waitFor(() => expect(combobox).toHaveTextContent('Notas discovery'))
+      expect(within(section).queryByRole('alert')).not.toBeInTheDocument()
+    })
+
+    // SPEC-047 · AC-07 (la preselección del grupo llega en una promesa
+    // controlada DESPUÉS de la elección manual: no debe pisarla)
+    it('respects the manual selection over the group preselection when generating', async () => {
+      const user = userEvent.setup()
+      setInterview(GROUPED)
+      setTemplates([NOTE_TEMPLATE, GROUP_NOTE_TEMPLATE, EXTRA_NOTE_TEMPLATE])
+      let resolveGroup!: (value: DbResult<InterviewGroup>) => void
+      vi.mocked(mockApi.api.db.getInterviewGroup).mockReturnValue(
+        new Promise<DbResult<InterviewGroup>>((resolve) => {
+          resolveGroup = resolve
+        })
+      )
+      vi.mocked(mockApi.api.llm.generateNote).mockResolvedValue({
+        ok: true,
+        data: { interview: GROUPED_SUMMARIZED, note: NOTE }
+      })
+      renderDetail()
+      const section = await noteSection()
+
+      // Con el grupo aún sin resolver, elegir manualmente el tercer template
+      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      await user.click(combobox)
+      await user.click(await screen.findByRole('option', { name: 'Notas ventas' }))
+      await waitFor(() =>
+        expect(within(section).getByRole('combobox', { name: 'Note-template' })).toHaveTextContent(
+          'Notas ventas'
+        )
+      )
+
+      // La preselección del grupo resuelve después y NO pisa la elección manual
+      await act(async () => {
+        resolveGroup({ ok: true, data: interviewGroup() })
+      })
+      expect(within(section).getByRole('combobox', { name: 'Note-template' })).toHaveTextContent(
+        'Notas ventas'
+      )
+
+      await waitFor(() =>
+        expect(within(section).getByRole('button', { name: 'Generar nota' })).toBeEnabled()
+      )
+      await user.click(within(section).getByRole('button', { name: 'Generar nota' }))
+      await waitFor(() =>
+        expect(vi.mocked(mockApi.api.llm.generateNote)).toHaveBeenCalledWith('i-1', 'nt-3')
+      )
     })
   })
 
