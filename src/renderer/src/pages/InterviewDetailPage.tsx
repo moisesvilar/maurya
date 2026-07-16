@@ -24,7 +24,9 @@ type InterviewDetailState =
  * Detalle de una entrevista (SPEC-013, ruta
  * /discoveries/:discoveryId/companies/:companyId/interviews/:interviewId —
  * Layout 2 detalle, la top bar sigue marcando "Discoveries" por prefijo):
- * back button "Volver" al detalle de la empresa, h1 con el título + Badge de
+ * back button "Volver" contextual (SPEC-048: a la página del grupo si la
+ * entrevista tiene `interviewGroupId`, al detalle global de la empresa
+ * `/companies/:companyId` en caso contrario), h1 con el título + Badge de
  * estado, fila muted de referencias (empresa · contacto · template, con
  * fallbacks "Sin contacto"/"Sin template"), la sección Objetivos destacada
  * (ObjectivesSection, SPEC-025: indicador de progreso principal, inmediatamente
@@ -44,8 +46,7 @@ type InterviewDetailState =
  * (useContacts + useInterviewTemplates), sin llamadas extra.
  */
 export function InterviewDetailPage(): React.ReactElement {
-  const { discoveryId, companyId, interviewId } = useParams<{
-    discoveryId: string
+  const { companyId, interviewId } = useParams<{
     companyId: string
     interviewId: string
   }>()
@@ -111,9 +112,17 @@ export function InterviewDetailPage(): React.ReactElement {
   return (
     <div className="flex flex-col gap-6 p-6">
       <div>
+        {/* SPEC-048: back contextual — al grupo si la entrevista pertenece a
+            uno, al detalle global de la empresa en caso contrario */}
         <Button
           variant="ghost"
-          onClick={() => void navigate(`/discoveries/${discoveryId}/companies/${companyId}`)}
+          onClick={() =>
+            void navigate(
+              state.status === 'ready' && state.interview.interviewGroupId !== null
+                ? `/discoveries/${state.interview.discoveryId}/groups/${state.interview.interviewGroupId}`
+                : `/companies/${companyId}`
+            )
+          }
         >
           <ArrowLeft />
           Volver

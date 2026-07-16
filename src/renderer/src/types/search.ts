@@ -15,28 +15,36 @@ export interface SearchDiscoveryHit {
 }
 
 /**
- * Coincidencia de una empresa por nombre. SPEC-043: las empresas son globales
- * y `discoveryId` pasa a ser un *ancla de navegación transicional* — la ruta
- * anidada `/discoveries/:discoveryId/companies/:companyId` sigue siendo la
- * única de detalle de empresa hasta H11.2 — resuelta en main (ya no procede de
- * `company.discoveryId`, que desaparece).
+ * Coincidencia de un grupo de entrevistas por nombre (SPEC-048). El destino
+ * de navegación es `/discoveries/:discoveryId/groups/:id`; `discoveryName`
+ * es el contexto muted de la fila, resuelto en main con Map O(1).
+ */
+export interface SearchGroupHit {
+  id: string
+  discoveryId: string
+  name: string
+  discoveryName: string
+}
+
+/**
+ * Coincidencia de una empresa por nombre. SPEC-048: las empresas son globales
+ * y su destino de navegación es el detalle global directo `/companies/:id`
+ * (desaparece el ancla transicional de SPEC-043).
  */
 export interface SearchCompanyHit {
   id: string
-  discoveryId: string
   name: string
 }
 
 /**
  * Coincidencia de un contacto por nombre. El destino de navegación es el
- * detalle de su empresa, por eso viajan companyId + companyDiscoveryId
- * (SPEC-043: esta última es la misma ancla transicional resuelta en main).
+ * detalle global de su empresa (`/companies/:companyId`, SPEC-048), por eso
+ * viaja companyId; companyName es el contexto mostrado en la fila.
  */
 export interface SearchContactHit {
   id: string
   name: string
   companyId: string
-  companyDiscoveryId: string
   companyName: string
 }
 
@@ -61,6 +69,7 @@ export interface SearchInterviewHit {
  */
 export interface SearchResults {
   discoveries: SearchDiscoveryHit[]
+  groups: SearchGroupHit[]
   companies: SearchCompanyHit[]
   contacts: SearchContactHit[]
   interviews: SearchInterviewHit[]
