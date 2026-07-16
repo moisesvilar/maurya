@@ -42,7 +42,7 @@ import { STATUS_LABELS } from '@/components/interviews/statusLabels'
 import { MarkdownView } from '@/components/markdown/MarkdownView'
 import { useContacts } from '@/hooks/useContacts'
 import { useDiscoveries } from '@/hooks/useDiscoveries'
-import { useInterviews } from '@/hooks/useInterviews'
+import { useInterviews, type InterviewFormValues } from '@/hooks/useInterviews'
 import { useInterviewTemplates } from '@/hooks/useInterviewTemplates'
 import type { CompanyFormValues } from '@/hooks/useCompanies'
 import type { Company, Contact, Interview } from '@/types/domain'
@@ -190,6 +190,25 @@ export function CompanyDetailPage(): React.ReactElement {
       void removeContact(pendingDelete.id)
     }
     setPendingDelete(null)
+  }
+
+  /**
+   * SPEC-044-iter-1 (AC-21 de la base): tras crear la entrevista con éxito
+   * se navega a su detalle por la ruta anidada, construida con el discovery
+   * elegido en el Dialog y el id devuelto por el hook. Devuelve boolean para
+   * conservar el contrato del Dialog (cerrar/resetear solo en éxito); si el
+   * hook devuelve null (envelope ok: false, toast de error ya emitido), no
+   * se navega y el Dialog permanece abierto.
+   */
+  const handleInterviewCreate = async (values: InterviewFormValues): Promise<boolean> => {
+    const interview = await createInterview(values)
+    if (interview === null) {
+      return false
+    }
+    void navigate(
+      `/discoveries/${values.discoveryId}/companies/${companyId}/interviews/${interview.id}`
+    )
+    return true
   }
 
   const openInterviewEdit = (interview: Interview): void => {
@@ -606,7 +625,7 @@ export function CompanyDetailPage(): React.ReactElement {
         discoveries={discoveries}
         contacts={contacts}
         templates={templates}
-        onSubmit={createInterview}
+        onSubmit={handleInterviewCreate}
       />
 
       <InterviewFormDialog

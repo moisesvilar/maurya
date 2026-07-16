@@ -25,8 +25,12 @@ export interface InterviewFormValues {
 
 export interface UseInterviewsResult {
   state: InterviewsState
-  /** Crea una entrevista (main fija status draft); true si se creó. */
-  createInterview: (values: InterviewFormValues) => Promise<boolean>
+  /**
+   * Crea una entrevista (main fija status draft). SPEC-044-iter-1: devuelve
+   * la entrevista creada (o null en fallo) para que el caller pueda navegar
+   * a su detalle con el id devuelto; los toasts siguen viviendo en el hook.
+   */
+  createInterview: (values: InterviewFormValues) => Promise<Interview | null>
   /**
    * Edita una entrevista. El patch lleva SOLO título, contactos y template
    * (null limpia la referencia); NUNCA envía `discoveryId` (SPEC-044) ni
@@ -71,7 +75,7 @@ export function useInterviews(companyId: string): UseInterviewsResult {
   }, [companyId])
 
   const createInterview = useCallback(
-    async (values: InterviewFormValues): Promise<boolean> => {
+    async (values: InterviewFormValues): Promise<Interview | null> => {
       // Sin `status`: el repositorio de main fija 'draft' en la creación.
       // SPEC-043: el contacto único del selector viaja como contactIds de 0/1.
       // SPEC-044: el discovery es el elegido en el Select del Dialog.
@@ -84,7 +88,7 @@ export function useInterviews(companyId: string): UseInterviewsResult {
       })
       if (!result.ok) {
         toast.error(result.error.message)
-        return false
+        return null
       }
       setState((prev) =>
         prev.status === 'ready'
@@ -92,7 +96,9 @@ export function useInterviews(companyId: string): UseInterviewsResult {
           : prev
       )
       toast('Entrevista creada')
-      return true
+      // SPEC-044-iter-1: devolver la entrevista permite al caller navegar
+      // al detalle recién creado (AC-21 de la spec base).
+      return result.data
     },
     [companyId]
   )
