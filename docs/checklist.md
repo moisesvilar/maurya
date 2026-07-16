@@ -168,6 +168,19 @@ Peticiones directas del humano tras una entrevista real, recogidas en [drafts/im
 
 ---
 
+## H11 · Empresas y contactos globales, grupos de entrevistas (2026-07-16)
+
+Reestructuración del modelo de entidades pedida por el humano, recogida en [drafts/company-contact-entities-20260716.md](drafts/company-contact-entities-20260716.md). Depende de H10. Decisiones cerradas: migración automática sin dedup, capturas sin grupo (nullable), borrado de empresa → SET NULL en entrevistas, una empresa por entrevista.
+
+- [ ] 🔴 **Modelo de datos v3 + migración automática**: `Company` global (sin `discoveryId`), nueva entidad `InterviewGroup` (`discoveryId`, nombre, `objetivo`, template de preguntas, template de notas), `Discovery.objetivos`, `Interview.interviewGroupId` (nullable) y `contactId` → `contactIds[]` (invariante: todos de la `companyId`); migración schemaVersion 2→3 (empresas globales sin deduplicar, grupo «General» por discovery con sus entrevistas, `contactIds=[contactId]`); cascadas: empresa→contactos CASCADE, empresa→entrevistas SET NULL (empresa+contactos) (RF-DISC-006..010, RF-APP-002) — §«Cambios de modelo derivados» del draft
+- [ ] 🟡 **Sección «Empresas» global en el sidebar**: CRUD de empresas (nombre, website, LinkedIn, contexto) fuera de los discoveries + subsección «Contactos» por empresa (nombre, LinkedIn, posición, contexto); el enriquecimiento IA de contexto (H8) se conserva tal cual (RF-DISC-006, RF-DISC-007)
+- [ ] 🟡 **Discoveries con objetivos y grupos de entrevistas**: CRUD de discoveries (nombre + `objetivos`) y, dentro de cada discovery, CRUD de grupos de entrevistas (nombre, `objetivo`, template de preguntas del grupo, template de notas por defecto) (RF-DISC-008, RF-DISC-009)
+- [ ] 🟡 **Entrevistas dentro de grupo con empresa y N contactos**: crear entrevista en un grupo asignando una empresa global y N contactos de esa empresa; guión generado con nombre y contexto de empresa y TODOS los contactos; el template de preguntas viene del grupo; las capturas siguen sin grupo y `assignInterviewCompany` pasa a asignar empresa global + N contactos (RF-GUION-006, RF-GUION-002, RF-GUION-003)
+- [ ] 🟡 **Nota con template del grupo + regeneración con override**: la nota se genera por defecto con el template de notas del grupo; «Regenerar» permite elegir otro note-template solo para esa entrevista (RF-NOTE-006, RF-NOTE-001)
+- [ ] 🟢 **Adaptar búsqueda global y navegación** al nuevo modelo: empresas/contactos fuera del árbol del discovery, grupos como nivel intermedio, breadcrumbs y rutas (RF-APP-005)
+
+---
+
 ## Validación de producto (transversal, en paralelo)
 
 Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al desarrollo.
@@ -195,7 +208,8 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | Post-MVP · Config. IA | 1 | 1 |
 | H9 · Mejoras UX/captura | 9 | 9 |
 | H10 · Asistente de preguntas | 6 | 6 |
+| H11 · Entidades globales y grupos | 6 | 0 |
 | Validación | 4 | 0 |
-| **Total** | **74** | **69** |
+| **Total** | **80** | **69** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
