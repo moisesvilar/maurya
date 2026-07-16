@@ -1,11 +1,16 @@
 /**
- * Tests de la sección Empresas del detalle de discovery (SPEC-011,
- * AC-01/AC-03..AC-08 + AC-19/AC-20; AC-02 se cubre con el test adaptado de
- * SPEC-010 AC-15 en tests/unit/discoveries — no se duplica). Frontera de
- * mocking: api.db. Rutas reales en MemoryRouter.
+ * Tests del listado global de empresas en /companies (SPEC-044,
+ * AC-04..AC-11). REESCRITURA de la suite de la sección Empresas del detalle
+ * de discovery (SPEC-011, AC-01/AC-03..AC-08 + AC-19/AC-20): SPEC-044
+ * traslada la gestión de empresas a la página global CompaniesPage y retira
+ * la sección del discovery — la intención verificadora de SPEC-011 (filas,
+ * CRUD, validación, navegación y estados) se conserva íntegra contra la
+ * página nueva. El AlertDialog de borrado asierta el texto NUEVO de la
+ * cascada v3 (derogación del texto «y todas sus entrevistas» de SPEC-011).
+ * Frontera de mocking: api.db. Rutas reales en MemoryRouter.
  * Lecciones aplicadas: dialogs del menú abren con setTimeout(0) → findBy*;
  * con un dialog modal abierto Radix marca el fondo aria-hidden → texto plano
- * o roles con hidden:true.
+ * o roles con hidden:true; toasts de sonner son <li> (no contar listitems).
  */
 import { render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -13,20 +18,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { CompaniesPage } from '@/pages/CompaniesPage'
 import { CompanyDetailPage } from '@/pages/CompanyDetailPage'
-import { DiscoveryDetailPage } from '@/pages/DiscoveryDetailPage'
-import type { Company, Discovery } from '@/types/domain'
+import type { Company } from '@/types/domain'
 import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
 
 let mockApi: MockApiHandle
-
-const DISCOVERY: Discovery = {
-  id: 'd-1',
-  name: 'Discovery Maurya',
-  objectives: null,
-  createdAt: '2026-07-01T12:00:00.000Z',
-  updatedAt: '2026-07-01T12:00:00.000Z'
-}
 
 // SPEC-043: las empresas son globales (sin discoveryId)
 function company(overrides: Partial<Company> = {}): Company {
@@ -45,16 +42,14 @@ function setCompanies(companies: Company[]): void {
   vi.mocked(mockApi.api.db.listCompanies).mockResolvedValue({ ok: true, data: companies })
 }
 
-function renderAt(initialEntry: string): RenderResult {
+/** Rutas reales de SPEC-044: listado global + detalle global. */
+function renderCompanies(): RenderResult {
   return render(
     <TooltipProvider>
-      <MemoryRouter initialEntries={[initialEntry]}>
+      <MemoryRouter initialEntries={['/companies']}>
         <Routes>
-          <Route path="/discoveries/:id" element={<DiscoveryDetailPage />} />
-          <Route
-            path="/discoveries/:discoveryId/companies/:companyId"
-            element={<CompanyDetailPage />}
-          />
+          <Route path="/companies" element={<CompaniesPage />} />
+          <Route path="/companies/:companyId" element={<CompanyDetailPage />} />
         </Routes>
       </MemoryRouter>
       <Toaster />
@@ -81,31 +76,50 @@ async function openRowAction(
 beforeEach(() => {
   vi.clearAllMocks()
   mockApi = installMockApi()
-  vi.mocked(mockApi.api.db.listDiscoveries).mockResolvedValue({ ok: true, data: [DISCOVERY] })
   setCompanies([])
 })
 
-describe('DiscoveryDetailPage (empresas)', () => {
+describe('CompaniesPage', () => {
   describe('company rows', () => {
-    // SPEC-011 · AC-01
-    it('renders each company row with the name link, conditional external icons and the actions menu', async () => {
-      // Con website pero SIN LinkedIn → solo el icono "Abrir website"
-      setCompanies([company({ linkedinUrl: null })])
-      renderAt('/discoveries/d-1')
+    // SPEC-044 · AC-04 (reescribe SPEC-011 · AC-01: TODAS las empresas del
+    // sistema, nombre-Link al detalle GLOBAL, iconos condicionales y Acciones)
+    it('lists ALL companies with the name link to the global detail, conditional external icons and the actions menu', async () => {
+      setCompanies([
+        // Con website pero SIN LinkedIn → solo el icono "Abrir website"
+        company({ linkedinUrl: null }),
+        // Y viceversa: sin website pero CON LinkedIn → solo "Abrir LinkedIn"
+        company({ id: 'c-2', name: 'Beta Inc', website: null })
+      ])
+      renderCompanies()
 
-      const nameLink = await screen.findByRole('link', { name: 'Acme Corp' })
-      expect(nameLink).toHaveAttribute('href', '/discoveries/d-1/companies/c-1')
-      expect(screen.getByRole('link', { name: 'Abrir website' })).toBeInTheDocument()
-      expect(screen.queryByRole('link', { name: 'Abrir LinkedIn' })).not.toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Acciones' })).toBeInTheDocument()
+      const list = await screen.findByTestId('companies-list')
+      const acmeLink = within(list).getByRole('link', { name: 'Acme Corp' })
+      expect(acmeLink).toHaveAttribute('href', '/companies/c-1')
+      const acmeRow = acmeLink.closest('li')
+      if (acmeRow === null) {
+        throw new Error('Cada empresa debe renderizarse en una fila de lista propia')
+      }
+      expect(within(acmeRow).getByRole('link', { name: 'Abrir website' })).toBeInTheDocument()
+      expect(within(acmeRow).queryByRole('link', { name: 'Abrir LinkedIn' })).toBeNull()
+      expect(within(acmeRow).getByRole('button', { name: 'Acciones' })).toBeInTheDocument()
+
+      const betaLink = within(list).getByRole('link', { name: 'Beta Inc' })
+      expect(betaLink).toHaveAttribute('href', '/companies/c-2')
+      const betaRow = betaLink.closest('li')
+      if (betaRow === null) {
+        throw new Error('Cada empresa debe renderizarse en una fila de lista propia')
+      }
+      expect(within(betaRow).queryByRole('link', { name: 'Abrir website' })).toBeNull()
+      expect(within(betaRow).getByRole('link', { name: 'Abrir LinkedIn' })).toBeInTheDocument()
     })
   })
 
   describe('creating a company', () => {
-    // SPEC-011 · AC-03
+    // SPEC-011 · AC-03 (reescrito contra CompaniesPage por SPEC-044 · AC-05:
+    // mismo Dialog de empresa reutilizado)
     it('opens the "Nueva empresa" dialog with focus on Nombre and the optional URL fields', async () => {
       const user = userEvent.setup()
-      renderAt('/discoveries/d-1')
+      renderCompanies()
 
       const nameInput = await openCreateDialog(user)
 
@@ -119,14 +133,15 @@ describe('DiscoveryDetailPage (empresas)', () => {
       )
     })
 
-    // SPEC-011 · AC-04
+    // SPEC-044 · AC-05 (reescribe SPEC-011 · AC-04: alta global sin
+    // discoveryId — SPEC-043 —, Toast «Empresa creada» y fila en el listado)
     it('creates via createCompany normalizing empty optionals to null, shows the toast and lists the row', async () => {
       const user = userEvent.setup()
       vi.mocked(mockApi.api.db.createCompany).mockResolvedValue({
         ok: true,
         data: company({ linkedinUrl: null })
       })
-      renderAt('/discoveries/d-1')
+      renderCompanies()
 
       const nameInput = await openCreateDialog(user)
       await user.type(nameInput, 'Acme Corp')
@@ -147,10 +162,10 @@ describe('DiscoveryDetailPage (empresas)', () => {
       expect(screen.getByRole('link', { name: 'Acme Corp' })).toBeInTheDocument()
     })
 
-    // SPEC-011 · AC-05
+    // SPEC-044 · AC-06 (reescribe SPEC-011 · AC-05)
     it('shows the inline "Campo requerido" error for an empty name without calling the bridge', async () => {
       const user = userEvent.setup()
-      renderAt('/discoveries/d-1')
+      renderCompanies()
 
       await openCreateDialog(user)
       await user.click(screen.getByRole('button', { name: 'Crear' }))
@@ -161,7 +176,7 @@ describe('DiscoveryDetailPage (empresas)', () => {
   })
 
   describe('editing a company', () => {
-    // SPEC-011 · AC-06
+    // SPEC-044 · AC-07 (reescribe SPEC-011 · AC-06: mismo Dialog precargado)
     it('opens the edit dialog preloaded (null → empty), saves via updateCompany and shows "Cambios guardados"', async () => {
       const user = userEvent.setup()
       setCompanies([company({ website: null })])
@@ -169,7 +184,7 @@ describe('DiscoveryDetailPage (empresas)', () => {
         ok: true,
         data: company({ name: 'Acme Corporation' })
       })
-      renderAt('/discoveries/d-1')
+      renderCompanies()
 
       await screen.findByRole('link', { name: 'Acme Corp' })
       await openRowAction(user, 'Editar')
@@ -180,12 +195,11 @@ describe('DiscoveryDetailPage (empresas)', () => {
       expect(nameInput).toHaveValue('Acme Corp')
       expect(screen.getByLabelText('Website')).toHaveValue('')
       expect(screen.getByLabelText('LinkedIn')).toHaveValue('https://linkedin.com/company/acme')
-      // LECCIÓN (flaky preexistente, iteración QA 2026-07-04): al abrir un
-      // Dialog desde un DropdownMenu, el returnFocus del menú puede robar el
-      // foco tras el focus() de onOpenAutoFocus, y el FocusScope del Dialog lo
-      // re-enfoca con select:true → la SELECCIÓN del input precargado es no
-      // determinista en jsdom. No asertar selección aquí (no es AC de edición;
-      // el foco se aserta con waitFor, ambos caminos terminan en el input).
+      // LECCIÓN (flaky, iteración QA 2026-07-04): al abrir un Dialog desde un
+      // DropdownMenu, el returnFocus del menú puede robar el foco tras el
+      // focus() de onOpenAutoFocus y el FocusScope del Dialog lo re-enfoca con
+      // select:true → la SELECCIÓN del input precargado es no determinista en
+      // jsdom. No asertar selección aquí; el foco se aserta con waitFor.
       await waitFor(() => expect(nameInput).toHaveFocus())
 
       await user.clear(nameInput)
@@ -206,12 +220,14 @@ describe('DiscoveryDetailPage (empresas)', () => {
   })
 
   describe('deleting a company', () => {
-    // SPEC-011 · AC-07
-    it('confirms in the cascade AlertDialog, deletes via deleteCompany and shows "Empresa eliminada"', async () => {
+    // SPEC-044 · AC-08 (reescribe SPEC-011 · AC-07 con el texto NUEVO de la
+    // cascada v3: contactos se eliminan, entrevistas se conservan sin empresa
+    // — derogación del «y todos sus contactos y entrevistas» de SPEC-011)
+    it('confirms in the v3-cascade AlertDialog (contacts deleted, interviews kept without company) and deletes with its toast', async () => {
       const user = userEvent.setup()
       setCompanies([company()])
       vi.mocked(mockApi.api.db.deleteCompany).mockResolvedValue({ ok: true, data: null })
-      renderAt('/discoveries/d-1')
+      renderCompanies()
 
       await screen.findByRole('link', { name: 'Acme Corp' })
       await openRowAction(user, 'Eliminar')
@@ -220,7 +236,7 @@ describe('DiscoveryDetailPage (empresas)', () => {
       expect(within(dialog).getByRole('heading', { name: 'Eliminar empresa' })).toBeInTheDocument()
       expect(
         within(dialog).getByText(
-          /Se eliminarán permanentemente «Acme Corp» y todos sus contactos y entrevistas\./
+          /Se eliminarán permanentemente «Acme Corp» y sus contactos\. Sus entrevistas se conservarán sin empresa asignada\./
         )
       ).toBeInTheDocument()
       expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toBeInTheDocument()
@@ -235,12 +251,13 @@ describe('DiscoveryDetailPage (empresas)', () => {
   })
 
   describe('navigating to the company detail', () => {
-    // SPEC-011 · AC-08
-    it('navigates to the company detail when the row name is clicked', async () => {
+    // SPEC-011 · AC-08 (reescrito por SPEC-044: el destino es el detalle
+    // GLOBAL /companies/:id)
+    it('navigates to the global company detail when the row name is clicked', async () => {
       const user = userEvent.setup()
       setCompanies([company()])
       vi.mocked(mockApi.api.db.getCompany).mockResolvedValue({ ok: true, data: company() })
-      renderAt('/discoveries/d-1')
+      renderCompanies()
 
       await user.click(await screen.findByRole('link', { name: 'Acme Corp' }))
 
@@ -251,25 +268,52 @@ describe('DiscoveryDetailPage (empresas)', () => {
     })
   })
 
-  describe('loading and mutation errors', () => {
-    // SPEC-011 · AC-19 (representante: listCompanies pendiente)
-    it('shows skeletons in the companies section while the list is loading', async () => {
-      vi.mocked(mockApi.api.db.listCompanies).mockReturnValue(new Promise<never>(() => undefined))
-      const { container } = renderAt('/discoveries/d-1')
+  describe('empty, error and loading states', () => {
+    // SPEC-044 · AC-09
+    it('shows the empty state with "Aún no hay empresas" and a functional "Añadir primera empresa" CTA', async () => {
+      const user = userEvent.setup()
+      renderCompanies()
 
-      await screen.findByRole('heading', { name: 'Discovery Maurya', level: 1 })
+      expect(await screen.findByText('Aún no hay empresas')).toBeInTheDocument()
+      const cta = screen.getByRole('button', { name: 'Añadir primera empresa' })
+
+      // CTA funcional: abre el mismo Dialog de creación
+      await user.click(cta)
+      const dialog = await screen.findByRole('dialog')
+      expect(within(dialog).getByRole('heading', { name: 'Nueva empresa' })).toBeInTheDocument()
+    })
+
+    // SPEC-044 · AC-10
+    it('shows the error state with the envelope message when listing fails', async () => {
+      vi.mocked(mockApi.api.db.listCompanies).mockResolvedValue({
+        ok: false,
+        error: { kind: 'storage', message: 'Fallo simulado al listar empresas' }
+      })
+      renderCompanies()
+
+      expect(await screen.findByText('Fallo simulado al listar empresas')).toBeInTheDocument()
+      expect(screen.queryByText('Aún no hay empresas')).not.toBeInTheDocument()
+    })
+
+    // SPEC-044 · AC-11 (reescribe SPEC-011 · AC-19)
+    it('shows row skeletons while the companies list is loading', async () => {
+      vi.mocked(mockApi.api.db.listCompanies).mockReturnValue(new Promise<never>(() => undefined))
+      const { container } = renderCompanies()
+
+      await screen.findByRole('heading', { name: 'Empresas', level: 1 })
       expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThanOrEqual(3)
       expect(screen.queryByText('Aún no hay empresas')).not.toBeInTheDocument()
     })
 
-    // SPEC-011 · AC-20 (representante: creación de empresa fallida)
+    // SPEC-011 · AC-20 (reescrito contra CompaniesPage: representante de
+    // error de mutación — el envelope de fallo se mapea a toast destructive)
     it('shows an error toast and leaves the UI untouched when a mutation fails', async () => {
       const user = userEvent.setup()
       vi.mocked(mockApi.api.db.createCompany).mockResolvedValue({
         ok: false,
         error: { kind: 'storage', message: 'Fallo simulado al crear empresa' }
       })
-      renderAt('/discoveries/d-1')
+      renderCompanies()
 
       const nameInput = await openCreateDialog(user)
       await user.type(nameInput, 'Empresa fallida')

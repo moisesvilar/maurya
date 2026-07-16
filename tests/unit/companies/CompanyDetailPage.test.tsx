@@ -1,5 +1,9 @@
 /**
  * Tests del detalle de empresa y sus contactos (SPEC-011, AC-09..AC-18).
+ * Adaptado por SPEC-044: el detalle es GLOBAL (/companies/:companyId), el
+ * back button y el error state apuntan al listado global /companies
+ * (CompaniesPage) y el AlertDialog de borrado de contacto avisa de que las
+ * entrevistas lo perderán como participante (cascada v3).
  * getCompany NO tiene default en el helper → se mockea por test (beforeEach).
  * La apertura real en el navegador del sistema (shell.openExternal) es MANUAL:
  * aquí solo se verifica el markup del enlace externo (AC-18).
@@ -10,20 +14,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { CompaniesPage } from '@/pages/CompaniesPage'
 import { CompanyDetailPage } from '@/pages/CompanyDetailPage'
-import { DiscoveryDetailPage } from '@/pages/DiscoveryDetailPage'
-import type { Company, Contact, Discovery } from '@/types/domain'
+import type { Company, Contact } from '@/types/domain'
 import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
 
 let mockApi: MockApiHandle
-
-const DISCOVERY: Discovery = {
-  id: 'd-1',
-  name: 'Discovery Maurya',
-  objectives: null,
-  createdAt: '2026-07-01T12:00:00.000Z',
-  updatedAt: '2026-07-01T12:00:00.000Z'
-}
 
 const COMPANY: Company = {
   id: 'c-1',
@@ -51,16 +47,14 @@ function setContacts(contacts: Contact[]): void {
   vi.mocked(mockApi.api.db.listContacts).mockResolvedValue({ ok: true, data: contacts })
 }
 
+/** Rutas reales de SPEC-044: detalle global + listado global (destino de Volver). */
 function renderAt(initialEntry: string): RenderResult {
   return render(
     <TooltipProvider>
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
-          <Route path="/discoveries/:id" element={<DiscoveryDetailPage />} />
-          <Route
-            path="/discoveries/:discoveryId/companies/:companyId"
-            element={<CompanyDetailPage />}
-          />
+          <Route path="/companies" element={<CompaniesPage />} />
+          <Route path="/companies/:companyId" element={<CompanyDetailPage />} />
         </Routes>
       </MemoryRouter>
       <Toaster />
@@ -89,16 +83,16 @@ beforeEach(() => {
   mockApi = installMockApi()
   // getCompany no tiene default en createMockDbApi: se mockea aquí por test
   vi.mocked(mockApi.api.db.getCompany).mockResolvedValue({ ok: true, data: COMPANY })
-  vi.mocked(mockApi.api.db.listDiscoveries).mockResolvedValue({ ok: true, data: [DISCOVERY] })
   setContacts([])
 })
 
 describe('CompanyDetailPage', () => {
   describe('header', () => {
-    // SPEC-011 · AC-09
+    // SPEC-011 · AC-09 (adaptado por SPEC-044 · AC-12: «Volver» regresa al
+    // listado global /companies, no al detalle del discovery)
     it('shows the back button, the company title and its external links with visible hostnames', async () => {
       const user = userEvent.setup()
-      renderAt('/discoveries/d-1/companies/c-1')
+      renderAt('/companies/c-1')
 
       expect(
         await screen.findByRole('heading', { name: 'Acme Corp', level: 1 })
@@ -108,11 +102,10 @@ describe('CompanyDetailPage', () => {
       expect(screen.getByRole('link', { name: 'Abrir LinkedIn' })).toHaveTextContent('linkedin.com')
       expect(screen.getByRole('heading', { name: 'Contactos' })).toBeInTheDocument()
 
-      // "Volver" regresa al detalle del discovery
+      // "Volver" regresa al listado global de Empresas (SPEC-044)
       await user.click(screen.getByRole('button', { name: 'Volver' }))
-      expect(
-        await screen.findByRole('heading', { name: 'Discovery Maurya', level: 1 })
-      ).toBeInTheDocument()
+      expect(await screen.findByRole('heading', { name: 'Empresas', level: 1 })).toBeInTheDocument()
+      expect(await screen.findByText('Aún no hay empresas')).toBeInTheDocument()
     })
   })
 
@@ -120,7 +113,7 @@ describe('CompanyDetailPage', () => {
     // SPEC-011 · AC-10
     it('renders each contact row with name, muted position, LinkedIn icon link and actions menu', async () => {
       setContacts([contact()])
-      renderAt('/discoveries/d-1/companies/c-1')
+      renderAt('/companies/c-1')
 
       const name = await screen.findByText('Jane Doe')
       // La cabecera de la empresa también tiene su "Abrir LinkedIn": se acota a la fila
@@ -138,7 +131,7 @@ describe('CompanyDetailPage', () => {
 
     // SPEC-011 · AC-11
     it('shows the contacts empty state with the "Añadir primer contacto" CTA', async () => {
-      renderAt('/discoveries/d-1/companies/c-1')
+      renderAt('/companies/c-1')
 
       expect(await screen.findByText('Aún no hay contactos')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Añadir primer contacto' })).toBeInTheDocument()
@@ -149,7 +142,7 @@ describe('CompanyDetailPage', () => {
     // SPEC-011 · AC-12
     it('opens the "Nuevo contacto" dialog with focus on Nombre and the optional fields', async () => {
       const user = userEvent.setup()
-      renderAt('/discoveries/d-1/companies/c-1')
+      renderAt('/companies/c-1')
 
       const nameInput = await openCreateDialog(user)
 
@@ -173,7 +166,7 @@ describe('CompanyDetailPage', () => {
         ok: true,
         data: contact({ linkedinUrl: null })
       })
-      renderAt('/discoveries/d-1/companies/c-1')
+      renderAt('/companies/c-1')
 
       const nameInput = await openCreateDialog(user)
       await user.type(nameInput, 'Jane Doe')
@@ -196,7 +189,7 @@ describe('CompanyDetailPage', () => {
     // SPEC-011 · AC-14
     it('shows the inline "Campo requerido" error for an empty name without calling the bridge', async () => {
       const user = userEvent.setup()
-      renderAt('/discoveries/d-1/companies/c-1')
+      renderAt('/companies/c-1')
 
       await openCreateDialog(user)
       await user.click(screen.getByRole('button', { name: 'Crear' }))
@@ -215,7 +208,7 @@ describe('CompanyDetailPage', () => {
         ok: true,
         data: contact({ position: 'VP of Engineering' })
       })
-      renderAt('/discoveries/d-1/companies/c-1')
+      renderAt('/companies/c-1')
 
       await screen.findByText('Jane Doe')
       await openRowAction(user, 'Editar')
@@ -243,21 +236,24 @@ describe('CompanyDetailPage', () => {
   })
 
   describe('deleting a contact', () => {
-    // SPEC-011 · AC-16
-    it('confirms in the simple AlertDialog, deletes via deleteContact and shows "Contacto eliminado"', async () => {
+    // SPEC-011 · AC-16 (adaptado por SPEC-044 · AC-17: la descripción avisa de
+    // que las entrevistas que lo referencian lo perderán como participante)
+    it('confirms in the AlertDialog warning that interviews lose the participant, deletes via deleteContact and shows "Contacto eliminado"', async () => {
       const user = userEvent.setup()
       setContacts([contact()])
       vi.mocked(mockApi.api.db.deleteContact).mockResolvedValue({ ok: true, data: null })
-      renderAt('/discoveries/d-1/companies/c-1')
+      renderAt('/companies/c-1')
 
       await screen.findByText('Jane Doe')
       await openRowAction(user, 'Eliminar')
 
       const dialog = await screen.findByRole('alertdialog')
       expect(within(dialog).getByRole('heading', { name: 'Eliminar contacto' })).toBeInTheDocument()
-      // Mensaje simple, sin cascada (el contacto no tiene hijos)
+      // SPEC-044 (cascada v3): consecuencia explícita sobre las entrevistas
       expect(
-        within(dialog).getByText(/Se eliminará permanentemente «Jane Doe»\./)
+        within(dialog).getByText(
+          /Se eliminará permanentemente «Jane Doe»\. Las entrevistas que lo referencian lo perderán como participante\./
+        )
       ).toBeInTheDocument()
 
       await user.click(within(dialog).getByRole('button', { name: 'Eliminar' }))
@@ -270,18 +266,19 @@ describe('CompanyDetailPage', () => {
   })
 
   describe('nonexistent company', () => {
-    // SPEC-011 · AC-17
-    it('shows the error state with the "Volver a Discoveries" link when getCompany fails', async () => {
+    // SPEC-011 · AC-17 (adaptado por SPEC-044 · AC-13: la salida del error
+    // state es el listado global «Volver a Empresas»)
+    it('shows the error state with the "Volver a Empresas" link when getCompany fails', async () => {
       vi.mocked(mockApi.api.db.getCompany).mockResolvedValue({
         ok: false,
         error: { kind: 'not-found', message: 'No existe empresa con id c-404' }
       })
-      renderAt('/discoveries/d-1/companies/c-404')
+      renderAt('/companies/c-404')
 
       expect(await screen.findByText('No existe empresa con id c-404')).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: 'Volver a Discoveries' })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: 'Volver a Empresas' })).toHaveAttribute(
         'href',
-        '/discoveries'
+        '/companies'
       )
     })
   })
@@ -290,7 +287,7 @@ describe('CompanyDetailPage', () => {
     // SPEC-011 · AC-18 (unit: solo el markup; la apertura en el navegador del
     // sistema vía setWindowOpenHandler → shell.openExternal es MANUAL)
     it('renders external links with target=_blank, rel=noreferrer and the exact href', async () => {
-      renderAt('/discoveries/d-1/companies/c-1')
+      renderAt('/companies/c-1')
 
       const websiteLink = await screen.findByRole('link', { name: 'Abrir website' })
       expect(websiteLink).toHaveAttribute('href', 'https://acme.example/about')

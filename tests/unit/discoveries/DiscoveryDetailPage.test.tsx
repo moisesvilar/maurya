@@ -1,6 +1,9 @@
 /**
  * Tests del detalle mínimo de discovery (SPEC-010, AC-15..AC-17). El detalle
  * resuelve el discovery con listDiscoveries + find (no hay getDiscovery).
+ * SPEC-044 (AC-23) retira la sección Empresas del detalle (la gestión vive en
+ * /companies): el test de AC-15 se adapta — el detalle muestra el h1 y ya NO
+ * renderiza la sección «Empresas» (el resto queda intacto hasta H11.3).
  */
 import { render, screen, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -45,9 +48,10 @@ beforeEach(() => {
 
 describe('DiscoveryDetailPage', () => {
   describe('navigating from the list', () => {
-    // SPEC-010 · AC-15 (derogado parcialmente por SPEC-011 AC-02: el empty
-    // state de empresas perdió el secundario provisional y ganó CTA funcional)
-    it('opens /discoveries/:id from the row name showing the title and the companies empty state', async () => {
+    // SPEC-010 · AC-15 (derogado parcialmente por SPEC-011 AC-02 y después
+    // por SPEC-044 · AC-23: la sección Empresas se retira del detalle — la
+    // gestión vive en /companies y sus tests en tests/unit/companies)
+    it('opens /discoveries/:id from the row name showing the title and WITHOUT the companies section (SPEC-044)', async () => {
       const user = userEvent.setup()
       renderAt('/discoveries')
 
@@ -56,9 +60,13 @@ describe('DiscoveryDetailPage', () => {
       expect(
         await screen.findByRole('heading', { name: 'Discovery Maurya', level: 1 })
       ).toBeInTheDocument()
-      expect(screen.getByRole('heading', { name: 'Empresas' })).toBeInTheDocument()
-      expect(await screen.findByText('Aún no hay empresas')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Añadir primera empresa' })).toBeInTheDocument()
+      // SPEC-044 · AC-23: el detalle ya NO muestra la sección «Empresas»
+      expect(screen.queryByRole('heading', { name: 'Empresas' })).not.toBeInTheDocument()
+      expect(screen.queryByText('Aún no hay empresas')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Nueva empresa' })).not.toBeInTheDocument()
+      expect(
+        screen.queryByRole('button', { name: 'Añadir primera empresa' })
+      ).not.toBeInTheDocument()
     })
   })
 
