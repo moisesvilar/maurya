@@ -35,8 +35,9 @@ import type { InterviewGroup } from '@/types/domain'
  * de discovery del listado), sección "Objetivos" (texto libre con saltos de
  * línea respetados) y sección "Grupos de entrevistas" con CRUD completo
  * (Dialog de 4 campos, AlertDialog de borrado — las entrevistas del grupo se
- * conservan sin grupo, SET NULL de SPEC-043). Las filas de grupo NO navegan
- * todavía (el detalle del grupo llega en H11.4). Resuelve el discovery vía
+ * conservan sin grupo, SET NULL de SPEC-043). SPEC-046: el nombre de cada
+ * fila de grupo es un Link a su detalle (deroga el «no navegan» de SPEC-045;
+ * el resto de la fila y su menú ⋯ no cambian). Resuelve el discovery vía
  * `useDiscoveries` + find por id (volumen trivial); un id inválido o un error
  * del bridge muestran el error state con enlace "Volver a Discoveries". Los
  * templates se cargan UNA vez a nivel de página: alimentan los Selects del
@@ -194,7 +195,14 @@ export function DiscoveryDetailPage(): React.ReactElement {
                     {/* Mobile: refs de templates bajo el nombre; desktop: a la derecha */}
                     <div className="flex min-w-0 flex-1 flex-col gap-1 md:flex-row md:items-center md:justify-between md:gap-4">
                       <div className="flex min-w-0 flex-col">
-                        <span className="text-sm font-medium">{group.name}</span>
+                        {/* SPEC-046: el nombre navega al detalle del grupo
+                            (deroga el «no navegan» de SPEC-045). */}
+                        <Link
+                          to={`/discoveries/${id ?? ''}/groups/${group.id}`}
+                          className="text-sm font-medium hover:underline"
+                        >
+                          {group.name}
+                        </Link>
                         {group.objective !== null && (
                           <span className="truncate text-sm text-muted-foreground">
                             {group.objective}

@@ -10,8 +10,8 @@ export type InterviewsState =
 
 /**
  * Valores del formulario de entrevista (sentinels ya mapeados a null).
- * `contactId` es el valor de UI del selector único transicional (SPEC-043):
- * el hook lo persiste como `contactIds` de 0 o 1 elemento.
+ * SPEC-046: `contactIds` lleva los N participantes marcados en la lista de
+ * Checkbox, en el orden de marcado (deroga el selector único de SPEC-043).
  * SPEC-044: `discoveryId` viaja en los values (elegido en el Select del
  * Dialog en creación; en edición es el de la propia entrevista, pero
  * `updateInterview` NO lo envía en el patch).
@@ -19,7 +19,7 @@ export type InterviewsState =
 export interface InterviewFormValues {
   discoveryId: string
   title: string
-  contactId: string | null
+  contactIds: string[]
   templateId: string | null
 }
 
@@ -77,13 +77,13 @@ export function useInterviews(companyId: string): UseInterviewsResult {
   const createInterview = useCallback(
     async (values: InterviewFormValues): Promise<Interview | null> => {
       // Sin `status`: el repositorio de main fija 'draft' en la creación.
-      // SPEC-043: el contacto único del selector viaja como contactIds de 0/1.
+      // SPEC-046: los N participantes marcados viajan tal cual en contactIds.
       // SPEC-044: el discovery es el elegido en el Select del Dialog.
       const result = await window.api.db.createInterview({
         discoveryId: values.discoveryId,
         companyId,
         title: values.title,
-        contactIds: values.contactId !== null ? [values.contactId] : [],
+        contactIds: values.contactIds,
         templateId: values.templateId
       })
       if (!result.ok) {
@@ -107,7 +107,7 @@ export function useInterviews(companyId: string): UseInterviewsResult {
     async (id: string, values: InterviewFormValues): Promise<boolean> => {
       const result = await window.api.db.updateInterview(id, {
         title: values.title,
-        contactIds: values.contactId !== null ? [values.contactId] : [],
+        contactIds: values.contactIds,
         templateId: values.templateId
       })
       if (!result.ok) {

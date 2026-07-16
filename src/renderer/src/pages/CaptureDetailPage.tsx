@@ -90,7 +90,7 @@ export function CaptureDetailPage(): React.ReactElement {
     []
   )
 
-  /** La asignación refleja empresa/contacto en cabecera sin recargar (AC). */
+  /** La asignación refleja empresa/contactos en cabecera sin recargar (AC). */
   const handleAssigned = useCallback((result: AssignCompanyResult): void => {
     setState((previous) =>
       previous.status === 'ready'
@@ -98,7 +98,8 @@ export function CaptureDetailPage(): React.ReactElement {
             ...previous,
             interview: result.interview,
             company: result.company,
-            contacts: result.contact !== null ? [result.contact] : []
+            // SPEC-046: todos los participantes asignados, en orden persistido.
+            contacts: result.contacts
           }
         : previous
     )

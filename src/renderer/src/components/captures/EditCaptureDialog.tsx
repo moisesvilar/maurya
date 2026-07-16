@@ -17,11 +17,12 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { ParticipantsChecklist } from '@/components/interviews/ParticipantsChecklist'
 import { templateLabel } from '@/components/interviews/templateLabel'
 import type { EditCaptureValues } from '@/hooks/useCaptures'
 import type { Contact, Interview, InterviewTemplate } from '@/types/domain'
 
-/** Sentinel de los Selects opcionales (Radix no admite value vacío en items). */
+/** Sentinel del Select opcional de plantilla (Radix no admite value vacío en items). */
 const NONE = 'none'
 
 export interface EditCaptureDialogProps {
@@ -47,8 +48,8 @@ interface EditCaptureFormProps {
  * Formulario interno del Dialog: vive dentro de DialogContent, que Radix
  * desmonta al cerrar, así que cada apertura remonta el form con el estado
  * fresco (campos precargados, sin error residual) sin effects de reset.
- * El Select de Contacto solo existe si la captura tiene empresa (SPEC-020);
- * sus opciones se cargan lazy al montar.
+ * La lista de Checkbox de Participantes (SPEC-046) solo existe si la captura
+ * tiene empresa (SPEC-020); sus opciones se cargan lazy al montar.
  */
 function EditCaptureForm({
   interview,
@@ -59,9 +60,9 @@ function EditCaptureForm({
 }: EditCaptureFormProps): React.ReactElement {
   const [title, setTitle] = useState(interview.title)
   const [templateId, setTemplateId] = useState(interview.templateId ?? NONE)
-  // SPEC-043 transicional: el selector sigue siendo de UN contacto (el
-  // primero de contactIds); la multiselección llega en H11.4.
-  const [contactId, setContactId] = useState(interview.contactIds[0] ?? NONE)
+  // SPEC-046: multiselección de participantes (lista de Checkbox),
+  // precargada con los contactos actuales de la captura.
+  const [contactIds, setContactIds] = useState<string[]>(interview.contactIds)
   const [contacts, setContacts] = useState<Contact[]>([])
   const [showRequiredError, setShowRequiredError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -94,8 +95,8 @@ function EditCaptureForm({
     void onSubmit({
       title: trimmedTitle,
       templateId: templateId === NONE ? null : templateId,
-      // contactId solo viaja si la captura tiene empresa (undefined = no tocar)
-      ...(hasCompany ? { contactId: contactId === NONE ? null : contactId } : {})
+      // contactIds solo viaja si la captura tiene empresa (undefined = no tocar)
+      ...(hasCompany ? { contactIds } : {})
     }).then((succeeded) => {
       setSubmitting(false)
       if (succeeded) {
@@ -142,22 +143,13 @@ function EditCaptureForm({
       </div>
       {hasCompany && (
         <div className="flex flex-col gap-2">
-          <label htmlFor="edit-capture-contact" className="text-sm font-medium">
-            Contacto
-          </label>
-          <Select value={contactId} onValueChange={setContactId}>
-            <SelectTrigger id="edit-capture-contact" className="w-full" aria-label="Contacto">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NONE}>Sin contacto</SelectItem>
-              {contacts.map((contact) => (
-                <SelectItem key={contact.id} value={contact.id}>
-                  {contact.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <span className="text-sm font-medium">Participantes</span>
+          <ParticipantsChecklist
+            contacts={contacts}
+            selectedIds={contactIds}
+            onChange={setContactIds}
+            emptyMessage="Esta empresa no tiene contactos"
+          />
         </div>
       )}
       <DialogFooter>
@@ -174,10 +166,10 @@ function EditCaptureForm({
 }
 
 /**
- * Dialog "Editar captura" (SPEC-020): Título y Plantilla siempre; Contacto
- * solo si la captura tiene empresa. No reutiliza InterviewFormDialog (campos
- * y placeholder distintos; Contacto condicional) — aquel queda intacto para
- * CompanyDetailPage.
+ * Dialog "Editar captura" (SPEC-020): Título y Plantilla siempre;
+ * Participantes (lista de Checkbox, SPEC-046) solo si la captura tiene
+ * empresa. No reutiliza InterviewFormDialog (campos y placeholder distintos;
+ * Participantes condicional) — aquel queda intacto para CompanyDetailPage.
  */
 export function EditCaptureDialog({
   open,

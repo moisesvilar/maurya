@@ -11,6 +11,7 @@ import { CompanyDetailPage } from '@/pages/CompanyDetailPage'
 import { DiscoveriesPage } from '@/pages/DiscoveriesPage'
 import { DiscoveryDetailPage } from '@/pages/DiscoveryDetailPage'
 import { InterviewDetailPage } from '@/pages/InterviewDetailPage'
+import { InterviewGroupDetailPage } from '@/pages/InterviewGroupDetailPage'
 import { InterviewTemplateEditorPage } from '@/pages/InterviewTemplateEditorPage'
 import { InterviewTemplatesPage } from '@/pages/InterviewTemplatesPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -53,6 +54,12 @@ function App(): React.ReactElement {
               <Route path="captures/:id" element={<CaptureDetailPage />} />
               <Route path="discoveries" element={<DiscoveriesPage />} />
               <Route path="discoveries/:id" element={<DiscoveryDetailPage />} />
+              {/* SPEC-046: detalle del grupo de entrevistas (listado + creación
+                  de entrevistas con empresa global y N participantes). */}
+              <Route
+                path="discoveries/:discoveryId/groups/:groupId"
+                element={<InterviewGroupDetailPage />}
+              />
               <Route
                 path="discoveries/:discoveryId/companies/:companyId"
                 element={<LegacyCompanyRedirect />}

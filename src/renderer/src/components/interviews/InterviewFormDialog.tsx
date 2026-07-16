@@ -16,14 +16,15 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { ParticipantsChecklist } from '@/components/interviews/ParticipantsChecklist'
 import { templateLabel } from '@/components/interviews/templateLabel'
 import type { InterviewFormValues } from '@/hooks/useInterviews'
 import type { Contact, Discovery, Interview, InterviewTemplate } from '@/types/domain'
 
 /**
- * Sentinel de los Selects opcionales: Radix Select no admite value vacío,
- * así que "Sin contacto"/"Sin template" viajan como 'none' y se mapean a
- * null al enviar (patrón NO_PHASE de SPEC-012).
+ * Sentinel del Select opcional de template: Radix Select no admite value
+ * vacío, así que "Sin template" viaja como 'none' y se mapea a null al
+ * enviar (patrón NO_PHASE de SPEC-012).
  */
 const NONE = 'none'
 
@@ -42,7 +43,7 @@ export interface InterviewFormDialogProps {
    * se usa (el campo no se renderiza).
    */
   discoveries: Discovery[]
-  /** Contactos de la empresa para el Select (vacío → solo "Sin contacto"). */
+  /** Contactos de la empresa para la lista de Checkbox de participantes (SPEC-046). */
   contacts: Contact[]
   /** Templates de entrevista para el Select (vacío → solo "Sin template"). */
   templates: InterviewTemplate[]
@@ -87,9 +88,9 @@ function InterviewForm({
   // '' = sin elegir (muestra el placeholder del SelectValue); requerido
   // (patrón NewCaptureDialog de SPEC-020, NO el sentinel NONE).
   const [discoveryId, setDiscoveryId] = useState(interview?.discoveryId ?? '')
-  // SPEC-043 transicional: el selector sigue siendo de UN contacto (el
-  // primero de contactIds); la multiselección llega en H11.4.
-  const [contactId, setContactId] = useState(interview?.contactIds[0] ?? NONE)
+  // SPEC-046: multiselección de participantes (lista de Checkbox); en
+  // edición precargada con los contactos actuales de la entrevista.
+  const [contactIds, setContactIds] = useState<string[]>(interview?.contactIds ?? [])
   const [templateId, setTemplateId] = useState(interview?.templateId ?? NONE)
   const [showRequiredError, setShowRequiredError] = useState(false)
   const [showDiscoveryError, setShowDiscoveryError] = useState(false)
@@ -113,7 +114,7 @@ function InterviewForm({
     void onSubmit({
       discoveryId,
       title: trimmedTitle,
-      contactId: contactId === NONE ? null : contactId,
+      contactIds,
       templateId: templateId === NONE ? null : templateId
     }).then((succeeded) => {
       setSubmitting(false)
@@ -186,22 +187,13 @@ function InterviewForm({
         {showRequiredError && <p className="text-sm text-destructive">Campo requerido</p>}
       </div>
       <div className="flex flex-col gap-2">
-        <label htmlFor="interview-contact" className="text-sm font-medium">
-          Contacto
-        </label>
-        <Select value={contactId} onValueChange={setContactId}>
-          <SelectTrigger id="interview-contact" className="w-full" aria-label="Contacto">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NONE}>Sin contacto</SelectItem>
-            {contacts.map((contact) => (
-              <SelectItem key={contact.id} value={contact.id}>
-                {contact.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <span className="text-sm font-medium">Participantes</span>
+        <ParticipantsChecklist
+          contacts={contacts}
+          selectedIds={contactIds}
+          onChange={setContactIds}
+          emptyMessage="Esta empresa no tiene contactos"
+        />
       </div>
       <div className="flex flex-col gap-2">
         <label htmlFor="interview-template" className="text-sm font-medium">
@@ -237,10 +229,12 @@ function InterviewForm({
  * Dialog de entrevista (SPEC-013): crear y editar. Calco del patrón
  * ContactFormDialog (SPEC-011): form real (Enter = submit nativo), error
  * inline "Campo requerido" sin pasar por el bridge, foco al Título al abrir
- * vía onOpenAutoFocus SIN select. Contacto y Template son Selects opcionales
- * con sentinel 'none' ("Sin contacto"/"Sin template"). SPEC-044: en creación
- * el form abre con el Select requerido "Discovery" (sentinel '', patrón
- * NewCaptureDialog); en edición el campo no se renderiza.
+ * vía onOpenAutoFocus SIN select. SPEC-046: el Select de contacto único se
+ * sustituye por la lista de Checkbox "Participantes" (ParticipantsChecklist,
+ * N contactos de la empresa); Template sigue siendo Select opcional con
+ * sentinel 'none' ("Sin template"). SPEC-044: en creación el form abre con
+ * el Select requerido "Discovery" (sentinel '', patrón NewCaptureDialog); en
+ * edición el campo no se renderiza.
  */
 export function InterviewFormDialog({
   open,

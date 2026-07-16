@@ -18,14 +18,14 @@ import {
   SheetHeader,
   SheetTitle
 } from '@/components/ui/sheet'
-import { DisabledTooltip } from '@/components/templates/DisabledTooltip'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ParticipantsChecklist } from '@/components/interviews/ParticipantsChecklist'
 import type { AssignCompanyInput, AssignCompanyResult } from '@/types/captures'
 import type { Company, Contact, Interview } from '@/types/domain'
 import { normalizeOptional } from '@/lib/normalizeOptional'
 
-/** Sentinels de los Selects (Radix no admite value vacío en items). */
+/** Sentinel del Select de empresa (Radix no admite value vacío en items). */
 const NEW = 'new'
-const NONE = 'none'
 
 export interface AssignCompanySheetProps {
   open: boolean
@@ -61,7 +61,10 @@ function AssignCompanyForm({
   const [contacts, setContacts] = useState<Contact[]>([])
   // '' = sin elegir (placeholder); NEW = "+ Nueva empresa" con campos inline.
   const [companySel, setCompanySel] = useState('')
-  const [contactSel, setContactSel] = useState(NONE)
+  // SPEC-046: N participantes marcados (Checkbox) + contacto nuevo inline
+  // opcional (checkbox "+ Nuevo contacto", fuera de los sentinels del Select).
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([])
+  const [newContactChecked, setNewContactChecked] = useState(false)
   const [newCompanyName, setNewCompanyName] = useState('')
   const [newCompanyWebsite, setNewCompanyWebsite] = useState('')
   const [newCompanyLinkedin, setNewCompanyLinkedin] = useState('')
@@ -106,14 +109,15 @@ function AssignCompanyForm({
 
   const companyChosen = companySel !== ''
   const isNewCompany = companySel === NEW
-  const isNewContact = contactSel === NEW
 
   const handleCompanyChange = (value: string): void => {
     setCompanySel(value)
     setShowCompanyError(false)
-    // Cambiar de empresa invalida el contacto elegido: vuelve a "Sin contacto"
-    // y vacía la lista (la de la nueva empresa se carga lazy en el effect).
-    setContactSel(NONE)
+    // Cambiar de empresa vacía la selección de participantes (invariante v3:
+    // contactos ⊆ empresa) y la lista (la de la nueva empresa se carga lazy
+    // en el effect); el reset vive en el handler, no en un effect.
+    setSelectedContactIds([])
+    setNewContactChecked(false)
     setContacts([])
   }
 
@@ -122,13 +126,15 @@ function AssignCompanyForm({
     // Validación inline on submit, SIN pasar por el bridge (AC).
     const companyMissing = !companyChosen
     const companyNameMissing = isNewCompany && newCompanyName.trim() === ''
-    const contactNameMissing = isNewContact && newContactName.trim() === ''
+    const contactNameMissing = newContactChecked && newContactName.trim() === ''
     setShowCompanyError(companyMissing)
     setShowCompanyNameError(companyNameMissing)
     setShowContactNameError(contactNameMissing)
     if (companyMissing || companyNameMissing || contactNameMissing) {
       return
     }
+    // SPEC-046: los marcados viajan en contactIds; el contacto nuevo inline
+    // (si está marcado) se SUMA como participante en main.
     const input: AssignCompanyInput = {
       ...(isNewCompany
         ? {
@@ -139,7 +145,8 @@ function AssignCompanyForm({
             }
           }
         : { companyId: companySel }),
-      ...(isNewContact
+      contactIds: selectedContactIds,
+      ...(newContactChecked
         ? {
             newContact: {
               name: newContactName.trim(),
@@ -147,7 +154,7 @@ function AssignCompanyForm({
               linkedinUrl: normalizeOptional(newContactLinkedin)
             }
           }
-        : { contactId: contactSel === NONE ? null : contactSel })
+        : {})
     }
     setSubmitting(true)
     void window.api.db.assignInterviewCompany(interview.id, input).then((result) => {
@@ -163,26 +170,6 @@ function AssignCompanyForm({
       onOpenChange(false)
     })
   }
-
-  const contactSelect = (
-    <Select value={contactSel} onValueChange={setContactSel} disabled={!companyChosen}>
-      <SelectTrigger id="assign-contact" className="w-full" aria-label="Contacto">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={NONE}>Sin contacto</SelectItem>
-        {!isNewCompany &&
-          contacts.map((contact) => (
-            <SelectItem key={contact.id} value={contact.id}>
-              {contact.name}
-            </SelectItem>
-          ))}
-        <SelectItem value={NEW} className="font-medium">
-          + Nuevo contacto
-        </SelectItem>
-      </SelectContent>
-    </Select>
-  )
 
   return (
     <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
@@ -257,21 +244,38 @@ function AssignCompanyForm({
         )}
 
         <div className="flex flex-col gap-2">
-          <label htmlFor="assign-contact" className="text-sm font-medium">
-            Contacto
-          </label>
-          {companyChosen ? (
-            contactSelect
-          ) : (
-            // Un Select disabled no dispara eventos de puntero: el Tooltip
-            // necesita el wrapper con span tabIndex 0 (patrón DisabledTooltip).
-            <DisabledTooltip tooltip="Selecciona primero una empresa">
-              {contactSelect}
-            </DisabledTooltip>
+          <span className="text-sm font-medium">Participantes</span>
+          {!companyChosen && (
+            <p className="text-sm text-muted-foreground">
+              Elige una empresa para ver sus contactos
+            </p>
+          )}
+          {/* SPEC-046: con empresa existente, N participantes marcables; con
+              empresa nueva inline no hay contactos previos que listar (el
+              único participante posible es el contacto nuevo). */}
+          {companyChosen && !isNewCompany && (
+            <ParticipantsChecklist
+              contacts={contacts}
+              selectedIds={selectedContactIds}
+              onChange={setSelectedContactIds}
+              emptyMessage="Esta empresa no tiene contactos"
+            />
+          )}
+          {companyChosen && (
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <Checkbox
+                checked={newContactChecked}
+                onCheckedChange={(checked) => {
+                  setNewContactChecked(checked === true)
+                  setShowContactNameError(false)
+                }}
+              />
+              + Nuevo contacto
+            </label>
           )}
         </div>
 
-        {isNewContact && (
+        {newContactChecked && (
           <>
             <div className="flex flex-col gap-2">
               <label htmlFor="assign-contact-name" className="text-sm font-medium">
@@ -328,9 +332,9 @@ function AssignCompanyForm({
 
 /**
  * Sheet "Asignar empresa y contacto" (SPEC-020): asignación diferida de
- * empresa (existente del discovery de la captura o nueva inline) y contacto
- * (existente de esa empresa, nuevo inline o "Sin contacto"). Lateral derecha,
- * ancho completo en mobile.
+ * empresa (existente del sistema o nueva inline) y participantes (SPEC-046:
+ * N contactos marcados de esa empresa y/o un contacto nuevo inline). Lateral
+ * derecha, ancho completo en mobile.
  */
 export function AssignCompanySheet({
   open,

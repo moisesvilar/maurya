@@ -648,12 +648,14 @@ export function listAllInterviews(): CaptureListItem[] {
 }
 
 /**
- * Asignación diferida de empresa y contacto (SPEC-020): resuelve-o-crea la
- * empresa (SPEC-043: cualquier empresa del sistema; nueva → GLOBAL, sin
- * discovery) y el contacto (nuevo → en esa empresa) y actualiza la entrevista
- * (`contactIds` = [contacto] o []), todo en UN SOLO mutate — atómico por
+ * Asignación diferida de empresa y contactos (SPEC-020; SPEC-046: N
+ * participantes): resuelve-o-crea la empresa (SPEC-043: cualquier empresa del
+ * sistema; nueva → GLOBAL, sin discovery), crea el contacto nuevo inline si
+ * viene (que se SUMA a los marcados) y actualiza la entrevista
+ * (`contactIds` = marcados + [nuevo]), todo en UN SOLO mutate — atómico por
  * diseño del store: si cualquier validación lanza, cero escrituras ("sin
- * estado a medias" del AC).
+ * estado a medias" del AC). La pertenencia a la empresa y los duplicados los
+ * valida assertInterviewContacts (invariante v3, sin duplicar lógica).
  */
 export function assignInterviewCompany(
   interviewId: string,
@@ -662,9 +664,6 @@ export function assignInterviewCompany(
   // Validaciones de forma (antes de tocar el draft, aunque mutate ya lo aísla)
   if ((input.companyId !== undefined) === (input.newCompany !== undefined)) {
     throw validationError('Indica una empresa existente o una empresa nueva (exactamente una)')
-  }
-  if (input.contactId !== undefined && input.contactId !== null && input.newContact !== undefined) {
-    throw validationError('Indica un contacto existente o un contacto nuevo, no ambos')
   }
   if (input.newCompany !== undefined) {
     assertName(input.newCompany.name, 'empresa')
@@ -695,9 +694,9 @@ export function assignInterviewCompany(
       company = findOrThrow(draft.companies, input.companyId ?? '', 'empresa')
     }
 
-    let contact: Contact | null = null
+    let newContact: Contact | null = null
     if (input.newContact !== undefined) {
-      contact = {
+      newContact = {
         id: randomUUID(),
         companyId: company.id,
         name: input.newContact.name,
@@ -707,19 +706,25 @@ export function assignInterviewCompany(
         createdAt: now,
         updatedAt: now
       }
-      draft.contacts.push(contact)
-    } else if (input.contactId !== undefined && input.contactId !== null) {
-      contact = findOrThrow(draft.contacts, input.contactId, 'contacto')
-      // Invariante SPEC-020: el contacto debe pertenecer a la empresa elegida.
-      if (contact.companyId !== company.id) {
-        throw referenceError('El contacto no pertenece a la empresa elegida')
-      }
+      draft.contacts.push(newContact)
     }
 
+    // SPEC-046: los marcados primero, el nuevo inline al final. Con empresa
+    // nueva + contactIds no vacío, assertInterviewContacts lanza reference de
+    // forma natural (la empresa recién creada no tiene contactos previos).
+    const finalContactIds = [
+      ...(input.contactIds ?? []),
+      ...(newContact !== null ? [newContact.id] : [])
+    ]
+    assertInterviewContacts(draft, company.id, finalContactIds)
+
     interview.companyId = company.id
-    interview.contactIds = contact !== null ? [contact.id] : []
+    interview.contactIds = finalContactIds
     interview.updatedAt = touched(interview.updatedAt)
-    return { interview, company, contact }
+    const contacts = finalContactIds
+      .map((contactId) => draft.contacts.find((candidate) => candidate.id === contactId))
+      .filter((candidate): candidate is Contact => candidate !== undefined)
+    return { interview, company, contacts }
   })
 }
 
