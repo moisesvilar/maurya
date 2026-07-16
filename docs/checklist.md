@@ -177,7 +177,7 @@ Reestructuración del modelo de entidades pedida por el humano, recogida en [dra
 - [x] 🟡 **Discoveries con objetivos y grupos de entrevistas**: CRUD de discoveries (nombre + `objetivos`) y, dentro de cada discovery, CRUD de grupos de entrevistas (nombre, `objetivo`, template de preguntas del grupo, template de notas por defecto) (RF-DISC-008, RF-DISC-009) — SPEC-045, unit 768/768 PASS a la primera (17/17 ACs; deroga Dialog solo-nombre y texto de cascada de SPEC-010; filas de grupo aún sin navegación, llega en H11.4)
 - [x] 🟡 **Entrevistas dentro de grupo con empresa y N contactos**: crear entrevista en un grupo asignando una empresa global y N contactos de esa empresa; guión generado con nombre y contexto de empresa y TODOS los contactos; el template de preguntas viene del grupo; las capturas siguen sin grupo y `assignInterviewCompany` pasa a asignar empresa global + N contactos (RF-GUION-006, RF-GUION-002, RF-GUION-003) — SPEC-046, unit 808/808 PASS (25/25 ACs; página del grupo + ParticipantsChecklist en los 4 flujos + prompts de guión/nota con N contactos, contextos y objetivos de discovery/grupo; system prompts byte-estables; 1 flaky conocido de ObjectivesSection re-ejecutado en verde)
 - [x] 🟡 **Nota con template del grupo + regeneración con override**: la nota se genera por defecto con el template de notas del grupo; «Regenerar» permite elegir otro note-template solo para esa entrevista (RF-NOTE-006, RF-NOTE-001) — SPEC-047, unit 816/816 PASS a la primera (7/7 ACs; precedencia manual > grupo > primero, cero llamadas extra en capturas)
-- [ ] 🟢 **Adaptar búsqueda global y navegación** al nuevo modelo: empresas/contactos fuera del árbol del discovery, grupos como nivel intermedio, breadcrumbs y rutas (RF-APP-005)
+- [x] 🟢 **Adaptar búsqueda global y navegación** al nuevo modelo: empresas/contactos fuera del árbol del discovery, grupos como nivel intermedio, breadcrumbs y rutas (RF-APP-005) — SPEC-048, unit 827/827 PASS a la primera (12/12 ACs; grupo «Grupos» en ⌘K, hits de empresa/contacto a rutas globales sin ancla transicional, back contextual del detalle de entrevista; back buttons conservados en lugar de breadcrumbs por consistencia). **H11 completo (6/6)**
 
 ---
 
@@ -208,8 +208,8 @@ Riesgo #1: el problema se apoya en una fuente única. Validar en paralelo al des
 | Post-MVP · Config. IA | 1 | 1 |
 | H9 · Mejoras UX/captura | 9 | 9 |
 | H10 · Asistente de preguntas | 6 | 6 |
-| H11 · Entidades globales y grupos | 6 | 0 |
+| H11 · Entidades globales y grupos | 6 | 6 |
 | Validación | 4 | 0 |
-| **Total** | **80** | **69** |
+| **Total** | **80** | **75** |
 
 > Siguiente paso sugerido: `/somo-create-spec` para detallar cada requisito funcional del PRD en specs implementables.
