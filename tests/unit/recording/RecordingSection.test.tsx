@@ -140,10 +140,9 @@ function renderDetail(): RenderResult {
     <TooltipProvider>
       <MemoryRouter initialEntries={['/discoveries/d-1/companies/c-1/interviews/i-1']}>
         <Routes>
-          <Route
-            path="/discoveries/:discoveryId/companies/:companyId"
-            element={<CompanyDetailPage />}
-          />
+          {/* SPEC-048: el back «Volver» de una entrevista sin grupo navega al
+              detalle GLOBAL de la empresa (deroga la ruta anidada de SPEC-013) */}
+          <Route path="/companies/:companyId" element={<CompanyDetailPage />} />
           <Route
             path="/discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
             element={<InterviewDetailPage />}

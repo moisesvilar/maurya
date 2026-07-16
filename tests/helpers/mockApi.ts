@@ -143,10 +143,11 @@ function createMockDbApi(): DbApi {
       .fn<DbApi['getStatus']>()
       .mockResolvedValue({ ok: true, data: { ready: true, initError: null } }),
 
-    // SPEC-018: búsqueda global (default sin resultados; se configura por test)
+    // SPEC-018: búsqueda global (default sin resultados; se configura por
+    // test). SPEC-048: SearchResults gana `groups`.
     search: vi.fn<DbApi['search']>().mockResolvedValue({
       ok: true,
-      data: { discoveries: [], companies: [], contacts: [], interviews: [] }
+      data: { discoveries: [], groups: [], companies: [], contacts: [], interviews: [] }
     }),
 
     createDiscovery: vi.fn<DbApi['createDiscovery']>(),

@@ -4,6 +4,10 @@
  * portal + fondo aria-hidden). El TopBar se monta FUERA de las Routes (como
  * en el Layout real) con rutas probe de destino para asertar la navegación.
  * El debounce del hook es de 150 ms con timers reales → findBy y waitFor.
+ * Adaptado por SPEC-048 (modelo v3): los hits de empresa y contacto navegan
+ * al detalle global /companies/:companyId (derogadas las rutas anidadas de
+ * SPEC-018/043) y SearchResults gana `groups` (su UI se testea en
+ * GlobalSearch.groups.test.tsx).
  */
 import {
   fireEvent,
@@ -24,15 +28,16 @@ let mockApi: MockApiHandle
 
 const RESULTS: SearchResults = {
   discoveries: [{ id: 'd-1', name: 'Vertical Sanidad' }],
-  // SPEC-043: el hit de empresa viaja sin discoveryName (empresas globales);
-  // discoveryId es el ancla transicional de navegación resuelta en main
-  companies: [{ id: 'c-1', discoveryId: 'd-1', name: 'Acmé Córp' }],
+  // SPEC-048: sin hits de grupo en esta suite (GlobalSearch.groups.test.tsx)
+  groups: [],
+  // SPEC-048: el hit de empresa es global — { id, name } sin referencia a
+  // discovery (deroga el ancla transicional de SPEC-043)
+  companies: [{ id: 'c-1', name: 'Acmé Córp' }],
   contacts: [
     {
       id: 'ct-1',
       name: 'María López',
       companyId: 'c-1',
-      companyDiscoveryId: 'd-1',
       companyName: 'Acmé Córp'
     }
   ],
@@ -50,6 +55,7 @@ const RESULTS: SearchResults = {
 
 const EMPTY_RESULTS: SearchResults = {
   discoveries: [],
+  groups: [],
   companies: [],
   contacts: [],
   interviews: []
@@ -66,10 +72,9 @@ function renderTopBar(): RenderResult {
       <Routes>
         <Route path="/capture" element={<div>HOME_PROBE</div>} />
         <Route path="/discoveries/:discoveryId" element={<div>DISCOVERY_PROBE</div>} />
-        <Route
-          path="/discoveries/:discoveryId/companies/:companyId"
-          element={<div>COMPANY_PROBE</div>}
-        />
+        {/* SPEC-048: empresas y contactos navegan al detalle GLOBAL directo
+            (sin discovery de por medio ni redirect legado) */}
+        <Route path="/companies/:companyId" element={<div>COMPANY_PROBE</div>} />
         <Route
           path="/discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
           element={<div>INTERVIEW_PROBE</div>}
@@ -177,8 +182,8 @@ describe('GlobalSearch', () => {
       expect(vi.mocked(mockApi.api.db.search)).toHaveBeenCalledWith('sanid')
     })
 
-    // SPEC-018 · AC-06, adaptado por SPEC-043: las empresas son globales — el
-    // hit se muestra SIN el nombre del discovery como contexto
+    // SPEC-018 · AC-06, adaptado por SPEC-043/048: las empresas son globales
+    // — el hit se muestra SIN el nombre del discovery como contexto
     it('shows a matching company under "Empresas" without a discovery name context', async () => {
       const user = userEvent.setup()
       renderTopBar()
@@ -256,8 +261,9 @@ describe('GlobalSearch', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
-    // SPEC-018 · AC-13
-    it('navigates to the nested company detail and closes when a company hit is clicked', async () => {
+    // SPEC-018 · AC-13, adaptado por SPEC-048 (AC-01): el hit de empresa
+    // navega al detalle global directo /companies/:companyId
+    it('navigates to the global company detail and closes when a company hit is clicked', async () => {
       const user = userEvent.setup()
       renderTopBar()
       const input = await openSearch(user)
@@ -270,8 +276,9 @@ describe('GlobalSearch', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
 
-    // SPEC-018 · AC-14
-    it("navigates to the contact's company detail and closes when a contact hit is clicked", async () => {
+    // SPEC-018 · AC-14, adaptado por SPEC-048 (AC-03): el hit de contacto
+    // navega al detalle global de su empresa /companies/:companyId
+    it("navigates to the contact's global company detail and closes when a contact hit is clicked", async () => {
       const user = userEvent.setup()
       renderTopBar()
       const input = await openSearch(user)

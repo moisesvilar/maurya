@@ -5,6 +5,9 @@
  * "Sin template" con referencias null).
  * SPEC-030: el orden de secciones pasa a cabecera → Objetivos → Nota/Guión →
  * Grabación al final (describe 'section order').
+ * SPEC-048: el back «Volver» pasa a ser contextual — sin grupo navega al
+ * detalle global /companies/:companyId (aquí); con grupo, a la página del
+ * grupo (tests/unit/interviews/InterviewDetailPage.back.test.tsx).
  */
 import { render, screen, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -51,10 +54,9 @@ function renderAt(initialEntry: string): RenderResult {
     <TooltipProvider>
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
-          <Route
-            path="/discoveries/:discoveryId/companies/:companyId"
-            element={<CompanyDetailPage />}
-          />
+          {/* SPEC-048: el back «Volver» de una entrevista sin grupo navega al
+              detalle GLOBAL de la empresa (deroga la ruta anidada de SPEC-013) */}
+          <Route path="/companies/:companyId" element={<CompanyDetailPage />} />
           <Route
             path="/discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
             element={<InterviewDetailPage />}
@@ -75,7 +77,8 @@ beforeEach(() => {
 
 describe('InterviewDetailPage', () => {
   describe('header and references', () => {
-    // SPEC-013 · AC-11
+    // SPEC-013 · AC-11, adaptado por SPEC-048 (AC-11): «Volver» de una
+    // entrevista SIN grupo navega al detalle global /companies/:companyId
     it('shows title, "Borrador" badge and refs with the null fallbacks, and "Volver" returns to the company', async () => {
       const user = userEvent.setup()
       renderAt('/discoveries/d-1/companies/c-1/interviews/i-1')
@@ -87,7 +90,7 @@ describe('InterviewDetailPage', () => {
       // Referencias con fallbacks (fixture con contactId/templateId null)
       expect(screen.getByText(/Acme Corp · Sin contacto · Sin template/)).toBeInTheDocument()
 
-      // Volver regresa al detalle de la empresa
+      // Volver regresa al detalle GLOBAL de la empresa (SPEC-048)
       await user.click(screen.getByRole('button', { name: 'Volver' }))
       expect(
         await screen.findByRole('heading', { name: 'Acme Corp', level: 1 })
