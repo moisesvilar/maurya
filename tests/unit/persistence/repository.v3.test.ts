@@ -417,9 +417,10 @@ describe('repository (SPEC-043 modelo v3)', () => {
       const withContact = createInterview({ discoveryId: discoveryA.id, title: 'Captura A1' })
       const withoutContact = createInterview({ discoveryId: discoveryA.id, title: 'Captura A2' })
 
+      // SPEC-046: el input de la asignación viaja con contactIds (N marcados)
       const assigned = assignInterviewCompany(withContact.id, {
         companyId: company.id,
-        contactId: contact.id
+        contactIds: [contact.id]
       })
       const assignedBare = assignInterviewCompany(withoutContact.id, { companyId: company.id })
 

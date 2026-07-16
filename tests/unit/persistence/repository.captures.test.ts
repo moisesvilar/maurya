@@ -285,7 +285,9 @@ describe('repository (SPEC-020 capturas)', () => {
   })
 
   describe('assignInterviewCompany', () => {
-    // SPEC-020 · AC-27 (main) + AC-29 (main: la captura pasa a listar bajo la empresa)
+    // SPEC-020 · AC-27 (main) + AC-29 (main: la captura pasa a listar bajo la
+    // empresa), adaptado por SPEC-046: el input viaja con contactIds (N
+    // participantes) y el resultado con contacts (lista en el orden persistido)
     it('assigns an existing company and contact updating the interview, which then lists under that company', () => {
       const discovery = createDiscovery({ name: 'Vertical Sanidad' })
       const company = createCompany({ name: 'Acme Corp' })
@@ -294,14 +296,14 @@ describe('repository (SPEC-020 capturas)', () => {
 
       const result = assignInterviewCompany(capture.id, {
         companyId: company.id,
-        contactId: contact.id
+        contactIds: [contact.id]
       })
 
       expect(result.interview.companyId).toBe(company.id)
-      // SPEC-043: la asignación persiste contactIds = [contacto]
+      // SPEC-043/046: la asignación persiste contactIds = [contacto]
       expect(result.interview.contactIds).toEqual([contact.id])
       expect(result.company.id).toBe(company.id)
-      expect(result.contact?.id).toBe(contact.id)
+      expect(result.contacts.map((assigned) => assigned.id)).toEqual([contact.id])
       expect(result.interview.updatedAt > capture.updatedAt).toBe(true)
       // AC-29: la captura aparece entre las entrevistas de esa empresa
       expect(listInterviews(company.id).map((interview) => interview.id)).toContain(capture.id)
@@ -323,13 +325,12 @@ describe('repository (SPEC-020 capturas)', () => {
       expect(result.company).not.toHaveProperty('discoveryId')
       expect(result.company.name).toBe('Globex')
       expect(result.company.website).toBe('https://globex.example')
-      // El contacto nuevo nace en esa empresa
-      expect(result.contact?.companyId).toBe(result.company.id)
-      expect(result.contact?.position).toBe('CEO')
+      // El contacto nuevo nace en esa empresa (SPEC-046: llega en contacts)
+      expect(result.contacts).toHaveLength(1)
+      expect(result.contacts[0].companyId).toBe(result.company.id)
+      expect(result.contacts[0].position).toBe('CEO')
       expect(result.interview.companyId).toBe(result.company.id)
-      expect(result.interview.contactIds).toEqual(
-        result.contact !== null ? [result.contact.id] : []
-      )
+      expect(result.interview.contactIds).toEqual([result.contacts[0].id])
       // Todo persistido en la misma operación
       const persisted = readDbFile()
       expect(persisted.companies.map((company) => company.name)).toContain('Globex')
@@ -357,10 +358,13 @@ describe('repository (SPEC-020 capturas)', () => {
         () => assignInterviewCompany(capture.id, { companyId: 'c-inexistente' }),
         'not-found'
       )
-      // Contacto de otra empresa
+      // Contacto de otra empresa (SPEC-046: viaja dentro de contactIds)
       expectDbError(
         () =>
-          assignInterviewCompany(capture.id, { companyId: companyA.id, contactId: contactB.id }),
+          assignInterviewCompany(capture.id, {
+            companyId: companyA.id,
+            contactIds: [contactB.id]
+          }),
         'reference'
       )
       // Ni empresa existente ni nueva (input malformado)

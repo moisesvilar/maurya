@@ -190,7 +190,9 @@ describe('llmService (SPEC-020 capturas)', () => {
       // La generación vuelve al camino completo: empresa + contacto + histórico
       expect(userPrompt).toContain('## Empresa\nNombre: Acme Corp')
       expect(userPrompt).toContain('Web: https://acme.example')
-      expect(userPrompt).toContain('## Contacto\nNombre: Jane Doe')
+      // SPEC-046: la sección de contactos pasa a «## Contactos» (bloque por
+      // participante) — deroga la forma exacta «## Contacto» de SPEC-014/020
+      expect(userPrompt).toContain('## Contactos\nNombre: Jane Doe')
       expect(userPrompt).toContain('## Entrevistas anteriores')
       expect(userPrompt).toContain('El CTO gestiona el regulatorio con hojas de cálculo')
       // El discovery sigue presente también con empresa (sección nueva de SPEC-020)

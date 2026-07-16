@@ -172,10 +172,7 @@ describe('DiscoveriesPage', () => {
       // SPEC-045 · AC-01: campo Objetivos (Textarea opcional) bajo el Nombre
       const objectives = within(dialog).getByLabelText('Objetivos')
       expect(objectives).toBe(within(dialog).getByTestId('discovery-objectives-textarea'))
-      expect(objectives).toHaveAttribute(
-        'placeholder',
-        '¿Qué quieres aprender con este discovery?'
-      )
+      expect(objectives).toHaveAttribute('placeholder', '¿Qué quieres aprender con este discovery?')
     })
 
     // SPEC-045 · AC-01 (deroga la firma de SPEC-010 AC-07: el bridge recibe { name, objectives })
@@ -310,9 +307,7 @@ describe('DiscoveriesPage', () => {
       expect(input.selectionStart).toBe(0)
       expect(input.selectionEnd).toBe('Discovery antiguo'.length)
       // SPEC-045 · AC-03: los objetivos actuales precargados en el Textarea
-      expect(screen.getByLabelText('Objetivos')).toHaveValue(
-        'Entender cómo validan los founders'
-      )
+      expect(screen.getByLabelText('Objetivos')).toHaveValue('Entender cómo validan los founders')
     })
 
     // SPEC-010 · AC-11 adaptado + SPEC-045 · AC-03 (guarda nombre + objetivos con Toast)

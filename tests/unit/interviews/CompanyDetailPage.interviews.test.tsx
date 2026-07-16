@@ -6,7 +6,10 @@
  * discovery en la URL) — el Dialog de creación exige elegir el Discovery en un
  * Select requerido y el discoveryId viaja en los values (helper
  * selectDiscovery en los flujos de creación); los links a entrevistas se
- * construyen con el discoveryId de la propia entrevista.
+ * construyen con el discoveryId de la propia entrevista. Adaptado por
+ * SPEC-046 (AC-21): el Select de contacto único de SPEC-013 queda DEROGADO —
+ * la sección «Participantes» es una lista de Checkbox (testid
+ * interview-participants) y crear/editar persisten los contactIds marcados.
  * Lecciones aplicadas: la página tiene DOS grupos de menús "Acciones"
  * (contactos y entrevistas) y DOS AlertDialogs → matching por fila (closest li
  * del título), nunca por índice global; menú→dialog con findBy* (setTimeout(0))
@@ -228,8 +231,10 @@ describe('CompanyDetailPage (entrevistas)', () => {
   })
 
   describe('creating an interview', () => {
-    // SPEC-013 · AC-04
-    it('opens the "Nueva entrevista" dialog with focused title and the optional contact/template selects', async () => {
+    // SPEC-013 · AC-04, adaptado por SPEC-046 · AC-21: el Select de contacto
+    // único queda DEROGADO — la sección «Participantes» es la lista de
+    // Checkbox con los contactos de la empresa; Template no cambia
+    it('opens the "Nueva entrevista" dialog with focused title, the Participantes checklist and the optional template select', async () => {
       setContacts([CONTACT])
       setTemplates([TEMPLATE])
       const user = userEvent.setup()
@@ -242,12 +247,12 @@ describe('CompanyDetailPage (entrevistas)', () => {
       expect(titleInput).toHaveAttribute('placeholder', 'Discovery con Acme Corp')
       expect(document.activeElement).toBe(titleInput)
 
-      // Select de contacto: "Sin contacto" + contactos de la empresa
-      expect(screen.getByRole('combobox', { name: 'Contacto' })).toHaveTextContent('Sin contacto')
-      await user.click(screen.getByRole('combobox', { name: 'Contacto' }))
-      expect(await screen.findByRole('option', { name: 'Sin contacto' })).toBeInTheDocument()
-      expect(screen.getByRole('option', { name: 'Jane Doe' })).toBeInTheDocument()
-      await user.keyboard('{Escape}')
+      // Participantes: lista de Checkbox con los contactos de la empresa
+      // (sustituye al Select «Contacto» de SPEC-013, derogado por SPEC-046)
+      expect(within(dialog).getByText('Participantes')).toBeInTheDocument()
+      const participants = within(dialog).getByTestId('interview-participants')
+      expect(within(participants).getByRole('checkbox', { name: /Jane Doe/ })).not.toBeChecked()
+      expect(within(dialog).queryByRole('combobox', { name: 'Contacto' })).toBeNull()
 
       // Select de template: "Sin template" + templates con su fase entre paréntesis
       expect(screen.getByRole('combobox', { name: 'Template' })).toHaveTextContent('Sin template')
@@ -275,8 +280,9 @@ describe('CompanyDetailPage (entrevistas)', () => {
       await user.type(titleInput, 'Entrevista con Jane')
       // SPEC-044: el discovery se elige en el Select requerido del Dialog
       await selectDiscovery(user)
-      await user.click(screen.getByRole('combobox', { name: 'Contacto' }))
-      await user.click(await screen.findByRole('option', { name: 'Jane Doe' }))
+      // SPEC-046: el participante se marca en la lista de Checkbox
+      const participants = screen.getByTestId('interview-participants')
+      await user.click(within(participants).getByRole('checkbox', { name: /Jane Doe/ }))
       await user.click(screen.getByRole('combobox', { name: 'Template' }))
       await user.click(await screen.findByRole('option', { name: 'Entrevista MDR (Problema)' }))
       await user.click(screen.getByRole('button', { name: 'Crear' }))
@@ -364,8 +370,10 @@ describe('CompanyDetailPage (entrevistas)', () => {
       expect(vi.mocked(mockApi.api.db.createInterview)).not.toHaveBeenCalled()
     })
 
-    // SPEC-013 · AC-07
-    it('offers only the sentinels when there are no contacts nor templates, and creation still works', async () => {
+    // SPEC-013 · AC-07, adaptado por SPEC-046: sin contactos la lista de
+    // Participantes muestra el mensaje muted (el sentinel «Sin contacto» del
+    // Select derogado desaparece); el Template conserva su sentinel
+    it('offers the empty Participantes message and the template sentinel when there are no contacts nor templates, and creation still works', async () => {
       const created = interview({ title: 'Solo título', contactIds: [], templateId: null })
       vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({ ok: true, data: created })
       // SPEC-044-iter-1: la creación navega al detalle → getInterview mockeado
@@ -375,10 +383,10 @@ describe('CompanyDetailPage (entrevistas)', () => {
 
       const titleInput = await openCreateDialog(user)
 
-      await user.click(screen.getByRole('combobox', { name: 'Contacto' }))
-      expect(await screen.findAllByRole('option')).toHaveLength(1)
-      expect(screen.getByRole('option', { name: 'Sin contacto' })).toBeInTheDocument()
-      await user.keyboard('{Escape}')
+      // Participantes sin contactos: mensaje muted, sin Checkbox
+      const participants = screen.getByTestId('interview-participants')
+      expect(within(participants).getByText('Esta empresa no tiene contactos')).toBeInTheDocument()
+      expect(within(participants).queryAllByRole('checkbox')).toHaveLength(0)
 
       await user.click(screen.getByRole('combobox', { name: 'Template' }))
       expect(await screen.findAllByRole('option')).toHaveLength(1)
@@ -400,7 +408,9 @@ describe('CompanyDetailPage (entrevistas)', () => {
 
   describe('editing an interview', () => {
     // SPEC-013 · AC-08 (+ SPEC-044-iter-1 · AC-03: la EDICIÓN no navega — la
-    // fila editada sigue observable en el listado de la empresa tras guardar)
+    // fila editada sigue observable en el listado de la empresa tras guardar),
+    // adaptado por SPEC-046 · AC-21: la lista de Checkbox de Participantes
+    // llega precargada con los contactos actuales de la entrevista
     it('opens the edit dialog preloaded, saves the three fields via updateInterview and shows "Cambios guardados"', async () => {
       setInterviews([interview()])
       setContacts([CONTACT])
@@ -418,7 +428,9 @@ describe('CompanyDetailPage (entrevistas)', () => {
       expect(within(dialog).getByRole('heading', { name: 'Editar entrevista' })).toBeInTheDocument()
       const titleInput = screen.getByLabelText('Título')
       expect(titleInput).toHaveValue('Discovery con Acme')
-      expect(screen.getByRole('combobox', { name: 'Contacto' })).toHaveTextContent('Jane Doe')
+      // Participantes precargados: el contacto actual llega marcado
+      const participants = within(dialog).getByTestId('interview-participants')
+      expect(within(participants).getByRole('checkbox', { name: /Jane Doe/ })).toBeChecked()
       expect(screen.getByRole('combobox', { name: 'Template' })).toHaveTextContent(
         'Entrevista MDR (Problema)'
       )
@@ -592,8 +604,9 @@ describe('CompanyDetailPage (entrevistas)', () => {
       const titleInput = await openCreateDialog(user)
       await user.type(titleInput, 'Entrevista en Beta')
       await selectDiscovery(user, 'Discovery Beta')
-      await user.click(screen.getByRole('combobox', { name: 'Contacto' }))
-      await user.click(await screen.findByRole('option', { name: 'Jane Doe' }))
+      // SPEC-046: el participante se marca en la lista de Checkbox
+      const participants = screen.getByTestId('interview-participants')
+      await user.click(within(participants).getByRole('checkbox', { name: /Jane Doe/ }))
       await user.click(screen.getByRole('combobox', { name: 'Template' }))
       await user.click(await screen.findByRole('option', { name: 'Entrevista MDR (Problema)' }))
       await user.click(screen.getByRole('button', { name: 'Crear' }))

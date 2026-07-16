@@ -257,6 +257,24 @@ describe('DiscoveryDetailPage', () => {
   })
 
   describe('interview groups listing (SPEC-045)', () => {
+    // SPEC-046 · AC-01: el nombre de la fila de grupo pasa a ser un Link al
+    // detalle del grupo (deroga el «no navegan» de SPEC-045); el resto de la
+    // fila y su menú ⋯ no cambian
+    it('renders each group name as a Link to /discoveries/:discoveryId/groups/:groupId keeping the row actions menu', async () => {
+      setTemplateCatalogs()
+      setGroups([GROUP_FOUNDERS])
+      renderAt('/discoveries/d-1')
+
+      const list = await screen.findByTestId('interview-groups-list')
+      expect(within(list).getByRole('link', { name: 'Founders early-stage' })).toHaveAttribute(
+        'href',
+        '/discoveries/d-1/groups/g-1'
+      )
+      // El resto de la fila (refs) y el menú ⋯ siguen presentes
+      expect(within(list).getByText('Guía Problema · Notas de entrevista')).toBeInTheDocument()
+      expect(within(list).getAllByTestId('group-row-actions')).toHaveLength(1)
+    })
+
     // SPEC-045 · AC-08
     it('renders each group row with its name, one-line truncated objective and the assigned template names', async () => {
       setTemplateCatalogs()
@@ -272,9 +290,7 @@ describe('DiscoveryDetailPage', () => {
       expect(within(list).getByText('Founders early-stage')).toBeInTheDocument()
       const objective = within(list).getByText('Detectar dolores reales en la validación')
       expect(objective).toHaveClass('truncate')
-      expect(
-        within(list).getByText('Guía Problema · Notas de entrevista')
-      ).toBeInTheDocument()
+      expect(within(list).getByText('Guía Problema · Notas de entrevista')).toBeInTheDocument()
 
       // Fila sin objetivo y sin templates → huecos muted "Sin template …"
       expect(within(list).getByText('Compradores B2B')).toBeInTheDocument()
@@ -425,9 +441,7 @@ describe('DiscoveryDetailPage', () => {
       await waitFor(() => expect(screen.queryByTestId('group-form-dialog')).not.toBeInTheDocument())
       const list = await screen.findByTestId('interview-groups-list')
       expect(within(list).getByText('Founders early-stage')).toBeInTheDocument()
-      expect(
-        within(list).getByText('Guía Problema · Notas de entrevista')
-      ).toBeInTheDocument()
+      expect(within(list).getByText('Guía Problema · Notas de entrevista')).toBeInTheDocument()
     })
   })
 
@@ -457,9 +471,9 @@ describe('DiscoveryDetailPage', () => {
       expect(
         within(dialog).getByRole('combobox', { name: 'Template de preguntas' })
       ).toHaveTextContent('Guía Problema (Problema)')
-      expect(
-        within(dialog).getByRole('combobox', { name: 'Template de notas' })
-      ).toHaveTextContent('Notas de entrevista')
+      expect(within(dialog).getByRole('combobox', { name: 'Template de notas' })).toHaveTextContent(
+        'Notas de entrevista'
+      )
 
       await user.clear(nameInput)
       await user.type(nameInput, 'Founders serie A')
