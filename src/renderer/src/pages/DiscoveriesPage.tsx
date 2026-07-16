@@ -34,23 +34,25 @@ function formatCreatedAt(iso: string): string {
 }
 
 /**
- * Sección Discoveries (SPEC-010): listado (List, no Table — 2 datos por ítem)
- * ordenado por updatedAt desc, con creación/renombrado en Dialog reutilizable,
- * eliminación con AlertDialog (consecuencia de cascada explícita, SPEC-006) y
- * menú de acciones ⋯ por fila. Los Dialogs viven a nivel de página, FUERA del
- * DropdownMenu, gobernados por pendingRename/pendingDelete; la apertura desde
- * onSelect se difiere con setTimeout(0) para que el cierre del menú no deje el
- * body con pointer-events:none (mitigador del plan, incidente conocido de
- * Radix dropdown → dialog).
+ * Sección Discoveries (SPEC-010; SPEC-045 añade los objetivos al Dialog y la
+ * cascada v3 al AlertDialog): listado (List, no Table — 2 datos por ítem)
+ * ordenado por updatedAt desc, con creación/edición en Dialog reutilizable
+ * (nombre + objetivos), eliminación con AlertDialog (consecuencia de cascada
+ * v3 explícita: grupos y entrevistas caen, empresas y contactos se conservan)
+ * y menú de acciones ⋯ por fila. Los Dialogs viven a nivel de página, FUERA
+ * del DropdownMenu, gobernados por pendingEdit/pendingDelete; la apertura
+ * desde onSelect se difiere con setTimeout(0) para que el cierre del menú no
+ * deje el body con pointer-events:none (mitigador del plan, incidente
+ * conocido de Radix dropdown → dialog).
  */
 export function DiscoveriesPage(): React.ReactElement {
-  const { state, reload, createDiscovery, renameDiscovery, removeDiscovery } = useDiscoveries()
+  const { state, reload, createDiscovery, updateDiscovery, removeDiscovery } = useDiscoveries()
   const [createOpen, setCreateOpen] = useState(false)
-  const [pendingRename, setPendingRename] = useState<Discovery | null>(null)
+  const [pendingEdit, setPendingEdit] = useState<Discovery | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Discovery | null>(null)
 
-  const openRename = (discovery: Discovery): void => {
-    setTimeout(() => setPendingRename(discovery), 0)
+  const openEdit = (discovery: Discovery): void => {
+    setTimeout(() => setPendingEdit(discovery), 0)
   }
 
   const openDelete = (discovery: Discovery): void => {
@@ -124,9 +126,9 @@ export function DiscoveriesPage(): React.ReactElement {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={() => openRename(discovery)}>
+                  <DropdownMenuItem onSelect={() => openEdit(discovery)}>
                     <Pencil />
-                    Renombrar
+                    Editar
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem variant="destructive" onSelect={() => openDelete(discovery)}>
@@ -149,17 +151,18 @@ export function DiscoveriesPage(): React.ReactElement {
       />
 
       <DiscoveryNameDialog
-        open={pendingRename !== null}
+        open={pendingEdit !== null}
         onOpenChange={(open) => {
           if (!open) {
-            setPendingRename(null)
+            setPendingEdit(null)
           }
         }}
-        title="Renombrar discovery"
+        title="Editar discovery"
         submitLabel="Guardar"
-        initialName={pendingRename?.name ?? ''}
-        onSubmit={(name) =>
-          pendingRename !== null ? renameDiscovery(pendingRename.id, name) : Promise.resolve(false)
+        initialName={pendingEdit?.name ?? ''}
+        initialObjectives={pendingEdit?.objectives ?? ''}
+        onSubmit={(values) =>
+          pendingEdit !== null ? updateDiscovery(pendingEdit.id, values) : Promise.resolve(false)
         }
       />
 
@@ -174,9 +177,11 @@ export function DiscoveriesPage(): React.ReactElement {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar discovery</AlertDialogTitle>
+            {/* Cascada v3 (SPEC-045, deroga SPEC-010): caen grupos y entrevistas
+                con sus notas; empresas y contactos son globales y se conservan. */}
             <AlertDialogDescription>
-              Se eliminarán permanentemente «{pendingDelete?.name ?? ''}» y todas sus empresas,
-              contactos, entrevistas y notas.
+              Se eliminarán permanentemente «{pendingDelete?.name ?? ''}», sus grupos y sus
+              entrevistas con sus notas. Las empresas y los contactos se conservarán.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

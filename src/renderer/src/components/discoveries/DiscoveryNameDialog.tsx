@@ -8,24 +8,29 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import type { DiscoveryFormValues } from '@/hooks/useDiscoveries'
 
 export interface DiscoveryNameDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  /** Título del Dialog ("Nuevo discovery" / "Renombrar discovery"). */
+  /** Título del Dialog ("Nuevo discovery" / "Editar discovery"). */
   title: string
   /** Texto del botón de envío ("Crear" / "Guardar"). */
   submitLabel: string
-  /** Nombre precargado (renombrado); '' para creación. */
+  /** Nombre precargado (edición); '' para creación. */
   initialName?: string
+  /** Objetivos precargados (edición); '' para creación o sin objetivos (SPEC-045). */
+  initialObjectives?: string
   /** Devuelve true si la mutación fue bien (cierra el Dialog); false lo mantiene abierto. */
-  onSubmit: (name: string) => Promise<boolean>
+  onSubmit: (values: DiscoveryFormValues) => Promise<boolean>
 }
 
 interface DiscoveryNameFormProps {
   submitLabel: string
   initialName: string
-  onSubmit: (name: string) => Promise<boolean>
+  initialObjectives: string
+  onSubmit: (values: DiscoveryFormValues) => Promise<boolean>
   onOpenChange: (open: boolean) => void
   inputRef: React.RefObject<HTMLInputElement | null>
 }
@@ -33,16 +38,18 @@ interface DiscoveryNameFormProps {
 /**
  * Formulario interno del Dialog: vive dentro de DialogContent, que Radix
  * desmonta al cerrar, así que cada apertura remonta el form con el estado
- * fresco (nombre precargado, sin error residual) sin necesidad de effects.
+ * fresco (campos precargados, sin error residual) sin necesidad de effects.
  */
 function DiscoveryNameForm({
   submitLabel,
   initialName,
+  initialObjectives,
   onSubmit,
   onOpenChange,
   inputRef
 }: DiscoveryNameFormProps): React.ReactElement {
   const [name, setName] = useState(initialName)
+  const [objectives, setObjectives] = useState(initialObjectives)
   const [showRequiredError, setShowRequiredError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -54,7 +61,11 @@ function DiscoveryNameForm({
       return
     }
     setSubmitting(true)
-    void onSubmit(trimmed).then((succeeded) => {
+    // Objetivos: texto tal cual salvo vacío/solo espacios → null (SPEC-045).
+    void onSubmit({
+      name: trimmed,
+      objectives: objectives.trim() === '' ? null : objectives
+    }).then((succeeded) => {
       setSubmitting(false)
       if (succeeded) {
         onOpenChange(false)
@@ -81,6 +92,19 @@ function DiscoveryNameForm({
         />
         {showRequiredError && <p className="text-sm text-destructive">Campo requerido</p>}
       </div>
+      <div className="flex flex-col gap-2">
+        <label htmlFor="discovery-objectives" className="text-sm font-medium">
+          Objetivos
+        </label>
+        <Textarea
+          id="discovery-objectives"
+          data-testid="discovery-objectives-textarea"
+          rows={4}
+          placeholder="¿Qué quieres aprender con este discovery?"
+          value={objectives}
+          onChange={(event) => setObjectives(event.target.value)}
+        />
+      </div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
           Cancelar
@@ -94,11 +118,12 @@ function DiscoveryNameForm({
 }
 
 /**
- * Dialog reutilizable de nombre de discovery (SPEC-010): crear y renombrar.
- * Form real (Enter = submit nativo), validación de vacío/solo espacios con
- * error inline "Campo requerido" sin pasar por el bridge, y foco + selección
- * del nombre al abrir vía onOpenAutoFocus (cubre el autofocus de creación,
- * la precarga seleccionada del renombrado y el robo de foco del DropdownMenu).
+ * Dialog reutilizable de discovery (SPEC-010; SPEC-045 añade el Textarea
+ * opcional "Objetivos"): crear y editar. Form real (Enter = submit nativo),
+ * validación de vacío/solo espacios con error inline "Campo requerido" sin
+ * pasar por el bridge, y foco + selección del nombre al abrir vía
+ * onOpenAutoFocus (cubre el autofocus de creación, la precarga seleccionada
+ * de la edición y el robo de foco del DropdownMenu).
  */
 export function DiscoveryNameDialog({
   open,
@@ -106,6 +131,7 @@ export function DiscoveryNameDialog({
   title,
   submitLabel,
   initialName = '',
+  initialObjectives = '',
   onSubmit
 }: DiscoveryNameDialogProps): React.ReactElement {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -123,9 +149,10 @@ export function DiscoveryNameDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <DiscoveryNameForm
-          key={`${String(open)}-${initialName}`}
+          key={`${String(open)}-${initialName}-${initialObjectives}`}
           submitLabel={submitLabel}
           initialName={initialName}
+          initialObjectives={initialObjectives}
           onSubmit={onSubmit}
           onOpenChange={onOpenChange}
           inputRef={inputRef}
