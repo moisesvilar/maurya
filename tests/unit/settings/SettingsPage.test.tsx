@@ -18,13 +18,15 @@ let mockApi: MockApiHandle
 const NOT_CONFIGURED: SecretsStatus = {
   available: true,
   deepgram: { configured: false, last4: null },
-  anthropic: { configured: false, last4: null }
+  anthropic: { configured: false, last4: null },
+  linkedinMcp: { configured: false, last4: null }
 }
 
 const DEEPGRAM_CONFIGURED: SecretsStatus = {
   available: true,
   deepgram: { configured: true, last4: 'abcd' },
-  anthropic: { configured: false, last4: null }
+  anthropic: { configured: false, last4: null },
+  linkedinMcp: { configured: false, last4: null }
 }
 
 function setStatus(status: SecretsStatus): void {
@@ -154,8 +156,9 @@ describe('SettingsPage', () => {
       expect(vi.mocked(mockApi.api.secrets.remove)).toHaveBeenCalledWith('deepgram')
       const toasts = await screen.findAllByText('Clave eliminada')
       expect(toasts.length).toBeGreaterThanOrEqual(1)
-      // Ambas filas quedan "No configurada" (Deepgram acaba de perder su clave)
-      expect(await screen.findAllByText('No configurada')).toHaveLength(2)
+      // Las tres filas de claves (Deepgram, Anthropic, token MCP) quedan
+      // "No configurada" (Deepgram acaba de perder la suya)
+      expect(await screen.findAllByText('No configurada')).toHaveLength(3)
       expect(screen.queryByText('····abcd')).not.toBeInTheDocument()
     })
   })
@@ -171,15 +174,18 @@ describe('SettingsPage', () => {
       expect(alert).toHaveTextContent('Cifrado no disponible')
       expect(alert).toHaveClass('text-destructive')
 
-      // SPEC-021 añadió la card "Coste de IA" con su propio Guardar (3 en
-      // total); el cifrado solo deshabilita los DOS de las filas de claves
-      // (el límite de coste no es un secreto y no depende de safeStorage)
+      // Además de las filas de claves hay Guardar de "Coste de IA" (SPEC-021)
+      // y de la URL del MCP de LinkedIn (5 en total); el cifrado solo
+      // deshabilita los TRES de las filas de claves (Deepgram, Anthropic y el
+      // token del MCP) — la URL del MCP y el límite de coste no son secretos
+      // y no dependen de safeStorage
       const saveButtons = screen.getAllByRole('button', { name: 'Guardar' })
-      expect(saveButtons).toHaveLength(3)
-      const keyRowButtons = saveButtons.filter(
-        (button) => button.closest('[data-testid="ai-cost-settings-card"]') === null
-      )
-      expect(keyRowButtons).toHaveLength(2)
+      expect(saveButtons).toHaveLength(5)
+      const keyRowButtons = saveButtons.filter((button) => {
+        const form = button.closest('form')
+        return form !== null && form.querySelector('input[type="password"]') !== null
+      })
+      expect(keyRowButtons).toHaveLength(3)
       keyRowButtons.forEach((button) => expect(button).toBeDisabled())
 
       // Lección Radix: el trigger real del Tooltip es el span envolvente (tabIndex 0)
@@ -203,7 +209,8 @@ describe('SettingsPage', () => {
 
       // SPEC-009 quitó el h1 "Ajustes" (título en el top bar): ancla = tab
       await screen.findByRole('tab', { name: 'Claves de IA' })
-      expect(container.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(2)
+      // Tres filas de claves en carga: Deepgram, Anthropic y token del MCP
+      expect(container.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(3)
       expect(screen.queryByText('No configurada')).not.toBeInTheDocument()
       expect(screen.queryByText('Configurada')).not.toBeInTheDocument()
     })

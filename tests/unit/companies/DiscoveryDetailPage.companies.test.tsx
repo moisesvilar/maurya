@@ -137,7 +137,8 @@ describe('DiscoveryDetailPage (empresas)', () => {
         discoveryId: 'd-1',
         name: 'Acme Corp',
         website: 'https://acme.example',
-        linkedinUrl: null
+        linkedinUrl: null,
+        context: null
       })
       const toasts = await screen.findAllByText('Empresa creada')
       expect(toasts.length).toBeGreaterThanOrEqual(1)
@@ -194,7 +195,8 @@ describe('DiscoveryDetailPage (empresas)', () => {
       expect(vi.mocked(mockApi.api.db.updateCompany)).toHaveBeenCalledWith('c-1', {
         name: 'Acme Corporation',
         website: 'https://acme.example',
-        linkedinUrl: 'https://linkedin.com/company/acme'
+        linkedinUrl: 'https://linkedin.com/company/acme',
+        context: null
       })
       const toasts = await screen.findAllByText('Cambios guardados')
       expect(toasts.length).toBeGreaterThanOrEqual(1)

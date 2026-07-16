@@ -6,6 +6,7 @@ import { AiCostCard } from '@/components/settings/AiCostCard'
 import { ApiKeyRow } from '@/components/settings/ApiKeyRow'
 import { AssistantSettingsCard } from '@/components/settings/AssistantSettingsCard'
 import { CustomPromptsTab } from '@/components/settings/CustomPromptsTab'
+import { LinkedinMcpCard } from '@/components/settings/LinkedinMcpCard'
 import { NoteTemplatesTab } from '@/components/settings/NoteTemplatesTab'
 import { useSecrets } from '@/hooks/useSecrets'
 
@@ -78,6 +79,13 @@ export function SettingsPage(): React.ReactElement {
               encryptionAvailable={encryptionAvailable}
               onSave={(value) => save('anthropic', value)}
               onRemove={() => remove('anthropic')}
+            />
+            {/* MCP de LinkedIn (Apify u otro): URL en db + token cifrado */}
+            <LinkedinMcpCard
+              tokenStatus={status?.linkedinMcp ?? null}
+              encryptionAvailable={encryptionAvailable}
+              onSaveToken={(value) => save('linkedinMcp', value)}
+              onRemoveToken={() => remove('linkedinMcp')}
             />
             {/* Límite de coste de IA por entrevista (SPEC-021), bajo las claves */}
             <AiCostCard />

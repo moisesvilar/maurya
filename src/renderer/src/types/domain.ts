@@ -25,6 +25,12 @@ export interface Company {
   name: string
   website: string | null
   linkedinUrl: string | null
+  /**
+   * Contexto de la empresa: texto libre del usuario y/o resumen generado con
+   * IA (web + LinkedIn). Opcional y sin bump de schemaVersion (patrón
+   * aiUsage): ausente en registros anteriores = sin contexto.
+   */
+  context?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -35,6 +41,12 @@ export interface Contact {
   name: string
   position: string | null
   linkedinUrl: string | null
+  /**
+   * Contexto del contacto: texto libre del usuario y/o resumen generado con
+   * IA desde LinkedIn. Opcional y sin bump de schemaVersion (patrón aiUsage):
+   * ausente en registros anteriores = sin contexto.
+   */
+  context?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -93,6 +105,16 @@ export interface AiCostSettings {
  */
 export interface AssistantSettings {
   queueSize: number
+}
+
+/**
+ * Ajustes del MCP de LinkedIn (p. ej. Apify), singleton en db.json (patrón
+ * aiCostSettings). `url` es el endpoint HTTP del servidor MCP; null = MCP no
+ * configurado (el enriquecimiento desde LinkedIn queda inerte). El token de
+ * autorización NO vive aquí: va cifrado en secrets.json (kind 'linkedinMcp').
+ */
+export interface LinkedinMcpSettings {
+  url: string | null
 }
 
 /**
@@ -262,12 +284,14 @@ export interface CreateCompanyInput {
   name: string
   website?: string | null
   linkedinUrl?: string | null
+  context?: string | null
 }
 
 export interface UpdateCompanyPatch {
   name?: string
   website?: string | null
   linkedinUrl?: string | null
+  context?: string | null
 }
 
 export interface CreateContactInput {
@@ -275,12 +299,14 @@ export interface CreateContactInput {
   name: string
   position?: string | null
   linkedinUrl?: string | null
+  context?: string | null
 }
 
 export interface UpdateContactPatch {
   name?: string
   position?: string | null
   linkedinUrl?: string | null
+  context?: string | null
 }
 
 export interface CreateInterviewTemplateInput {
@@ -450,6 +476,10 @@ export interface DbApi {
   /** Ajustes del asistente en vivo (SPEC-036): tamaño de la cola de preguntas. */
   getAssistantSettings: () => Promise<DbResult<AssistantSettings>>
   setAssistantSettings: (settings: AssistantSettings) => Promise<DbResult<AssistantSettings>>
+
+  /** Ajustes del MCP de LinkedIn: URL del servidor (el token va por api.secrets). */
+  getLinkedinMcpSettings: () => Promise<DbResult<LinkedinMcpSettings>>
+  setLinkedinMcpSettings: (settings: LinkedinMcpSettings) => Promise<DbResult<LinkedinMcpSettings>>
 
   /** Prompts de IA personalizables (SPEC-026): catálogo fijo con override→default. */
   listCustomPrompts: () => Promise<DbResult<CustomPrompt[]>>

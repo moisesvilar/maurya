@@ -76,6 +76,12 @@ interface MarkdownEditorProps {
   onChange: (markdown: string) => void
   ariaLabel: string
   testId: string
+  /**
+   * 'default' = página completa (guión/nota, SPEC-027); 'compact' = dentro de
+   * un Dialog (contexto de empresa/contacto): área editable más baja y scroll
+   * interno acotado para no desbordar el modal. Estable durante el montaje.
+   */
+  size?: 'default' | 'compact'
 }
 
 /**
@@ -91,7 +97,8 @@ export function MarkdownEditor({
   initialMarkdown,
   onChange,
   ariaLabel,
-  testId
+  testId,
+  size = 'default'
 }: MarkdownEditorProps): React.ReactElement {
   const editor = useEditor({
     extensions: [StarterKit, Markdown],
@@ -100,7 +107,10 @@ export function MarkdownEditor({
     onUpdate: ({ editor: current }) => onChange(current.getMarkdown()),
     editorProps: {
       attributes: {
-        class: 'markdown-content min-h-[336px] p-4 focus:outline-none',
+        class: cn(
+          'markdown-content p-4 focus:outline-none',
+          size === 'compact' ? 'min-h-[160px]' : 'min-h-[336px]'
+        ),
         role: 'textbox',
         'aria-multiline': 'true',
         'aria-label': ariaLabel
@@ -157,7 +167,7 @@ export function MarkdownEditor({
           )
         })}
       </div>
-      <div className="max-h-[70vh] overflow-y-auto">
+      <div className={cn('overflow-y-auto', size === 'compact' ? 'max-h-[45vh]' : 'max-h-[70vh]')}>
         <EditorContent editor={editor} />
       </div>
     </div>

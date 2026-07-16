@@ -13,6 +13,7 @@ import type {
   Discovery,
   Interview,
   InterviewTemplate,
+  LinkedinMcpSettings,
   Note,
   NoteTemplate
 } from '../../renderer/src/types/domain'
@@ -47,6 +48,12 @@ export interface DbData {
    * y persist lo conserva). La lectura se normaliza en el repositorio.
    */
   customPrompts?: CustomPromptOverride[]
+  /**
+   * Ajustes del MCP de LinkedIn: singleton opcional, sin bump de
+   * schemaVersion (ausente = MCP no configurado; isDbData lo tolera y persist
+   * lo conserva). La lectura se normaliza defensivamente en el repositorio.
+   */
+  linkedinMcpSettings?: LinkedinMcpSettings
 }
 
 /** v2 (SPEC-020): Interview gana discoveryId obligatorio y companyId nullable. */

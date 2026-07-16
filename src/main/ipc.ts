@@ -35,6 +35,11 @@ import {
 } from './secretsService'
 import { generateInterviewScript, getLlmStatus, toLlmError } from './llmService'
 import {
+  generateCompanyContext,
+  generateContactContext,
+  getContextCapabilities
+} from './contextService'
+import {
   exportInterviewDocument,
   generateInterviewNote,
   readTranscriptLines,
@@ -144,6 +149,15 @@ export function registerIpcHandlers(): void {
   handleLlm('llm:auto-generate-script', (interviewId: string) => {
     autoGenerateInterviewScript(interviewId)
   })
+  // Contexto de empresas y contactos: capacidades (clave + MCP de LinkedIn)
+  // y generación con persistencia en main; mismo envelope LlmResult.
+  handleLlm('llm:get-context-capabilities', getContextCapabilities)
+  handleLlm('llm:generate-company-context', (companyId: string) =>
+    generateCompanyContext(companyId)
+  )
+  handleLlm('llm:generate-contact-context', (contactId: string) =>
+    generateContactContext(contactId)
+  )
 
   /**
    * Exportación a Markdown (SPEC-017): handler ad-hoc (no handleLlm) porque el

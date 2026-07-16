@@ -13,6 +13,7 @@ export interface ContactFormValues {
   name: string
   position: string | null
   linkedinUrl: string | null
+  context: string | null
 }
 
 export interface UseContactsResult {
@@ -23,6 +24,8 @@ export interface UseContactsResult {
   updateContact: (id: string, values: ContactFormValues) => Promise<boolean>
   /** Elimina un contacto (sin cascada: mensaje simple). */
   removeContact: (id: string) => Promise<void>
+  /** Genera el contexto del contacto desde LinkedIn (vía MCP) y refresca la fila. */
+  generateContext: (id: string) => Promise<void>
 }
 
 /** Orden del listado: por fecha de alta ascendente (ISO comparable). */
@@ -92,6 +95,23 @@ export function useContacts(companyId: string): UseContactsResult {
     []
   )
 
+  const generateContext = useCallback(async (id: string): Promise<void> => {
+    const result = await window.api.llm.generateContactContext(id)
+    if (!result.ok) {
+      toast.error(result.error.message)
+      return
+    }
+    setState((prev) =>
+      prev.status === 'ready'
+        ? {
+            status: 'ready',
+            contacts: prev.contacts.map((contact) => (contact.id === id ? result.data : contact))
+          }
+        : prev
+    )
+    toast('Contexto del contacto generado')
+  }, [])
+
   const removeContact = useCallback(async (id: string): Promise<void> => {
     const result = await window.api.db.deleteContact(id)
     if (!result.ok) {
@@ -106,5 +126,5 @@ export function useContacts(companyId: string): UseContactsResult {
     toast('Contacto eliminado')
   }, [])
 
-  return { state, createContact, updateContact, removeContact }
+  return { state, createContact, updateContact, removeContact, generateContext }
 }

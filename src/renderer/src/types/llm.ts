@@ -1,4 +1,4 @@
-import type { Interview, Note } from './domain'
+import type { Company, Contact, Interview, Note } from './domain'
 
 /**
  * Tipos del bridge LLM (SPEC-014): generación de guión y objetivos con Claude;
@@ -9,7 +9,15 @@ import type { Interview, Note } from './domain'
  */
 
 export type LlmErrorKind =
-  'no-key' | 'no-template' | 'no-transcript' | 'auth' | 'rate-limit' | 'connection' | 'format'
+  | 'no-key'
+  | 'no-template'
+  | 'no-transcript'
+  /** Generación de contexto: no hay fuente utilizable (web / LinkedIn+MCP). */
+  | 'no-source'
+  | 'auth'
+  | 'rate-limit'
+  | 'connection'
+  | 'format'
 
 export interface LlmError {
   kind: LlmErrorKind
@@ -26,6 +34,17 @@ export type LlmResult<T> = { ok: true; data: T } | { ok: false; error: LlmError 
 /** Estado consultable por pull (`llm:get-status`): si hay clave resoluble en main. */
 export interface LlmStatus {
   hasAnthropicKey: boolean
+}
+
+/**
+ * Capacidades de la generación de contexto (`llm:get-context-capabilities`):
+ * si hay clave de Anthropic resoluble y si el MCP de LinkedIn está
+ * configurado (URL en Ajustes). La UI las usa para habilitar los botones
+ * "Generar contexto" sin conocer secretos.
+ */
+export interface ContextCapabilities {
+  hasAnthropicKey: boolean
+  linkedinMcpConfigured: boolean
 }
 
 /**
@@ -63,6 +82,18 @@ export type ScriptGenerationEvent =
 /** API expuesta por el preload en `window.api.llm`. */
 export interface LlmApi {
   getStatus: () => Promise<LlmResult<LlmStatus>>
+  /** Capacidades de la generación de contexto (clave + MCP de LinkedIn). */
+  getContextCapabilities: () => Promise<LlmResult<ContextCapabilities>>
+  /**
+   * Genera el contexto de la empresa (scraping de la web y/o LinkedIn vía
+   * MCP + resumen con Claude) y lo persiste en `company.context`.
+   */
+  generateCompanyContext: (companyId: string) => Promise<LlmResult<Company>>
+  /**
+   * Genera el contexto del contacto desde LinkedIn (solo con MCP configurado
+   * y linkedinUrl del contacto) y lo persiste en `contact.context`.
+   */
+  generateContactContext: (contactId: string) => Promise<LlmResult<Contact>>
   generateScript: (interviewId: string) => Promise<LlmResult<Interview>>
   /** Genera la nota de resumen según el note-template (SPEC-017). */
   generateNote: (

@@ -92,6 +92,11 @@ const db: DbApi = {
   getAssistantSettings: () => ipcRenderer.invoke('db:assistant-settings:get'),
   setAssistantSettings: (settings) => ipcRenderer.invoke('db:assistant-settings:set', settings),
 
+  // Ajustes del MCP de LinkedIn: URL del servidor (el token va por api.secrets).
+  getLinkedinMcpSettings: () => ipcRenderer.invoke('db:linkedin-mcp-settings:get'),
+  setLinkedinMcpSettings: (settings) =>
+    ipcRenderer.invoke('db:linkedin-mcp-settings:set', settings),
+
   // Prompts de IA personalizables (SPEC-026): catálogo fijo, override→default.
   listCustomPrompts: () => ipcRenderer.invoke('db:custom-prompt:list'),
   saveCustomPrompt: (id, body) => ipcRenderer.invoke('db:custom-prompt:save', id, body),
@@ -116,6 +121,13 @@ const secrets: SecretsApi = {
  */
 const llm: LlmApi = {
   getStatus: () => ipcRenderer.invoke('llm:get-status'),
+  // Contexto de empresas/contactos: capacidades y generación (web + LinkedIn
+  // vía MCP); el token del MCP jamás cruza el bridge.
+  getContextCapabilities: () => ipcRenderer.invoke('llm:get-context-capabilities'),
+  generateCompanyContext: (companyId) =>
+    ipcRenderer.invoke('llm:generate-company-context', companyId),
+  generateContactContext: (contactId) =>
+    ipcRenderer.invoke('llm:generate-contact-context', contactId),
   generateScript: (interviewId) => ipcRenderer.invoke('llm:generate-script', interviewId),
   generateNote: (interviewId, noteTemplateId) =>
     ipcRenderer.invoke('llm:generate-note', interviewId, noteTemplateId),

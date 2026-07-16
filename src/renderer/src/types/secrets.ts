@@ -8,8 +8,12 @@
  * `save` y main lo persiste cifrado con safeStorage.
  */
 
-/** Proveedores de IA cuya clave gestiona la página de Ajustes. */
-export type SecretKind = 'deepgram' | 'anthropic'
+/**
+ * Proveedores cuya clave gestiona la página de Ajustes. 'linkedinMcp' es el
+ * token de autorización del servidor MCP de LinkedIn (p. ej. Apify); su URL
+ * (que no es secreto) vive en db.json como LinkedinMcpSettings.
+ */
+export type SecretKind = 'deepgram' | 'anthropic' | 'linkedinMcp'
 
 /** Estado visible de una clave: nunca incluye el valor, solo sus últimos 4. */
 export interface KeyStatus {
@@ -23,6 +27,7 @@ export interface SecretsStatus {
   available: boolean
   deepgram: KeyStatus
   anthropic: KeyStatus
+  linkedinMcp: KeyStatus
 }
 
 export type SecretsErrorKind = 'validation' | 'encryption-unavailable' | 'storage'
