@@ -69,7 +69,6 @@ let mockApi: MockApiHandle
 
 const COMPANY: Company = {
   id: 'c-1',
-  discoveryId: 'd-1',
   name: 'Acme Corp',
   website: null,
   linkedinUrl: null,
@@ -83,7 +82,8 @@ function interview(overrides: Partial<Interview> = {}): Interview {
     // SPEC-020 (schema v2): toda entrevista ancla su discovery directamente.
     discoveryId: 'd-1',
     companyId: 'c-1',
-    contactId: null,
+    contactIds: [],
+    interviewGroupId: null,
     templateId: null,
     title: 'Discovery con Acme',
     status: 'draft',
@@ -140,10 +140,9 @@ function renderDetail(): RenderResult {
     <TooltipProvider>
       <MemoryRouter initialEntries={['/discoveries/d-1/companies/c-1/interviews/i-1']}>
         <Routes>
-          <Route
-            path="/discoveries/:discoveryId/companies/:companyId"
-            element={<CompanyDetailPage />}
-          />
+          {/* SPEC-048: el back «Volver» de una entrevista sin grupo navega al
+              detalle GLOBAL de la empresa (deroga la ruta anidada de SPEC-013) */}
+          <Route path="/companies/:companyId" element={<CompanyDetailPage />} />
           <Route
             path="/discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
             element={<InterviewDetailPage />}

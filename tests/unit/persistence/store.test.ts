@@ -41,7 +41,6 @@ describe('store', () => {
     it('keeps every entity intact after re-initializing the store from disk', () => {
       const discovery = createDiscovery({ name: 'Discovery Maurya' })
       const company = createCompany({
-        discoveryId: discovery.id,
         name: 'Acme Corp',
         website: 'https://acme.example',
         linkedinUrl: null

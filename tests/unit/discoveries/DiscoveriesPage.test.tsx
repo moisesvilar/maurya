@@ -1,8 +1,13 @@
 /**
- * Tests de la sección Discoveries (SPEC-010, AC-01..AC-14 y AC-18). Frontera
- * de mocking: api.db del bridge. Rutas reales en MemoryRouter (listado +
- * detalle) con Toaster para los toasts de mutación.
- * Notas del dev aplicadas: los dialogs de renombrar/eliminar se abren con
+ * Tests de la sección Discoveries (SPEC-010, AC-01..AC-14 y AC-18; adaptados
+ * por SPEC-045 AC-01..AC-04 — evolución presupuestada, deroga parcialmente
+ * SPEC-010): el Dialog gana el Textarea opcional «Objetivos», la firma del
+ * bridge pasa a createDiscovery({ name, objectives })/updateDiscovery(id,
+ * values), el ítem de menú «Renombrar» pasa a «Editar» y el AlertDialog
+ * describe la cascada v3 (caen grupos y entrevistas con sus notas; empresas y
+ * contactos se conservan). Frontera de mocking: api.db del bridge. Rutas
+ * reales en MemoryRouter (listado + detalle) con Toaster para los toasts.
+ * Notas del dev aplicadas: los dialogs de editar/eliminar se abren con
  * setTimeout(0) desde el menú → findBy*; el form es real (Enter = submit);
  * durante un dialog modal Radix pone body pointer-events:none (normal).
  */
@@ -19,15 +24,22 @@ import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
 
 let mockApi: MockApiHandle
 
-function discovery(id: string, name: string, createdAt: string, updatedAt: string): Discovery {
-  return { id, name, createdAt, updatedAt }
+function discovery(
+  id: string,
+  name: string,
+  createdAt: string,
+  updatedAt: string,
+  objectives: string | null = null
+): Discovery {
+  return { id, name, objectives, createdAt, updatedAt }
 }
 
 const OLD_DISCOVERY = discovery(
   'd-old',
   'Discovery antiguo',
   '2026-07-01T12:00:00.000Z',
-  '2026-07-01T12:00:00.000Z'
+  '2026-07-01T12:00:00.000Z',
+  'Entender cómo validan los founders'
 )
 const RECENT_DISCOVERY = discovery(
   'd-new',
@@ -64,7 +76,7 @@ async function openCreateDialog(user: ReturnType<typeof userEvent.setup>): Promi
 /** Abre una acción del menú ⋯ de la primera fila (los dialogs abren con setTimeout(0)). */
 async function openRowAction(
   user: ReturnType<typeof userEvent.setup>,
-  action: 'Renombrar' | 'Eliminar'
+  action: 'Editar' | 'Eliminar'
 ): Promise<void> {
   await user.click((await screen.findAllByRole('button', { name: 'Acciones' }))[0])
   await user.click(await screen.findByRole('menuitem', { name: action }))
@@ -146,8 +158,8 @@ describe('DiscoveriesPage', () => {
   })
 
   describe('creation', () => {
-    // SPEC-010 · AC-06
-    it('opens the "Nuevo discovery" dialog with the focus on the Nombre field', async () => {
+    // SPEC-010 · AC-06 (+ SPEC-045 · AC-01: el Dialog gana el Textarea "Objetivos" opcional)
+    it('opens the "Nuevo discovery" dialog with the focus on Nombre and the optional Objetivos textarea', async () => {
       const user = userEvent.setup()
       renderAt('/discoveries')
 
@@ -157,9 +169,43 @@ describe('DiscoveriesPage', () => {
       expect(within(dialog).getByRole('heading', { name: 'Nuevo discovery' })).toBeInTheDocument()
       expect(input).toHaveAttribute('placeholder', 'Discovery de Maurya')
       expect(document.activeElement).toBe(input)
+      // SPEC-045 · AC-01: campo Objetivos (Textarea opcional) bajo el Nombre
+      const objectives = within(dialog).getByLabelText('Objetivos')
+      expect(objectives).toBe(within(dialog).getByTestId('discovery-objectives-textarea'))
+      expect(objectives).toHaveAttribute('placeholder', '¿Qué quieres aprender con este discovery?')
     })
 
-    // SPEC-010 · AC-07 (envío con click en "Crear")
+    // SPEC-045 · AC-01 (deroga la firma de SPEC-010 AC-07: el bridge recibe { name, objectives })
+    it('creates with name and objectives, persists both, closes the dialog and shows the toast', async () => {
+      const user = userEvent.setup()
+      vi.mocked(mockApi.api.db.createDiscovery).mockResolvedValue({
+        ok: true,
+        data: discovery(
+          'd-obj',
+          'Discovery con objetivos',
+          '2026-07-16T10:00:00.000Z',
+          '2026-07-16T10:00:00.000Z',
+          'Aprender por qué no cierran'
+        )
+      })
+      renderAt('/discoveries')
+
+      const input = await openCreateDialog(user)
+      await user.type(input, 'Discovery con objetivos')
+      await user.type(screen.getByLabelText('Objetivos'), 'Aprender por qué no cierran')
+      await user.click(screen.getByRole('button', { name: 'Crear' }))
+
+      expect(vi.mocked(mockApi.api.db.createDiscovery)).toHaveBeenCalledWith({
+        name: 'Discovery con objetivos',
+        objectives: 'Aprender por qué no cierran'
+      })
+      const toasts = await screen.findAllByText('Discovery creado')
+      expect(toasts.length).toBeGreaterThanOrEqual(1)
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      expect(screen.getByRole('link', { name: 'Discovery con objetivos' })).toBeInTheDocument()
+    })
+
+    // SPEC-010 · AC-07 (envío con click en "Crear"; SPEC-045: objetivos vacíos viajan como null)
     it('creates on "Crear" click, closes the dialog, shows the toast and lists the new discovery on top', async () => {
       const user = userEvent.setup()
       setDiscoveries([OLD_DISCOVERY])
@@ -174,7 +220,8 @@ describe('DiscoveriesPage', () => {
       await user.click(screen.getByRole('button', { name: 'Crear' }))
 
       expect(vi.mocked(mockApi.api.db.createDiscovery)).toHaveBeenCalledWith({
-        name: 'Discovery reciente'
+        name: 'Discovery reciente',
+        objectives: null
       })
       const toasts = await screen.findAllByText('Discovery creado')
       expect(toasts.length).toBeGreaterThanOrEqual(1)
@@ -197,12 +244,13 @@ describe('DiscoveriesPage', () => {
       await user.type(input, 'Discovery reciente{Enter}')
 
       expect(vi.mocked(mockApi.api.db.createDiscovery)).toHaveBeenCalledWith({
-        name: 'Discovery reciente'
+        name: 'Discovery reciente',
+        objectives: null
       })
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     })
 
-    // SPEC-010 · AC-08
+    // SPEC-010 · AC-08 (= SPEC-045 · AC-02: nombre vacío → error inline sin crear nada)
     it('shows the inline "Campo requerido" error for empty or whitespace-only names without calling the bridge', async () => {
       const user = userEvent.setup()
       renderAt('/discoveries')
@@ -239,29 +287,31 @@ describe('DiscoveriesPage', () => {
     })
   })
 
-  describe('renaming', () => {
-    // SPEC-010 · AC-10
-    it('opens the "Renombrar discovery" dialog with the current name preloaded and selected', async () => {
+  // SPEC-045 · AC-03 (deroga el "Renombrar" de SPEC-010 AC-10..AC-12: el ítem
+  // pasa a «Editar» y el Dialog precarga nombre + objetivos)
+  describe('editing', () => {
+    // SPEC-010 · AC-10 adaptado + SPEC-045 · AC-03 (precarga de objetivos)
+    it('opens the "Editar discovery" dialog with the name preloaded and selected and the objectives preloaded', async () => {
       const user = userEvent.setup()
       setDiscoveries([OLD_DISCOVERY])
       renderAt('/discoveries')
 
-      await openRowAction(user, 'Renombrar')
+      await openRowAction(user, 'Editar')
 
       const dialog = await screen.findByRole('dialog')
-      expect(
-        within(dialog).getByRole('heading', { name: 'Renombrar discovery' })
-      ).toBeInTheDocument()
+      expect(within(dialog).getByRole('heading', { name: 'Editar discovery' })).toBeInTheDocument()
       const input = screen.getByLabelText('Nombre') as HTMLInputElement
       expect(input).toHaveValue('Discovery antiguo')
       expect(document.activeElement).toBe(input)
       // Texto seleccionado por completo (se puede sobrescribir tecleando)
       expect(input.selectionStart).toBe(0)
       expect(input.selectionEnd).toBe('Discovery antiguo'.length)
+      // SPEC-045 · AC-03: los objetivos actuales precargados en el Textarea
+      expect(screen.getByLabelText('Objetivos')).toHaveValue('Entender cómo validan los founders')
     })
 
-    // SPEC-010 · AC-11
-    it('renames on "Guardar", shows the toast and updates the list', async () => {
+    // SPEC-010 · AC-11 adaptado + SPEC-045 · AC-03 (guarda nombre + objetivos con Toast)
+    it('saves the edited name and objectives on "Guardar", shows the toast and updates the list', async () => {
       const user = userEvent.setup()
       setDiscoveries([OLD_DISCOVERY])
       vi.mocked(mockApi.api.db.updateDiscovery).mockResolvedValue({
@@ -269,33 +319,39 @@ describe('DiscoveriesPage', () => {
         data: {
           ...OLD_DISCOVERY,
           name: 'Discovery renombrado',
+          objectives: 'Objetivos revisados',
           updatedAt: '2026-07-04T10:00:00.000Z'
         }
       })
       renderAt('/discoveries')
 
-      await openRowAction(user, 'Renombrar')
+      await openRowAction(user, 'Editar')
       const input = (await screen.findByLabelText('Nombre')) as HTMLInputElement
+      await waitFor(() => expect(input).toHaveFocus())
       await user.clear(input)
       await user.type(input, 'Discovery renombrado')
+      const objectives = screen.getByLabelText('Objetivos')
+      await user.clear(objectives)
+      await user.type(objectives, 'Objetivos revisados')
       await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
       expect(vi.mocked(mockApi.api.db.updateDiscovery)).toHaveBeenCalledWith('d-old', {
-        name: 'Discovery renombrado'
+        name: 'Discovery renombrado',
+        objectives: 'Objetivos revisados'
       })
-      const toasts = await screen.findAllByText('Discovery renombrado')
+      const toasts = await screen.findAllByText('Cambios guardados')
       expect(toasts.length).toBeGreaterThanOrEqual(1)
       expect(await screen.findByRole('link', { name: 'Discovery renombrado' })).toBeInTheDocument()
       expect(screen.queryByRole('link', { name: 'Discovery antiguo' })).not.toBeInTheDocument()
     })
 
-    // SPEC-010 · AC-12
-    it('shows the inline "Campo requerido" error when renaming to empty without calling the bridge', async () => {
+    // SPEC-010 · AC-12 adaptado (validación intacta en la edición)
+    it('shows the inline "Campo requerido" error when editing to an empty name without calling the bridge', async () => {
       const user = userEvent.setup()
       setDiscoveries([OLD_DISCOVERY])
       renderAt('/discoveries')
 
-      await openRowAction(user, 'Renombrar')
+      await openRowAction(user, 'Editar')
       const input = await screen.findByLabelText('Nombre')
       await user.clear(input)
       await user.click(screen.getByRole('button', { name: 'Guardar' }))
@@ -306,8 +362,10 @@ describe('DiscoveriesPage', () => {
   })
 
   describe('deletion', () => {
-    // SPEC-010 · AC-13
-    it('opens the "Eliminar discovery" AlertDialog warning about the full cascade with the name', async () => {
+    // SPEC-010 · AC-13 adaptado por SPEC-045 · AC-04 (deroga el texto de la
+    // cascada de SPEC-010: v3 = caen grupos y entrevistas con sus notas;
+    // empresas y contactos se conservan)
+    it('opens the "Eliminar discovery" AlertDialog describing the v3 cascade with the name', async () => {
       const user = userEvent.setup()
       setDiscoveries([OLD_DISCOVERY])
       renderAt('/discoveries')
@@ -320,7 +378,7 @@ describe('DiscoveriesPage', () => {
       ).toBeInTheDocument()
       expect(
         within(dialog).getByText(
-          /Se eliminarán permanentemente «Discovery antiguo» y todas sus empresas, contactos, entrevistas y notas\./
+          /Se eliminarán permanentemente «Discovery antiguo», sus grupos y sus entrevistas con sus notas\. Las empresas y los contactos se conservarán\./
         )
       ).toBeInTheDocument()
       expect(within(dialog).getByRole('button', { name: 'Cancelar' })).toBeInTheDocument()
@@ -328,7 +386,7 @@ describe('DiscoveriesPage', () => {
       expect(vi.mocked(mockApi.api.db.deleteDiscovery)).not.toHaveBeenCalled()
     })
 
-    // SPEC-010 · AC-14
+    // SPEC-010 · AC-14 (+ SPEC-045 · AC-04: confirmar elimina con Toast)
     it('removes the row and shows the "Discovery eliminado" toast after confirming', async () => {
       const user = userEvent.setup()
       setDiscoveries([OLD_DISCOVERY, RECENT_DISCOVERY])

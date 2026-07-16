@@ -55,18 +55,23 @@ describe('searchGlobal (SPEC-020 capturas)', () => {
     const now = '2026-07-01T09:00:00.000Z'
     writeFileSync(
       join(baseDir, 'db.json'),
+      // SPEC-043 (schema v3): empresas globales, contactIds e interviewGroups
       JSON.stringify({
-        schemaVersion: 2,
-        discoveries: [{ id: 'd-1', name: 'Vertical Sanidad', createdAt: now, updatedAt: now }],
+        schemaVersion: 3,
+        discoveries: [
+          { id: 'd-1', name: 'Vertical Sanidad', objectives: null, createdAt: now, updatedAt: now }
+        ],
         companies: [],
         contacts: [],
         interviewTemplates: [],
+        interviewGroups: [],
         interviews: [
           {
             id: 'i-broken',
             discoveryId: 'd-1',
             companyId: 'c-ghost',
-            contactId: null,
+            contactIds: [],
+            interviewGroupId: null,
             templateId: null,
             title: 'Entrevista con empresa rota',
             status: 'draft',

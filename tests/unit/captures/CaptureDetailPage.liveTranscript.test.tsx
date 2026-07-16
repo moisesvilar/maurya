@@ -75,6 +75,7 @@ let mockApi: MockApiHandle
 const DISCOVERY: Discovery = {
   id: 'd-1',
   name: 'Vertical Sanidad',
+  objectives: null,
   createdAt: '2026-07-01T09:00:00.000Z',
   updatedAt: '2026-07-01T09:00:00.000Z'
 }
@@ -84,7 +85,8 @@ function capture(overrides: Partial<Interview> = {}): Interview {
     id: 'i-1',
     discoveryId: 'd-1',
     companyId: null,
-    contactId: null,
+    contactIds: [],
+    interviewGroupId: null,
     templateId: null,
     title: 'Captura sin empresa',
     status: 'draft',

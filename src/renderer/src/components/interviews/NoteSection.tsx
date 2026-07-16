@@ -66,6 +66,8 @@ interface NoteSectionProps {
  * SPEC-035: el estado vacío «Graba la entrevista para poder generar la
  * nota.» (SPEC-017) queda derogado — sin nota y sin transcripción esta
  * sección ya ni se monta (NoteScriptSections), así que la rama se eliminó.
+ * SPEC-047: si la entrevista pertenece a un grupo con template de notas, ese
+ * template es la preselección del Select (la elección manual sigue mandando).
  */
 export function NoteSection({
   interview,
@@ -76,6 +78,7 @@ export function NoteSection({
   const [noteState, setNoteState] = useState<NoteState>({ status: 'loading' })
   const { state: templatesState } = useNoteTemplates()
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [groupNoteTemplateId, setGroupNoteTemplateId] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [generationError, setGenerationError] = useState<string | null>(null)
   // null = prístino: el editor no ha recibido ninguna edición real desde el
@@ -108,15 +111,37 @@ export function NoteSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interview.id])
 
+  // SPEC-047: template de notas del grupo como preselección. Sin grupo (p. ej.
+  // capturas) no hay llamada extra; el reset vía microtask respeta
+  // react-hooks/set-state-in-effect. Envelope con fallo o grupo borrado → null
+  // (se degrada al primer template, comportamiento SPEC-017).
+  useEffect(() => {
+    const groupId = interview.interviewGroupId
+    if (groupId === null) {
+      void Promise.resolve().then(() => setGroupNoteTemplateId(null))
+      return
+    }
+    void window.api.db.getInterviewGroup(groupId).then((result) => {
+      setGroupNoteTemplateId(result.ok ? result.data.noteTemplateId : null)
+    })
+  }, [interview.interviewGroupId])
+
   const hasTranscript = interview.transcriptPath !== null
   const note = noteState.status === 'ready' ? noteState.note : null
   const templates = templatesState.status === 'ready' ? templatesState.templates : []
   const hasTemplates = templates.length > 0
-  /** Template efectivo: el elegido o, por defecto, el primero del listado. */
+  /**
+   * Template efectivo: el elegido manualmente; si no hay elección, el template
+   * de notas del grupo de la entrevista (SPEC-047) cuando resuelve en la lista;
+   * en su defecto, el primero del listado (SPEC-017).
+   */
   const effectiveTemplateId =
     selectedTemplateId !== '' && templates.some((template) => template.id === selectedTemplateId)
       ? selectedTemplateId
-      : (templates[0]?.id ?? '')
+      : groupNoteTemplateId !== null &&
+          templates.some((template) => template.id === groupNoteTemplateId)
+        ? groupNoteTemplateId
+        : (templates[0]?.id ?? '')
   const canGenerate = hasTranscript && hasTemplates && keyStatus === 'ok' && !generating
 
   const dirty = note !== null && draft !== null && draft !== note.contentMarkdown

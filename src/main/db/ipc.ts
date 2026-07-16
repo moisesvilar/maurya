@@ -54,6 +54,13 @@ export function registerDbIpcHandlers(): void {
   handleDb('db:interview-template:update', repository.updateInterviewTemplate)
   handleDb('db:interview-template:delete', repository.deleteInterviewTemplate)
 
+  // Grupos de entrevistas (SPEC-043): CRUD con envelope DbResult.
+  handleDb('db:interview-group:create', repository.createInterviewGroup)
+  handleDb('db:interview-group:list', repository.listInterviewGroups)
+  handleDb('db:interview-group:get', repository.getInterviewGroup)
+  handleDb('db:interview-group:update', repository.updateInterviewGroup)
+  handleDb('db:interview-group:delete', repository.deleteInterviewGroup)
+
   handleDb('db:interview:create', repository.createInterview)
   handleDb('db:interview:list', repository.listInterviews)
   handleDb('db:interview:get', repository.getInterview)

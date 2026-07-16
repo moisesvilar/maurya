@@ -21,6 +21,8 @@ let mockApi: MockApiHandle
 /** Un hit de captura sin empresa y otro con empresa (contraste de contexto). */
 const RESULTS: SearchResults = {
   discoveries: [],
+  // SPEC-048: SearchResults gana `groups` (grupos de entrevistas)
+  groups: [],
   companies: [],
   contacts: [],
   interviews: [

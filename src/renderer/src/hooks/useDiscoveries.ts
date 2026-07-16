@@ -8,14 +8,20 @@ export type DiscoveriesState =
   | { status: 'error'; message: string }
   | { status: 'ready'; discoveries: Discovery[] }
 
+/** Valores del formulario de discovery ya normalizados ('' → null, SPEC-045). */
+export interface DiscoveryFormValues {
+  name: string
+  objectives: string | null
+}
+
 export interface UseDiscoveriesResult {
   state: DiscoveriesState
   /** Reintenta la carga (botón "Reintentar" del error state). */
   reload: () => void
   /** Crea un discovery; devuelve true si se creó (para cerrar el Dialog). */
-  createDiscovery: (name: string) => Promise<boolean>
-  /** Renombra un discovery; devuelve true si se guardó (para cerrar el Dialog). */
-  renameDiscovery: (id: string, name: string) => Promise<boolean>
+  createDiscovery: (values: DiscoveryFormValues) => Promise<boolean>
+  /** Edita un discovery (nombre + objetivos, SPEC-045); true si se guardó. */
+  updateDiscovery: (id: string, values: DiscoveryFormValues) => Promise<boolean>
   /** Elimina un discovery (cascada en main, SPEC-006). */
   removeDiscovery: (id: string) => Promise<void>
 }
@@ -26,11 +32,12 @@ function sortByUpdatedAtDesc(discoveries: Discovery[]): Discovery[] {
 }
 
 /**
- * Listado y CRUD de discoveries (SPEC-010). Persistencia exclusiva vía
- * `api.db.*Discovery` (SPEC-006): las promesas nunca se rechazan, los fallos
- * viajan como `{ ok: false, error }` y se mapean a error state (listar) o
- * Toast destructive (mutaciones). El orden es por `updatedAt` desc, siempre
- * con el objeto devuelto por el bridge (que trae el `updatedAt` fresco).
+ * Listado y CRUD de discoveries (SPEC-010; SPEC-045 añade `objectives` a
+ * crear/editar). Persistencia exclusiva vía `api.db.*Discovery` (SPEC-006):
+ * las promesas nunca se rechazan, los fallos viajan como `{ ok: false, error }`
+ * y se mapean a error state (listar) o Toast destructive (mutaciones). El
+ * orden es por `updatedAt` desc, siempre con el objeto devuelto por el bridge
+ * (que trae el `updatedAt` fresco).
  */
 export function useDiscoveries(): UseDiscoveriesResult {
   const [state, setState] = useState<DiscoveriesState>({ status: 'loading' })
@@ -57,8 +64,8 @@ export function useDiscoveries(): UseDiscoveriesResult {
     load()
   }, [load])
 
-  const createDiscovery = useCallback(async (name: string): Promise<boolean> => {
-    const result = await window.api.db.createDiscovery({ name })
+  const createDiscovery = useCallback(async (values: DiscoveryFormValues): Promise<boolean> => {
+    const result = await window.api.db.createDiscovery(values)
     if (!result.ok) {
       toast.error(result.error.message)
       return false
@@ -72,25 +79,28 @@ export function useDiscoveries(): UseDiscoveriesResult {
     return true
   }, [])
 
-  const renameDiscovery = useCallback(async (id: string, name: string): Promise<boolean> => {
-    const result = await window.api.db.updateDiscovery(id, { name })
-    if (!result.ok) {
-      toast.error(result.error.message)
-      return false
-    }
-    setState((prev) =>
-      prev.status === 'ready'
-        ? {
-            status: 'ready',
-            discoveries: sortByUpdatedAtDesc(
-              prev.discoveries.map((discovery) => (discovery.id === id ? result.data : discovery))
-            )
-          }
-        : prev
-    )
-    toast('Discovery renombrado')
-    return true
-  }, [])
+  const updateDiscovery = useCallback(
+    async (id: string, values: DiscoveryFormValues): Promise<boolean> => {
+      const result = await window.api.db.updateDiscovery(id, values)
+      if (!result.ok) {
+        toast.error(result.error.message)
+        return false
+      }
+      setState((prev) =>
+        prev.status === 'ready'
+          ? {
+              status: 'ready',
+              discoveries: sortByUpdatedAtDesc(
+                prev.discoveries.map((discovery) => (discovery.id === id ? result.data : discovery))
+              )
+            }
+          : prev
+      )
+      toast('Cambios guardados')
+      return true
+    },
+    []
+  )
 
   const removeDiscovery = useCallback(async (id: string): Promise<void> => {
     const result = await window.api.db.deleteDiscovery(id)
@@ -109,5 +119,5 @@ export function useDiscoveries(): UseDiscoveriesResult {
     toast('Discovery eliminado')
   }, [])
 
-  return { state, reload, createDiscovery, renameDiscovery, removeDiscovery }
+  return { state, reload, createDiscovery, updateDiscovery, removeDiscovery }
 }

@@ -12,13 +12,15 @@ import type { Company, Contact, Interview } from './domain'
 /**
  * Fila del listado global de capturas: la entrevista más los nombres de sus
  * referencias resueltos en main. Referencias ausentes o irresolubles → null
- * (defensivo: el listado nunca rompe por un dato inconsistente).
+ * (defensivo: el listado nunca rompe por un dato inconsistente). SPEC-043:
+ * `contactNames` lleva los nombres de TODOS los contactos en el orden de
+ * `contactIds`; los ids irresolubles se omiten.
  */
 export interface CaptureListItem {
   interview: Interview
   discoveryName: string
   companyName: string | null
-  contactName: string | null
+  contactNames: string[]
   templateName: string | null
 }
 
@@ -37,24 +39,28 @@ export interface AssignNewContactInput {
 }
 
 /**
- * Input de la asignación (SPEC-020): exactamente UNO de `companyId` (empresa
- * existente del discovery de la captura) o `newCompany` (creación inline).
- * Contacto opcional: `contactId` (existente de esa empresa, o null para "Sin
- * contacto"), `newContact` (creación inline), o nada.
+ * Input de la asignación (SPEC-020): exactamente UNO de `companyId` (SPEC-043:
+ * cualquier empresa existente del SISTEMA, ya no solo del discovery de la
+ * captura) o `newCompany` (creación inline de una empresa GLOBAL). SPEC-046:
+ * participantes múltiples — `contactIds` (contactos existentes de esa empresa,
+ * marcados en la lista) y/o `newContact` (creación inline, UNO, que se SUMA a
+ * los marcados; deroga la exclusión mutua de SPEC-020). La entrevista
+ * resultante lleva `contactIds` = marcados + [nuevo] (en ese orden) o [].
  */
 export interface AssignCompanyInput {
   companyId?: string
   newCompany?: AssignNewCompanyInput
-  contactId?: string | null
+  contactIds?: string[]
   newContact?: AssignNewContactInput
 }
 
 /**
  * Resultado de la asignación: entidades finales para que la UI refresque
- * cabecera/fila sin recargar.
+ * cabecera/fila sin recargar. SPEC-046: `contacts` lleva TODOS los contactos
+ * asignados en el orden persistido en `contactIds`.
  */
 export interface AssignCompanyResult {
   interview: Interview
   company: Company
-  contact: Contact | null
+  contacts: Contact[]
 }

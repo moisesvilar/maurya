@@ -57,7 +57,6 @@ let mockApi: MockApiHandle
 
 const COMPANY: Company = {
   id: 'c-1',
-  discoveryId: 'd-1',
   name: 'Acme Corp',
   website: null,
   linkedinUrl: null,
@@ -69,7 +68,8 @@ const INTERVIEW: Interview = {
   id: 'i-1',
   discoveryId: 'd-1',
   companyId: 'c-1',
-  contactId: null,
+  contactIds: [],
+  interviewGroupId: null,
   templateId: null,
   title: 'Discovery con Acme',
   status: 'draft',

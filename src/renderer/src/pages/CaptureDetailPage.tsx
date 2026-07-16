@@ -25,7 +25,8 @@ type CaptureDetailState =
       interview: Interview
       discovery: Discovery | null
       company: Company | null
-      contact: Contact | null
+      /** SPEC-043: contactos resueltos en el orden de contactIds (rotos se omiten). */
+      contacts: Contact[]
     }
 
 /**
@@ -65,17 +66,19 @@ export function CaptureDetailPage(): React.ReactElement {
         return
       }
       const interview = interviewResult.data
-      const [discoveryResult, companyResult, contactResult] = await Promise.all([
+      const [discoveryResult, companyResult, contactResults] = await Promise.all([
         window.api.db.getDiscovery(interview.discoveryId),
         interview.companyId !== null ? window.api.db.getCompany(interview.companyId) : null,
-        interview.contactId !== null ? window.api.db.getContact(interview.contactId) : null
+        Promise.all(interview.contactIds.map((contactId) => window.api.db.getContact(contactId)))
       ])
       setState({
         status: 'ready',
         interview,
         discovery: discoveryResult.ok ? discoveryResult.data : null,
         company: companyResult !== null && companyResult.ok ? companyResult.data : null,
-        contact: contactResult !== null && contactResult.ok ? contactResult.data : null
+        // SPEC-043: referencia rota → se omite (degrada a "Sin contacto",
+        // nunca a error state).
+        contacts: contactResults.filter((result) => result.ok).map((result) => result.data)
       })
     })()
   }, [id])
@@ -87,7 +90,7 @@ export function CaptureDetailPage(): React.ReactElement {
     []
   )
 
-  /** La asignación refleja empresa/contacto en cabecera sin recargar (AC). */
+  /** La asignación refleja empresa/contactos en cabecera sin recargar (AC). */
   const handleAssigned = useCallback((result: AssignCompanyResult): void => {
     setState((previous) =>
       previous.status === 'ready'
@@ -95,7 +98,8 @@ export function CaptureDetailPage(): React.ReactElement {
             ...previous,
             interview: result.interview,
             company: result.company,
-            contact: result.contact
+            // SPEC-046: todos los participantes asignados, en orden persistido.
+            contacts: result.contacts
           }
         : previous
     )
@@ -142,7 +146,7 @@ export function CaptureDetailPage(): React.ReactElement {
           interview={state.interview}
           discovery={state.discovery}
           company={state.company}
-          contact={state.contact}
+          contacts={state.contacts}
           templateLabel={templateLabel(state.interview)}
           onInterviewUpdated={handleInterviewUpdated}
           onAssigned={handleAssigned}
@@ -156,7 +160,8 @@ interface CaptureDetailContentProps {
   interview: Interview
   discovery: Discovery | null
   company: Company | null
-  contact: Contact | null
+  /** SPEC-043: contactos resueltos en el orden de contactIds (rotos se omiten). */
+  contacts: Contact[]
   templateLabel: string
   onInterviewUpdated: (interview: Interview) => void
   onAssigned: (result: AssignCompanyResult) => void
@@ -172,7 +177,7 @@ function CaptureDetailContent({
   interview,
   discovery,
   company,
-  contact,
+  contacts,
   templateLabel,
   onInterviewUpdated,
   onAssigned
@@ -199,8 +204,10 @@ function CaptureDetailContent({
           </div>
           <p className="text-sm text-muted-foreground">
             {discovery?.name ?? ''} · {company?.name ?? 'Sin empresa'} ·{' '}
-            {contact?.name ?? 'Sin contacto'} · {templateLabel} ·{' '}
-            <AiCostInline aiUsage={interview.aiUsage} />
+            {contacts.length > 0
+              ? contacts.map((contact) => contact.name).join(', ')
+              : 'Sin contacto'}{' '}
+            · {templateLabel} · <AiCostInline aiUsage={interview.aiUsage} />
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

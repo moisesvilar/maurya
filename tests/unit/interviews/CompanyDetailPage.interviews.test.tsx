@@ -1,6 +1,15 @@
 /**
  * Tests de la sección Entrevistas del detalle de empresa (SPEC-013,
- * AC-01..AC-10 y AC-14). Frontera de mocking: api.db.
+ * AC-01..AC-10 y AC-14) + Select «Discovery» del Dialog de creación (SPEC-044,
+ * AC-18..AC-22, describe 'discovery select (SPEC-044)'). Frontera: api.db.
+ * Adaptado por SPEC-044: el detalle vive en /companies/:companyId (sin
+ * discovery en la URL) — el Dialog de creación exige elegir el Discovery en un
+ * Select requerido y el discoveryId viaja en los values (helper
+ * selectDiscovery en los flujos de creación); los links a entrevistas se
+ * construyen con el discoveryId de la propia entrevista. Adaptado por
+ * SPEC-046 (AC-21): el Select de contacto único de SPEC-013 queda DEROGADO —
+ * la sección «Participantes» es una lista de Checkbox (testid
+ * interview-participants) y crear/editar persisten los contactIds marcados.
  * Lecciones aplicadas: la página tiene DOS grupos de menús "Acciones"
  * (contactos y entrevistas) y DOS AlertDialogs → matching por fila (closest li
  * del título), nunca por índice global; menú→dialog con findBy* (setTimeout(0))
@@ -15,14 +24,31 @@ import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { CompanyDetailPage } from '@/pages/CompanyDetailPage'
 import { InterviewDetailPage } from '@/pages/InterviewDetailPage'
-import type { Company, Contact, Interview, InterviewTemplate } from '@/types/domain'
+import type { Company, Contact, Discovery, Interview, InterviewTemplate } from '@/types/domain'
 import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
 
 let mockApi: MockApiHandle
 
+/** Discoveries del sistema para el Select requerido del Dialog (SPEC-044). */
+const DISCOVERY: Discovery = {
+  id: 'd-1',
+  name: 'Discovery Maurya',
+  objectives: null,
+  createdAt: '2026-07-01T12:00:00.000Z',
+  updatedAt: '2026-07-01T12:00:00.000Z'
+}
+
+const DISCOVERY_BETA: Discovery = {
+  id: 'd-2',
+  name: 'Discovery Beta',
+  objectives: null,
+  createdAt: '2026-07-01T13:00:00.000Z',
+  updatedAt: '2026-07-01T13:00:00.000Z'
+}
+
+// SPEC-043: las empresas son globales (sin discoveryId)
 const COMPANY: Company = {
   id: 'c-1',
-  discoveryId: 'd-1',
   name: 'Acme Corp',
   website: null,
   linkedinUrl: null,
@@ -55,7 +81,9 @@ function interview(overrides: Partial<Interview> = {}): Interview {
     // SPEC-020 (schema v2): toda entrevista ancla su discovery directamente.
     discoveryId: 'd-1',
     companyId: 'c-1',
-    contactId: 'ct-1',
+    // SPEC-043: N contactos por entrevista y grupo opcional
+    contactIds: ['ct-1'],
+    interviewGroupId: null,
     templateId: 'tpl-1',
     title: 'Discovery con Acme',
     status: 'draft',
@@ -84,15 +112,17 @@ function setTemplates(templates: InterviewTemplate[]): void {
   })
 }
 
+/**
+ * Rutas reales de SPEC-044: detalle GLOBAL de empresa; la ruta anidada de
+ * detalle de ENTREVISTA no se toca (los links se construyen con el
+ * discoveryId de cada entrevista).
+ */
 function renderCompany(): RenderResult {
   return render(
     <TooltipProvider>
-      <MemoryRouter initialEntries={['/discoveries/d-1/companies/c-1']}>
+      <MemoryRouter initialEntries={['/companies/c-1']}>
         <Routes>
-          <Route
-            path="/discoveries/:discoveryId/companies/:companyId"
-            element={<CompanyDetailPage />}
-          />
+          <Route path="/companies/:companyId" element={<CompanyDetailPage />} />
           <Route
             path="/discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
             element={<InterviewDetailPage />}
@@ -121,6 +151,18 @@ async function openCreateDialog(user: ReturnType<typeof userEvent.setup>): Promi
   return screen.getByLabelText('Título')
 }
 
+/**
+ * Elige un discovery en el Select requerido del Dialog de creación
+ * (SPEC-044): sin él la validación inline bloquea el submit.
+ */
+async function selectDiscovery(
+  user: ReturnType<typeof userEvent.setup>,
+  name = 'Discovery Maurya'
+): Promise<void> {
+  await user.click(screen.getByRole('combobox', { name: 'Discovery' }))
+  await user.click(await screen.findByRole('option', { name }))
+}
+
 /** Abre una acción del menú ⋯ de la fila de una entrevista (dialogs con setTimeout(0)). */
 async function openRowAction(
   user: ReturnType<typeof userEvent.setup>,
@@ -136,6 +178,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockApi = installMockApi()
   vi.mocked(mockApi.api.db.getCompany).mockResolvedValue({ ok: true, data: COMPANY })
+  // SPEC-044: el Select requerido del Dialog necesita discoveries del sistema
+  vi.mocked(mockApi.api.db.listDiscoveries).mockResolvedValue({ ok: true, data: [DISCOVERY] })
   setInterviews([])
   setContacts([])
   setTemplates([])
@@ -143,7 +187,9 @@ beforeEach(() => {
 
 describe('CompanyDetailPage (entrevistas)', () => {
   describe('listing', () => {
-    // SPEC-013 · AC-01
+    // SPEC-013 · AC-01 (+ SPEC-044 · AC-18/AC-22: la URL de la página ya no
+    // lleva discovery — el href del link SOLO puede salir del discoveryId de
+    // la propia entrevista)
     it('renders each interview row with title link, "Borrador" badge, resolved refs and its own actions menu', async () => {
       setInterviews([interview()])
       setContacts([CONTACT])
@@ -185,8 +231,10 @@ describe('CompanyDetailPage (entrevistas)', () => {
   })
 
   describe('creating an interview', () => {
-    // SPEC-013 · AC-04
-    it('opens the "Nueva entrevista" dialog with focused title and the optional contact/template selects', async () => {
+    // SPEC-013 · AC-04, adaptado por SPEC-046 · AC-21: el Select de contacto
+    // único queda DEROGADO — la sección «Participantes» es la lista de
+    // Checkbox con los contactos de la empresa; Template no cambia
+    it('opens the "Nueva entrevista" dialog with focused title, the Participantes checklist and the optional template select', async () => {
       setContacts([CONTACT])
       setTemplates([TEMPLATE])
       const user = userEvent.setup()
@@ -199,12 +247,12 @@ describe('CompanyDetailPage (entrevistas)', () => {
       expect(titleInput).toHaveAttribute('placeholder', 'Discovery con Acme Corp')
       expect(document.activeElement).toBe(titleInput)
 
-      // Select de contacto: "Sin contacto" + contactos de la empresa
-      expect(screen.getByRole('combobox', { name: 'Contacto' })).toHaveTextContent('Sin contacto')
-      await user.click(screen.getByRole('combobox', { name: 'Contacto' }))
-      expect(await screen.findByRole('option', { name: 'Sin contacto' })).toBeInTheDocument()
-      expect(screen.getByRole('option', { name: 'Jane Doe' })).toBeInTheDocument()
-      await user.keyboard('{Escape}')
+      // Participantes: lista de Checkbox con los contactos de la empresa
+      // (sustituye al Select «Contacto» de SPEC-013, derogado por SPEC-046)
+      expect(within(dialog).getByText('Participantes')).toBeInTheDocument()
+      const participants = within(dialog).getByTestId('interview-participants')
+      expect(within(participants).getByRole('checkbox', { name: /Jane Doe/ })).not.toBeChecked()
+      expect(within(dialog).queryByRole('combobox', { name: 'Contacto' })).toBeNull()
 
       // Select de template: "Sin template" + templates con su fase entre paréntesis
       expect(screen.getByRole('combobox', { name: 'Template' })).toHaveTextContent('Sin template')
@@ -213,56 +261,69 @@ describe('CompanyDetailPage (entrevistas)', () => {
       expect(screen.getByRole('option', { name: 'Entrevista MDR (Problema)' })).toBeInTheDocument()
     })
 
-    // SPEC-013 · AC-05 (envío con click en "Crear" y referencias elegidas)
-    it('creates in draft with the chosen refs on "Crear" click, shows the toast and lists the row', async () => {
+    // SPEC-013 · AC-05 (envío con click en "Crear" y referencias elegidas).
+    // DEROGACIÓN SPEC-044-iter-1: tras crear se navega al detalle de la
+    // entrevista — la fila ya no es observable (la vista abandona el listado);
+    // el assert de fila se sustituye por el de navegación. Payload y toast
+    // se conservan.
+    it('creates in draft with the chosen refs on "Crear" click, shows the toast and navigates to the created interview detail', async () => {
       setContacts([CONTACT])
       setTemplates([TEMPLATE])
-      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({
-        ok: true,
-        data: interview({ title: 'Entrevista con Jane' })
-      })
+      const created = interview({ title: 'Entrevista con Jane' })
+      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({ ok: true, data: created })
+      // Destino de la navegación (ruta anidada): getInterview del detalle
+      vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({ ok: true, data: created })
       const user = userEvent.setup()
       renderCompany()
 
       const titleInput = await openCreateDialog(user)
       await user.type(titleInput, 'Entrevista con Jane')
-      await user.click(screen.getByRole('combobox', { name: 'Contacto' }))
-      await user.click(await screen.findByRole('option', { name: 'Jane Doe' }))
+      // SPEC-044: el discovery se elige en el Select requerido del Dialog
+      await selectDiscovery(user)
+      // SPEC-046: el participante se marca en la lista de Checkbox
+      const participants = screen.getByTestId('interview-participants')
+      await user.click(within(participants).getByRole('checkbox', { name: /Jane Doe/ }))
       await user.click(screen.getByRole('combobox', { name: 'Template' }))
       await user.click(await screen.findByRole('option', { name: 'Entrevista MDR (Problema)' }))
       await user.click(screen.getByRole('button', { name: 'Crear' }))
 
-      // SPEC-020: la creación viaja con el discoveryId de la ruta (schema v2)
+      // SPEC-044: la creación viaja con el discoveryId elegido en el Dialog
       expect(vi.mocked(mockApi.api.db.createInterview)).toHaveBeenCalledWith({
         discoveryId: 'd-1',
         companyId: 'c-1',
         title: 'Entrevista con Jane',
-        contactId: 'ct-1',
+        contactIds: ['ct-1'],
         templateId: 'tpl-1'
       })
       const toasts = await screen.findAllByText('Entrevista creada')
       expect(toasts.length).toBeGreaterThanOrEqual(1)
+      // SPEC-044-iter-1 (AC-01): navegación al detalle de la entrevista creada
+      expect(
+        await screen.findByRole('heading', { name: 'Entrevista con Jane', level: 1 })
+      ).toBeInTheDocument()
+      expect(vi.mocked(mockApi.api.db.getInterview)).toHaveBeenCalledWith('i-1')
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-      expect(screen.getByRole('link', { name: 'Entrevista con Jane' })).toBeInTheDocument()
     })
 
-    // SPEC-013 · AC-05 (envío con Enter y sentinels → null sin tocar los Selects)
+    // SPEC-013 · AC-05 (envío con Enter y sentinels → null sin tocar los
+    // Selects OPCIONALES; el Discovery requerido de SPEC-044 sí se elige)
     it('creates on Enter mapping the untouched selects to null refs', async () => {
-      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({
-        ok: true,
-        data: interview({ title: 'Sin referencias', contactId: null, templateId: null })
-      })
+      const created = interview({ title: 'Sin referencias', contactIds: [], templateId: null })
+      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({ ok: true, data: created })
+      // SPEC-044-iter-1: la creación navega al detalle → getInterview mockeado
+      vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({ ok: true, data: created })
       const user = userEvent.setup()
       renderCompany()
 
       const titleInput = await openCreateDialog(user)
+      await selectDiscovery(user)
       await user.type(titleInput, 'Sin referencias{Enter}')
 
       expect(vi.mocked(mockApi.api.db.createInterview)).toHaveBeenCalledWith({
         discoveryId: 'd-1',
         companyId: 'c-1',
         title: 'Sin referencias',
-        contactId: null,
+        contactIds: [],
         templateId: null
       })
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -275,15 +336,16 @@ describe('CompanyDetailPage (entrevistas)', () => {
     it('does not fire the script auto-generation when creating an interview from the company flow (SPEC-033)', async () => {
       setContacts([CONTACT])
       setTemplates([TEMPLATE])
-      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({
-        ok: true,
-        data: interview({ title: 'Entrevista con Jane' })
-      })
+      const created = interview({ title: 'Entrevista con Jane' })
+      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({ ok: true, data: created })
+      // SPEC-044-iter-1: la creación navega al detalle → getInterview mockeado
+      vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({ ok: true, data: created })
       const user = userEvent.setup()
       renderCompany()
 
       const titleInput = await openCreateDialog(user)
       await user.type(titleInput, 'Entrevista con Jane')
+      await selectDiscovery(user)
       await user.click(screen.getByRole('combobox', { name: 'Template' }))
       await user.click(await screen.findByRole('option', { name: 'Entrevista MDR (Problema)' }))
       await user.click(screen.getByRole('button', { name: 'Crear' }))
@@ -293,33 +355,38 @@ describe('CompanyDetailPage (entrevistas)', () => {
       expect(vi.mocked(mockApi.api.llm.autoGenerateScript)).not.toHaveBeenCalled()
     })
 
-    // SPEC-013 · AC-06
+    // SPEC-013 · AC-06 (adaptado por SPEC-044: se elige discovery para aislar
+    // la validación del Título — el caso "sin discovery" tiene su propio test
+    // en el describe 'discovery select (SPEC-044)')
     it('shows the inline "Campo requerido" error for an empty title without calling the bridge', async () => {
       const user = userEvent.setup()
       renderCompany()
 
       await openCreateDialog(user)
+      await selectDiscovery(user)
       await user.click(screen.getByRole('button', { name: 'Crear' }))
 
       expect(await screen.findByText('Campo requerido')).toBeInTheDocument()
       expect(vi.mocked(mockApi.api.db.createInterview)).not.toHaveBeenCalled()
     })
 
-    // SPEC-013 · AC-07
-    it('offers only the sentinels when there are no contacts nor templates, and creation still works', async () => {
-      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({
-        ok: true,
-        data: interview({ title: 'Solo título', contactId: null, templateId: null })
-      })
+    // SPEC-013 · AC-07, adaptado por SPEC-046: sin contactos la lista de
+    // Participantes muestra el mensaje muted (el sentinel «Sin contacto» del
+    // Select derogado desaparece); el Template conserva su sentinel
+    it('offers the empty Participantes message and the template sentinel when there are no contacts nor templates, and creation still works', async () => {
+      const created = interview({ title: 'Solo título', contactIds: [], templateId: null })
+      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({ ok: true, data: created })
+      // SPEC-044-iter-1: la creación navega al detalle → getInterview mockeado
+      vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({ ok: true, data: created })
       const user = userEvent.setup()
       renderCompany()
 
       const titleInput = await openCreateDialog(user)
 
-      await user.click(screen.getByRole('combobox', { name: 'Contacto' }))
-      expect(await screen.findAllByRole('option')).toHaveLength(1)
-      expect(screen.getByRole('option', { name: 'Sin contacto' })).toBeInTheDocument()
-      await user.keyboard('{Escape}')
+      // Participantes sin contactos: mensaje muted, sin Checkbox
+      const participants = screen.getByTestId('interview-participants')
+      expect(within(participants).getByText('Esta empresa no tiene contactos')).toBeInTheDocument()
+      expect(within(participants).queryAllByRole('checkbox')).toHaveLength(0)
 
       await user.click(screen.getByRole('combobox', { name: 'Template' }))
       expect(await screen.findAllByRole('option')).toHaveLength(1)
@@ -327,19 +394,23 @@ describe('CompanyDetailPage (entrevistas)', () => {
       await user.keyboard('{Escape}')
 
       await user.type(titleInput, 'Solo título')
+      await selectDiscovery(user)
       await user.click(screen.getByRole('button', { name: 'Crear' }))
       expect(vi.mocked(mockApi.api.db.createInterview)).toHaveBeenCalledWith({
         discoveryId: 'd-1',
         companyId: 'c-1',
         title: 'Solo título',
-        contactId: null,
+        contactIds: [],
         templateId: null
       })
     })
   })
 
   describe('editing an interview', () => {
-    // SPEC-013 · AC-08
+    // SPEC-013 · AC-08 (+ SPEC-044-iter-1 · AC-03: la EDICIÓN no navega — la
+    // fila editada sigue observable en el listado de la empresa tras guardar),
+    // adaptado por SPEC-046 · AC-21: la lista de Checkbox de Participantes
+    // llega precargada con los contactos actuales de la entrevista
     it('opens the edit dialog preloaded, saves the three fields via updateInterview and shows "Cambios guardados"', async () => {
       setInterviews([interview()])
       setContacts([CONTACT])
@@ -357,7 +428,9 @@ describe('CompanyDetailPage (entrevistas)', () => {
       expect(within(dialog).getByRole('heading', { name: 'Editar entrevista' })).toBeInTheDocument()
       const titleInput = screen.getByLabelText('Título')
       expect(titleInput).toHaveValue('Discovery con Acme')
-      expect(screen.getByRole('combobox', { name: 'Contacto' })).toHaveTextContent('Jane Doe')
+      // Participantes precargados: el contacto actual llega marcado
+      const participants = within(dialog).getByTestId('interview-participants')
+      expect(within(participants).getByRole('checkbox', { name: /Jane Doe/ })).toBeChecked()
       expect(screen.getByRole('combobox', { name: 'Template' })).toHaveTextContent(
         'Entrevista MDR (Problema)'
       )
@@ -368,7 +441,7 @@ describe('CompanyDetailPage (entrevistas)', () => {
 
       expect(vi.mocked(mockApi.api.db.updateInterview)).toHaveBeenCalledWith('i-1', {
         title: 'Título editado',
-        contactId: 'ct-1',
+        contactIds: ['ct-1'],
         templateId: 'tpl-1'
       })
       const toasts = await screen.findAllByText('Cambios guardados')
@@ -420,7 +493,8 @@ describe('CompanyDetailPage (entrevistas)', () => {
   })
 
   describe('mutation errors', () => {
-    // SPEC-013 · AC-14
+    // SPEC-013 · AC-14 (+ SPEC-044-iter-1 · AC-02: con envelope ok:false NO se
+    // navega — el Dialog sigue abierto sobre el detalle de la empresa)
     it('shows an error toast, keeps the dialog open and leaves the list untouched when the bridge fails', async () => {
       vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({
         ok: false,
@@ -431,6 +505,7 @@ describe('CompanyDetailPage (entrevistas)', () => {
 
       const titleInput = await openCreateDialog(user)
       await user.type(titleInput, 'Entrevista fallida')
+      await selectDiscovery(user)
       await user.click(screen.getByRole('button', { name: 'Crear' }))
 
       const toasts = await screen.findAllByText('Fallo simulado al crear entrevista')
@@ -439,6 +514,131 @@ describe('CompanyDetailPage (entrevistas)', () => {
       expect(screen.getByRole('dialog')).toBeInTheDocument()
       expect(screen.getByText('Aún no hay entrevistas')).toBeInTheDocument()
       expect(screen.queryByRole('link', { name: 'Entrevista fallida', hidden: true })).toBeNull()
+    })
+  })
+
+  describe('discovery select (SPEC-044)', () => {
+    // SPEC-044 · AC-19
+    it('shows the required "Discovery" select first (above Título) with the system discoveries as options', async () => {
+      vi.mocked(mockApi.api.db.listDiscoveries).mockResolvedValue({
+        ok: true,
+        data: [DISCOVERY, DISCOVERY_BETA]
+      })
+      const user = userEvent.setup()
+      renderCompany()
+
+      const titleInput = await openCreateDialog(user)
+
+      const discoverySelect = screen.getByRole('combobox', { name: 'Discovery' })
+      // data-testid garantizado por la spec (### data-testid)
+      expect(discoverySelect).toHaveAttribute('data-testid', 'interview-discovery-select')
+      expect(discoverySelect).toHaveTextContent('Selecciona un discovery')
+      // Colocado PRIMERO, encima de Título (wireframe del Dialog)
+      expect(
+        discoverySelect.compareDocumentPosition(titleInput) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy()
+
+      // Opciones = discoveries del sistema por nombre (sin item sentinel)
+      await user.click(discoverySelect)
+      expect(await screen.findAllByRole('option')).toHaveLength(2)
+      expect(screen.getByRole('option', { name: 'Discovery Maurya' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Discovery Beta' })).toBeInTheDocument()
+    })
+
+    // SPEC-044 · AC-19 (rama sin discoveries del wireframe: Select
+    // deshabilitado con «No hay discoveries» + aviso con link «Crear
+    // discovery», patrón del Dialog de captura de SPEC-020)
+    it('disables the select with "No hay discoveries" and shows the "Crear discovery" link when there are none', async () => {
+      vi.mocked(mockApi.api.db.listDiscoveries).mockResolvedValue({ ok: true, data: [] })
+      const user = userEvent.setup()
+      renderCompany()
+
+      await openCreateDialog(user)
+
+      const discoverySelect = screen.getByRole('combobox', { name: 'Discovery' })
+      expect(discoverySelect).toBeDisabled()
+      expect(discoverySelect).toHaveTextContent('No hay discoveries')
+      const dialog = screen.getByRole('dialog')
+      expect(within(dialog).getByText(/No hay discoveries\./)).toBeInTheDocument()
+      expect(within(dialog).getByRole('link', { name: 'Crear discovery' })).toHaveAttribute(
+        'href',
+        '/discoveries'
+      )
+    })
+
+    // SPEC-044 · AC-20
+    it('shows the inline "Campo requerido" error under Discovery and does not create when none is selected', async () => {
+      const user = userEvent.setup()
+      renderCompany()
+
+      const titleInput = await openCreateDialog(user)
+      await user.type(titleInput, 'Entrevista sin discovery')
+      await user.click(screen.getByRole('button', { name: 'Crear' }))
+
+      // El error inline cuelga del bloque Discovery (título válido → único error)
+      expect(await screen.findByText('Campo requerido')).toBeInTheDocument()
+      expect(screen.getByRole('combobox', { name: 'Discovery' })).toHaveAttribute(
+        'aria-invalid',
+        'true'
+      )
+      expect(vi.mocked(mockApi.api.db.createInterview)).not.toHaveBeenCalled()
+    })
+
+    // SPEC-044 · AC-21: la entrevista se crea en el discovery ELEGIDO (no el
+    // primero) con la empresa de la página y las refs del Dialog, y se navega
+    // a su detalle (THEN literal del AC)
+    it('creates the interview in the chosen discovery with the page company and navigates to its detail', async () => {
+      vi.mocked(mockApi.api.db.listDiscoveries).mockResolvedValue({
+        ok: true,
+        data: [DISCOVERY, DISCOVERY_BETA]
+      })
+      setContacts([CONTACT])
+      setTemplates([TEMPLATE])
+      const created = interview({ id: 'i-9', discoveryId: 'd-2', title: 'Entrevista en Beta' })
+      vi.mocked(mockApi.api.db.createInterview).mockResolvedValue({ ok: true, data: created })
+      // Detalle de la entrevista creada (ruta anidada existente)
+      vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({ ok: true, data: created })
+      const user = userEvent.setup()
+      renderCompany()
+
+      const titleInput = await openCreateDialog(user)
+      await user.type(titleInput, 'Entrevista en Beta')
+      await selectDiscovery(user, 'Discovery Beta')
+      // SPEC-046: el participante se marca en la lista de Checkbox
+      const participants = screen.getByTestId('interview-participants')
+      await user.click(within(participants).getByRole('checkbox', { name: /Jane Doe/ }))
+      await user.click(screen.getByRole('combobox', { name: 'Template' }))
+      await user.click(await screen.findByRole('option', { name: 'Entrevista MDR (Problema)' }))
+      await user.click(screen.getByRole('button', { name: 'Crear' }))
+
+      expect(vi.mocked(mockApi.api.db.createInterview)).toHaveBeenCalledWith({
+        discoveryId: 'd-2',
+        companyId: 'c-1',
+        title: 'Entrevista en Beta',
+        contactIds: ['ct-1'],
+        templateId: 'tpl-1'
+      })
+      // "…y se navega a su detalle" (AC-21): la ruta anidada del detalle se
+      // construye con el discoveryId de la entrevista creada
+      expect(
+        await screen.findByRole('heading', { name: 'Entrevista en Beta', level: 1 })
+      ).toBeInTheDocument()
+      expect(vi.mocked(mockApi.api.db.getInterview)).toHaveBeenCalledWith('i-9')
+    })
+
+    // SPEC-044 (Notas técnicas): el Select «Discovery» existe SOLO en modo
+    // creación — en edición el discovery no se muestra ni se cambia
+    it('does not render the Discovery select in the edit dialog', async () => {
+      setInterviews([interview()])
+      const user = userEvent.setup()
+      renderCompany()
+
+      await openRowAction(user, 'Discovery con Acme', 'Editar')
+
+      const dialog = await screen.findByRole('dialog')
+      expect(within(dialog).getByRole('heading', { name: 'Editar entrevista' })).toBeInTheDocument()
+      expect(within(dialog).queryByRole('combobox', { name: 'Discovery' })).toBeNull()
+      expect(within(dialog).queryByTestId('interview-discovery-select')).toBeNull()
     })
   })
 })

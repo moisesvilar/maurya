@@ -15,6 +15,8 @@ const SECTION_TITLES: ReadonlyArray<{ prefix: string; title: string }> = [
   // SPEC-020: la sección pasa a "Capturas" (/captures, cubre /captures/:id).
   { prefix: '/captures', title: 'Capturas' },
   { prefix: '/discoveries', title: 'Discoveries' },
+  // SPEC-044: sección global de empresas (/companies, cubre /companies/:id).
+  { prefix: '/companies', title: 'Empresas' },
   { prefix: '/templates', title: 'Plantillas' }
 ]
 

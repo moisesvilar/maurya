@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -15,14 +16,15 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { ParticipantsChecklist } from '@/components/interviews/ParticipantsChecklist'
 import { templateLabel } from '@/components/interviews/templateLabel'
 import type { InterviewFormValues } from '@/hooks/useInterviews'
-import type { Contact, Interview, InterviewTemplate } from '@/types/domain'
+import type { Contact, Discovery, Interview, InterviewTemplate } from '@/types/domain'
 
 /**
- * Sentinel de los Selects opcionales: Radix Select no admite value vacío,
- * así que "Sin contacto"/"Sin template" viajan como 'none' y se mapean a
- * null al enviar (patrón NO_PHASE de SPEC-012).
+ * Sentinel del Select opcional de template: Radix Select no admite value
+ * vacío, así que "Sin template" viaja como 'none' y se mapea a null al
+ * enviar (patrón NO_PHASE de SPEC-012).
  */
 const NONE = 'none'
 
@@ -35,7 +37,13 @@ export interface InterviewFormDialogProps {
   submitLabel: string
   /** Nombre de la empresa (placeholder "Discovery con {empresa}"). */
   companyName: string
-  /** Contactos de la empresa para el Select (vacío → solo "Sin contacto"). */
+  /**
+   * Discoveries para el Select requerido de creación (SPEC-044); vacío →
+   * Select deshabilitado con aviso y link "Crear discovery". En edición no
+   * se usa (el campo no se renderiza).
+   */
+  discoveries: Discovery[]
+  /** Contactos de la empresa para la lista de Checkbox de participantes (SPEC-046). */
   contacts: Contact[]
   /** Templates de entrevista para el Select (vacío → solo "Sin template"). */
   templates: InterviewTemplate[]
@@ -48,6 +56,7 @@ export interface InterviewFormDialogProps {
 interface InterviewFormProps {
   submitLabel: string
   companyName: string
+  discoveries: Discovery[]
   contacts: Contact[]
   templates: InterviewTemplate[]
   interview: Interview | null
@@ -64,6 +73,7 @@ interface InterviewFormProps {
 function InterviewForm({
   submitLabel,
   companyName,
+  discoveries,
   contacts,
   templates,
   interview,
@@ -71,23 +81,40 @@ function InterviewForm({
   onOpenChange,
   titleInputRef
 }: InterviewFormProps): React.ReactElement {
+  // SPEC-044: el Select "Discovery" solo existe en creación; en edición el
+  // discovery no se muestra ni se cambia (viaja el de la propia entrevista).
+  const isCreation = interview === null
   const [title, setTitle] = useState(interview?.title ?? '')
-  const [contactId, setContactId] = useState(interview?.contactId ?? NONE)
+  // '' = sin elegir (muestra el placeholder del SelectValue); requerido
+  // (patrón NewCaptureDialog de SPEC-020, NO el sentinel NONE).
+  const [discoveryId, setDiscoveryId] = useState(interview?.discoveryId ?? '')
+  // SPEC-046: multiselección de participantes (lista de Checkbox); en
+  // edición precargada con los contactos actuales de la entrevista.
+  const [contactIds, setContactIds] = useState<string[]>(interview?.contactIds ?? [])
   const [templateId, setTemplateId] = useState(interview?.templateId ?? NONE)
   const [showRequiredError, setShowRequiredError] = useState(false)
+  const [showDiscoveryError, setShowDiscoveryError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+
+  const noDiscoveries = discoveries.length === 0
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault()
+    // Doble validación inline sin bridge: Título siempre, Discovery solo en
+    // creación (SPEC-044); ambos errores se muestran a la vez si faltan.
     const trimmedTitle = title.trim()
-    if (trimmedTitle === '') {
-      setShowRequiredError(true)
+    const titleMissing = trimmedTitle === ''
+    const discoveryMissing = isCreation && discoveryId === ''
+    setShowRequiredError(titleMissing)
+    setShowDiscoveryError(discoveryMissing)
+    if (titleMissing || discoveryMissing) {
       return
     }
     setSubmitting(true)
     void onSubmit({
+      discoveryId,
       title: trimmedTitle,
-      contactId: contactId === NONE ? null : contactId,
+      contactIds,
       templateId: templateId === NONE ? null : templateId
     }).then((succeeded) => {
       setSubmitting(false)
@@ -99,6 +126,49 @@ function InterviewForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {isCreation && (
+        <div className="flex flex-col gap-2">
+          <label htmlFor="interview-discovery" className="text-sm font-medium">
+            Discovery
+          </label>
+          <Select
+            value={discoveryId}
+            onValueChange={(value) => {
+              setDiscoveryId(value)
+              setShowDiscoveryError(false)
+            }}
+            disabled={noDiscoveries}
+          >
+            <SelectTrigger
+              id="interview-discovery"
+              data-testid="interview-discovery-select"
+              className="w-full"
+              aria-label="Discovery"
+              aria-invalid={showDiscoveryError || undefined}
+            >
+              <SelectValue
+                placeholder={noDiscoveries ? 'No hay discoveries' : 'Selecciona un discovery'}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {discoveries.map((discovery) => (
+                <SelectItem key={discovery.id} value={discovery.id}>
+                  {discovery.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {noDiscoveries && (
+            <p className="text-sm text-muted-foreground">
+              No hay discoveries.{' '}
+              <Link to="/discoveries" className="font-medium underline underline-offset-4">
+                Crear discovery
+              </Link>
+            </p>
+          )}
+          {showDiscoveryError && <p className="text-sm text-destructive">Campo requerido</p>}
+        </div>
+      )}
       <div className="flex flex-col gap-2">
         <label htmlFor="interview-title" className="text-sm font-medium">
           Título
@@ -117,22 +187,13 @@ function InterviewForm({
         {showRequiredError && <p className="text-sm text-destructive">Campo requerido</p>}
       </div>
       <div className="flex flex-col gap-2">
-        <label htmlFor="interview-contact" className="text-sm font-medium">
-          Contacto
-        </label>
-        <Select value={contactId} onValueChange={setContactId}>
-          <SelectTrigger id="interview-contact" className="w-full" aria-label="Contacto">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NONE}>Sin contacto</SelectItem>
-            {contacts.map((contact) => (
-              <SelectItem key={contact.id} value={contact.id}>
-                {contact.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <span className="text-sm font-medium">Participantes</span>
+        <ParticipantsChecklist
+          contacts={contacts}
+          selectedIds={contactIds}
+          onChange={setContactIds}
+          emptyMessage="Esta empresa no tiene contactos"
+        />
       </div>
       <div className="flex flex-col gap-2">
         <label htmlFor="interview-template" className="text-sm font-medium">
@@ -166,10 +227,14 @@ function InterviewForm({
 
 /**
  * Dialog de entrevista (SPEC-013): crear y editar. Calco del patrón
- * ContactFormDialog (SPEC-011): form real (Enter = submit nativo), solo
- * Título requerido (error inline "Campo requerido" sin pasar por el bridge),
- * foco al Título al abrir vía onOpenAutoFocus SIN select. Contacto y Template
- * son Selects opcionales con sentinel 'none' ("Sin contacto"/"Sin template").
+ * ContactFormDialog (SPEC-011): form real (Enter = submit nativo), error
+ * inline "Campo requerido" sin pasar por el bridge, foco al Título al abrir
+ * vía onOpenAutoFocus SIN select. SPEC-046: el Select de contacto único se
+ * sustituye por la lista de Checkbox "Participantes" (ParticipantsChecklist,
+ * N contactos de la empresa); Template sigue siendo Select opcional con
+ * sentinel 'none' ("Sin template"). SPEC-044: en creación el form abre con
+ * el Select requerido "Discovery" (sentinel '', patrón NewCaptureDialog); en
+ * edición el campo no se renderiza.
  */
 export function InterviewFormDialog({
   open,
@@ -177,6 +242,7 @@ export function InterviewFormDialog({
   title,
   submitLabel,
   companyName,
+  discoveries,
   contacts,
   templates,
   interview = null,
@@ -199,6 +265,7 @@ export function InterviewFormDialog({
           key={`${String(open)}-${interview?.id ?? 'new'}`}
           submitLabel={submitLabel}
           companyName={companyName}
+          discoveries={discoveries}
           contacts={contacts}
           templates={templates}
           interview={interview}

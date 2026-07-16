@@ -15,13 +15,21 @@ import type { SearchResults } from './search'
 export interface Discovery {
   id: string
   name: string
+  /**
+   * Objetivos del discovery (SPEC-043): texto libre del usuario; null = sin
+   * objetivos definidos. La migración v2→v3 lo backfillea a null.
+   */
+  objectives: string | null
   createdAt: string
   updatedAt: string
 }
 
+/**
+ * Empresa GLOBAL (SPEC-043): ya no pertenece a un discovery, es reutilizable
+ * en las entrevistas de cualquier discovery.
+ */
 export interface Company {
   id: string
-  discoveryId: string
   name: string
   website: string | null
   linkedinUrl: string | null
@@ -149,6 +157,23 @@ export interface InterviewQuestionOutcome {
   reason?: string | null
 }
 
+/**
+ * Grupo de entrevistas dentro de un discovery (SPEC-043): agrupa entrevistas
+ * con un objetivo y templates por defecto opcionales (ambos SET NULL si el
+ * template referenciado se elimina). Cae en cascada con su discovery; sus
+ * entrevistas sobreviven con `interviewGroupId` null al borrar el grupo.
+ */
+export interface InterviewGroup {
+  id: string
+  discoveryId: string
+  name: string
+  objective: string | null
+  interviewTemplateId: string | null
+  noteTemplateId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Interview {
   id: string
   /**
@@ -157,11 +182,23 @@ export interface Interview {
    */
   discoveryId: string
   /**
-   * Empresa asignada; null en capturas sin empresa (SPEC-020). Si no es null,
-   * la empresa debe pertenecer a `discoveryId` (invariante del repositorio).
+   * Empresa asignada; null en capturas sin empresa (SPEC-020). SPEC-043: las
+   * empresas son globales — ya NO rige la invariante «empresa ∈ discovery»
+   * (derogada de SPEC-020); vale cualquier empresa del sistema.
    */
   companyId: string | null
-  contactId: string | null
+  /**
+   * Contactos de la entrevista (SPEC-043), en el orden dado por el caller:
+   * ⊆ contactos de `companyId`, sin duplicados; no vacío ⇒ `companyId` ≠ null
+   * (invariantes del repositorio).
+   */
+  contactIds: string[]
+  /**
+   * Grupo de entrevistas asignado (SPEC-043); null = sin grupo. Si no es
+   * null, el grupo existe y pertenece al MISMO discovery (invariante del
+   * repositorio). SET NULL al borrar el grupo.
+   */
+  interviewGroupId: string | null
   templateId: string | null
   title: string
   status: InterviewStatus
@@ -273,14 +310,15 @@ export interface CustomPrompt {
 
 export interface CreateDiscoveryInput {
   name: string
+  objectives?: string | null
 }
 
 export interface UpdateDiscoveryPatch {
   name?: string
+  objectives?: string | null
 }
 
 export interface CreateCompanyInput {
-  discoveryId: string
   name: string
   website?: string | null
   linkedinUrl?: string | null
@@ -321,20 +359,38 @@ export interface UpdateInterviewTemplatePatch {
   blocks?: TemplateBlock[]
 }
 
+export interface CreateInterviewGroupInput {
+  discoveryId: string
+  name: string
+  objective?: string | null
+  interviewTemplateId?: string | null
+  noteTemplateId?: string | null
+}
+
+export interface UpdateInterviewGroupPatch {
+  name?: string
+  objective?: string | null
+  interviewTemplateId?: string | null
+  noteTemplateId?: string | null
+}
+
 export interface CreateInterviewInput {
   /** Discovery obligatorio (SPEC-020): ancla mínima de toda captura. */
   discoveryId: string
   /** Empresa opcional (SPEC-020): omitida o null en el flujo capture-first. */
   companyId?: string | null
   title: string
-  contactId?: string | null
+  /** Contactos de la empresa (SPEC-043); ausente → []. */
+  contactIds?: string[]
+  /** Grupo del discovery (SPEC-043); ausente → null. Solo asignable en create. */
+  interviewGroupId?: string | null
   templateId?: string | null
 }
 
 export interface UpdateInterviewPatch {
   title?: string
   status?: InterviewStatus
-  contactId?: string | null
+  contactIds?: string[]
   templateId?: string | null
   scriptMarkdown?: string | null
   objectives?: string[]
@@ -408,7 +464,8 @@ export interface DbApi {
   deleteDiscovery: (id: string) => Promise<DbResult<null>>
 
   createCompany: (input: CreateCompanyInput) => Promise<DbResult<Company>>
-  listCompanies: (discoveryId: string) => Promise<DbResult<Company[]>>
+  /** Todas las empresas del sistema (SPEC-043: globales, sin filtro por discovery). */
+  listCompanies: () => Promise<DbResult<Company[]>>
   getCompany: (id: string) => Promise<DbResult<Company>>
   updateCompany: (id: string, patch: UpdateCompanyPatch) => Promise<DbResult<Company>>
   deleteCompany: (id: string) => Promise<DbResult<null>>
@@ -429,6 +486,16 @@ export interface DbApi {
     patch: UpdateInterviewTemplatePatch
   ) => Promise<DbResult<InterviewTemplate>>
   deleteInterviewTemplate: (id: string) => Promise<DbResult<null>>
+
+  /** Grupos de entrevistas por discovery (SPEC-043). */
+  createInterviewGroup: (input: CreateInterviewGroupInput) => Promise<DbResult<InterviewGroup>>
+  listInterviewGroups: (discoveryId: string) => Promise<DbResult<InterviewGroup[]>>
+  getInterviewGroup: (id: string) => Promise<DbResult<InterviewGroup>>
+  updateInterviewGroup: (
+    id: string,
+    patch: UpdateInterviewGroupPatch
+  ) => Promise<DbResult<InterviewGroup>>
+  deleteInterviewGroup: (id: string) => Promise<DbResult<null>>
 
   createInterview: (input: CreateInterviewInput) => Promise<DbResult<Interview>>
   listInterviews: (companyId: string) => Promise<DbResult<Interview[]>>

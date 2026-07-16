@@ -143,10 +143,11 @@ function createMockDbApi(): DbApi {
       .fn<DbApi['getStatus']>()
       .mockResolvedValue({ ok: true, data: { ready: true, initError: null } }),
 
-    // SPEC-018: búsqueda global (default sin resultados; se configura por test)
+    // SPEC-018: búsqueda global (default sin resultados; se configura por
+    // test). SPEC-048: SearchResults gana `groups`.
     search: vi.fn<DbApi['search']>().mockResolvedValue({
       ok: true,
-      data: { discoveries: [], companies: [], contacts: [], interviews: [] }
+      data: { discoveries: [], groups: [], companies: [], contacts: [], interviews: [] }
     }),
 
     createDiscovery: vi.fn<DbApi['createDiscovery']>(),
@@ -174,6 +175,16 @@ function createMockDbApi(): DbApi {
     getInterviewTemplate: vi.fn<DbApi['getInterviewTemplate']>(),
     updateInterviewTemplate: vi.fn<DbApi['updateInterviewTemplate']>(),
     deleteInterviewTemplate: vi.fn<DbApi['deleteInterviewTemplate']>(),
+
+    // SPEC-043: grupos de entrevistas (listado con default vacío seguro; el
+    // resto se configura por test)
+    createInterviewGroup: vi.fn<DbApi['createInterviewGroup']>(),
+    listInterviewGroups: vi
+      .fn<DbApi['listInterviewGroups']>()
+      .mockResolvedValue({ ok: true, data: [] }),
+    getInterviewGroup: vi.fn<DbApi['getInterviewGroup']>(),
+    updateInterviewGroup: vi.fn<DbApi['updateInterviewGroup']>(),
+    deleteInterviewGroup: vi.fn<DbApi['deleteInterviewGroup']>(),
 
     createInterview: vi.fn<DbApi['createInterview']>(),
     listInterviews: vi.fn<DbApi['listInterviews']>().mockResolvedValue({ ok: true, data: [] }),

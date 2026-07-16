@@ -100,9 +100,14 @@ La visión de **Maurya** es una aplicación de escritorio que acompaña al entre
 |--------|--------|-------------|-----------|------------|
 | RF-DISC-001 | Crear discovery por nombre | Crear un discovery indicando solo un nombre; actúa como carpeta contenedora | `[Decisión de usuario]` feature 2; organiza el estado del discovery `[report §4.2 #3]` | Must |
 | RF-DISC-002 | Gestionar discoveries | Renombrar, listar y eliminar discoveries | CRUD básico de organización | Should |
-| RF-DISC-003 | Alta de empresa | Dentro de un discovery, crear empresa con nombre, website y página de LinkedIn | `[Decisión de usuario]` feature 3; alimenta la personalización del guión (§3.4) | Must |
+| RF-DISC-003 | Alta de empresa | ~~Dentro de un discovery~~ (evolucionado por RF-DISC-006 en H11: la empresa es global), crear empresa con nombre, website y página de LinkedIn | `[Decisión de usuario]` feature 3; alimenta la personalización del guión (§3.4) | Must |
 | RF-DISC-004 | Alta de contacto | Dentro de una empresa, crear contacto con nombre, posición y perfil de LinkedIn | `[Decisión de usuario]` feature 3; alimenta personalización del guión | Must |
 | RF-DISC-005 | Gestionar empresas y contactos | Editar y eliminar empresas y contactos | CRUD de mantenimiento | Should |
+| RF-DISC-006 | Empresas globales reutilizables | Las empresas dejan de pertenecer a un discovery: sección «Empresas» propia en el sidebar con CRUD global (nombre, website, LinkedIn, contexto); una misma empresa puede participar en entrevistas de cualquier discovery. Borrar una empresa borra sus contactos en cascada y deja sus entrevistas sin empresa/contactos (SET NULL), conservando transcripción, guión y notas | `[Decisión de usuario 2026-07-16]` (docs/drafts/company-contact-entities-20260716.md); evita duplicar empresas entre discoveries | Must |
+| RF-DISC-007 | Contactos por empresa (globales) | Dentro de cada empresa (global), sección «Contactos» con CRUD (nombre, LinkedIn, posición, contexto), independiente de los discoveries | `[Decisión de usuario 2026-07-16]` (mismo draft); acompaña a RF-DISC-006 | Must |
+| RF-DISC-008 | Objetivos del discovery | El discovery gana un campo `objetivos` (texto libre) editable en su CRUD | `[Decisión de usuario 2026-07-16]` (mismo draft); da contexto a los grupos y al guión | Must |
+| RF-DISC-009 | Grupos de entrevistas | Dentro de cada discovery, CRUD de «Grupos de entrevistas» con nombre, campo `objetivo`, un template de preguntas aplicado a todas las entrevistas del grupo y un template de notas aplicado por defecto | `[Decisión de usuario 2026-07-16]` (mismo draft); organiza las entrevistas por oleada/objetivo dentro del discovery | Must |
+| RF-DISC-010 | Migración automática del almacén | Los datos existentes migran sin pérdida (schemaVersion 2→3): empresas a globales tal cual (sin deduplicar), grupo «General» por discovery con sus entrevistas, `contactId` → `contactIds`. Las capturas siguen existiendo sin grupo (asignables a uno después) | `[Decisión de usuario 2026-07-16]` (mismo draft); continuidad de los datos locales (RF-APP-002) | Must |
 
 ### 3.3 Templates de entrevista (TPL)
 
@@ -122,6 +127,7 @@ La visión de **Maurya** es una aplicación de escritorio que acompaña al entre
 | RF-GUION-003 | Contexto histórico en el guión | Si existen transcripciones/notas de entrevistas anteriores de la misma empresa, el LLM las usa para personalizar el guión | `[Decisión de usuario]` feature 6; ataca gestión del estado del discovery `[report §4.2 #3]` | Must |
 | RF-GUION-004 | Generar objetivos/metas de la entrevista | El LLM genera una lista de objetivos/metas para la entrevista | `[Decisión de usuario]` feature 6; los objetivos alimentan la asistencia (§3.6) | Must |
 | RF-GUION-005 | Editar guión y objetivos | El usuario puede revisar y ajustar el guión y los objetivos antes de la llamada | Control humano sobre output del LLM; salvaguarda anti-error `[report §4.2 #5]` | Should |
+| RF-GUION-006 | Entrevista con empresa y N contactos | La entrevista se crea dentro de un grupo de entrevistas (RF-DISC-009) asignando una empresa y N contactos de ESA empresa (invariante); el guión se personaliza con nombre y contexto de la empresa y de todos los contactos. Evoluciona RF-GUION-001 (el template de preguntas viene del grupo) | `[Decisión de usuario 2026-07-16]` (docs/drafts/company-contact-entities-20260716.md); entrevistas con varios participantes | Must |
 
 ### 3.5 Captura de audio y transcripción (AUDIO)
 
@@ -153,6 +159,7 @@ La visión de **Maurya** es una aplicación de escritorio que acompaña al entre
 | RF-NOTE-003 | Reutilización por el LLM | Las transcripciones/notas quedan disponibles como contexto para preparar futuras entrevistas de la misma empresa | `[Decisión de usuario]` feature 9; cierra el bucle del estado del discovery `[report §4.2 #3]` | Must |
 | RF-NOTE-004 | Consulta y edición del resumen | El usuario puede leer y editar el resumen y consultar la transcripción | Control humano; el resumen del LLM debe poder corregirse | Should |
 | RF-NOTE-005 | Exportar resumen/transcripción | Exportar a Markdown/otro formato para compartir fuera de la app | Compartir aprendizajes con el equipo | Could |
+| RF-NOTE-006 | Regeneración de nota con template alternativo | La nota se genera por defecto con el template de notas del grupo de entrevistas (RF-DISC-009), pero se puede regenerar eligiendo otro note-template para esa entrevista en particular | `[Decisión de usuario 2026-07-16]` (docs/drafts/company-contact-entities-20260716.md); flexibilidad de síntesis por entrevista | Should |
 
 ### 3.8 Configuración avanzada de IA (CFG)
 
@@ -164,10 +171,10 @@ La visión de **Maurya** es una aplicación de escritorio que acompaña al entre
 
 | Criticidad | Cantidad | % del total |
 |-----------|----------|-------------|
-| Must | 21 | 60% |
-| Should | 11 | 31% |
-| Could | 3 | 9% |
-| **Total** | **35** | **100%** |
+| Must | 27 | 64% |
+| Should | 12 | 29% |
+| Could | 3 | 7% |
+| **Total** | **42** | **100%** |
 
 ---
 

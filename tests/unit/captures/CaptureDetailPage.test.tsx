@@ -52,13 +52,14 @@ let mockApi: MockApiHandle
 const DISCOVERY: Discovery = {
   id: 'd-1',
   name: 'Vertical Sanidad',
+  objectives: null,
   createdAt: '2026-07-01T09:00:00.000Z',
   updatedAt: '2026-07-01T09:00:00.000Z'
 }
 
+// SPEC-043: las empresas son globales (sin discoveryId)
 const COMPANY: Company = {
   id: 'c-1',
-  discoveryId: 'd-1',
   name: 'Acme Corp',
   website: null,
   linkedinUrl: null,
@@ -81,7 +82,8 @@ function capture(overrides: Partial<Interview> = {}): Interview {
     id: 'i-1',
     discoveryId: 'd-1',
     companyId: null,
-    contactId: null,
+    contactIds: [],
+    interviewGroupId: null,
     templateId: null,
     title: 'Captura sin empresa',
     status: 'draft',
@@ -218,7 +220,7 @@ describe('CaptureDetailPage', () => {
 
       // Con empresa asignada el botón no existe y la cabecera resuelve nombres
       unmount()
-      setInterview(capture({ companyId: 'c-1', contactId: 'ct-1' }))
+      setInterview(capture({ companyId: 'c-1', contactIds: ['ct-1'] }))
       renderDetail()
       await screen.findByRole('heading', { level: 1, name: 'Captura sin empresa' })
       expect(screen.queryByTestId('assign-company-button')).not.toBeInTheDocument()
@@ -227,7 +229,8 @@ describe('CaptureDetailPage', () => {
       ).toBeInTheDocument()
     })
 
-    // SPEC-020 · AC-27
+    // SPEC-020 · AC-27, adaptado por SPEC-046: sin participantes marcados el
+    // input viaja con contactIds [] y el resultado con contacts []
     it('assigns an existing company, toasts "Empresa asignada", closes the Sheet and refreshes the header without reloading', async () => {
       vi.mocked(mockApi.api.db.listCompanies).mockResolvedValue({ ok: true, data: [COMPANY] })
       vi.mocked(mockApi.api.db.assignInterviewCompany).mockResolvedValue({
@@ -235,7 +238,7 @@ describe('CaptureDetailPage', () => {
         data: {
           interview: capture({ companyId: 'c-1' }),
           company: COMPANY,
-          contact: null
+          contacts: []
         }
       })
       const user = userEvent.setup()
@@ -250,7 +253,7 @@ describe('CaptureDetailPage', () => {
       await waitFor(() =>
         expect(vi.mocked(mockApi.api.db.assignInterviewCompany)).toHaveBeenCalledWith('i-1', {
           companyId: 'c-1',
-          contactId: null
+          contactIds: []
         })
       )
       expect((await screen.findAllByText('Empresa asignada')).length).toBeGreaterThanOrEqual(1)
@@ -263,6 +266,59 @@ describe('CaptureDetailPage', () => {
       ).toBeInTheDocument()
       expect(screen.queryByTestId('assign-company-button')).not.toBeInTheDocument()
       // getInterview solo se llamó en la carga inicial: el refresco es local
+      expect(vi.mocked(mockApi.api.db.getInterview)).toHaveBeenCalledTimes(1)
+    })
+
+    // SPEC-046 · AC-25 (renderer): la asignación con 2 participantes marcados
+    // es UNA única mutación y la cabecera muestra los nombres unidos por ", "
+    it('assigns two marked participants in a single mutation and shows their names joined by ", " in the header', async () => {
+      const CONTACT_JOHN: Contact = {
+        ...CONTACT,
+        id: 'ct-2',
+        name: 'John Smith',
+        position: 'CEO'
+      }
+      vi.mocked(mockApi.api.db.listCompanies).mockResolvedValue({ ok: true, data: [COMPANY] })
+      vi.mocked(mockApi.api.db.listContacts).mockResolvedValue({
+        ok: true,
+        data: [CONTACT, CONTACT_JOHN]
+      })
+      vi.mocked(mockApi.api.db.assignInterviewCompany).mockResolvedValue({
+        ok: true,
+        data: {
+          interview: capture({ companyId: 'c-1', contactIds: ['ct-1', 'ct-2'] }),
+          company: COMPANY,
+          contacts: [CONTACT, CONTACT_JOHN]
+        }
+      })
+      const user = userEvent.setup()
+      renderDetail()
+
+      await user.click(await screen.findByTestId('assign-company-button'))
+      const sheet = await screen.findByTestId('assign-company-sheet')
+      await user.click(within(sheet).getByRole('combobox', { name: 'Empresa' }))
+      await user.click(await screen.findByRole('option', { name: 'Acme Corp' }))
+      const participants = await within(sheet).findByTestId('interview-participants')
+      await user.click(await within(participants).findByRole('checkbox', { name: /Jane Doe/ }))
+      await user.click(within(participants).getByRole('checkbox', { name: /John Smith/ }))
+      await user.click(within(sheet).getByRole('button', { name: 'Asignar' }))
+
+      await waitFor(() =>
+        expect(vi.mocked(mockApi.api.db.assignInterviewCompany)).toHaveBeenCalledWith('i-1', {
+          companyId: 'c-1',
+          contactIds: ['ct-1', 'ct-2']
+        })
+      )
+      // UNA única mutación compuesta (atomicidad garantizada en main)
+      expect(vi.mocked(mockApi.api.db.assignInterviewCompany)).toHaveBeenCalledTimes(1)
+      expect(vi.mocked(mockApi.api.db.updateInterview)).not.toHaveBeenCalled()
+      // Cabecera con los nombres unidos por ", " sin recargar
+      await waitFor(() =>
+        expect(screen.queryByTestId('assign-company-sheet')).not.toBeInTheDocument()
+      )
+      expect(
+        screen.getByText(/Vertical Sanidad · Acme Corp · Jane Doe, John Smith · Sin template/)
+      ).toBeInTheDocument()
       expect(vi.mocked(mockApi.api.db.getInterview)).toHaveBeenCalledTimes(1)
     })
   })

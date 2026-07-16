@@ -81,7 +81,6 @@ function seedBase(options: { withTemplate?: boolean } = {}): Seeded {
   const { withTemplate = true } = options
   const discovery = repository.createDiscovery({ name: 'Discovery Maurya' })
   const company = repository.createCompany({
-    discoveryId: discovery.id,
     name: 'Acme Corp',
     website: 'https://acme.example'
   })
@@ -105,7 +104,8 @@ function seedBase(options: { withTemplate?: boolean } = {}): Seeded {
     discoveryId: discovery.id,
     companyId: company.id,
     title: 'Discovery con Acme',
-    contactId: contact.id,
+    // SPEC-043: N contactos por entrevista — el servicio usa el primero
+    contactIds: [contact.id],
     templateId: withTemplate ? template.id : null
   })
   return { interview, template, companyId: company.id, discoveryId: discovery.id }
@@ -248,7 +248,6 @@ describe('llmService', () => {
       // Entrevista de OTRA empresa con nota: NO debe entrar en el contexto
       const otherDiscovery = repository.createDiscovery({ name: 'Otro discovery' })
       const otherCompany = repository.createCompany({
-        discoveryId: otherDiscovery.id,
         name: 'Globex'
       })
       const otherInterview = repository.createInterview({

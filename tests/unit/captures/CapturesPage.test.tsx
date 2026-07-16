@@ -26,6 +26,7 @@ let mockApi: MockApiHandle
 const DISCOVERY: Discovery = {
   id: 'd-1',
   name: 'Vertical Sanidad',
+  objectives: null,
   createdAt: '2026-07-01T09:00:00.000Z',
   updatedAt: '2026-07-01T09:00:00.000Z'
 }
@@ -45,7 +46,8 @@ function interview(overrides: Partial<Interview> = {}): Interview {
     id: 'i-1',
     discoveryId: 'd-1',
     companyId: null,
-    contactId: null,
+    contactIds: [],
+    interviewGroupId: null,
     templateId: null,
     title: 'Captura sin empresa',
     status: 'draft',
@@ -64,7 +66,7 @@ const UNASSIGNED: CaptureListItem = {
   interview: interview(),
   discoveryName: 'Vertical Sanidad',
   companyName: null,
-  contactName: null,
+  contactNames: [],
   templateName: null
 }
 
@@ -73,7 +75,8 @@ const ASSIGNED: CaptureListItem = {
   interview: interview({
     id: 'i-2',
     companyId: 'c-1',
-    contactId: 'ct-1',
+    // SPEC-043: N contactos por entrevista (contactIds sustituye a contactId)
+    contactIds: ['ct-1'],
     templateId: 'tpl-1',
     title: 'Entrevista con Acme',
     status: 'recorded',
@@ -81,7 +84,7 @@ const ASSIGNED: CaptureListItem = {
   }),
   discoveryName: 'Vertical Sanidad',
   companyName: 'Acme Corp',
-  contactName: 'Jane Doe',
+  contactNames: ['Jane Doe'],
   templateName: 'Entrevista MDR'
 }
 
@@ -364,8 +367,10 @@ describe('CapturesPage', () => {
       ).not.toBeInTheDocument()
     })
 
-    // SPEC-020 · AC-31 (Dialog de edición sin Contacto cuando no hay empresa)
-    it('includes "Editar" and "Eliminar" in the menu and opens the edit dialog without a Contacto field for unassigned captures', async () => {
+    // SPEC-020 · AC-31 (Dialog de edición sin Participantes cuando no hay
+    // empresa), adaptado por SPEC-046: el Select de contacto queda derogado —
+    // el campo condicional es ahora la lista de Checkbox «Participantes»
+    it('includes "Editar" and "Eliminar" in the menu and opens the edit dialog without a Participantes field for unassigned captures', async () => {
       setCaptures([UNASSIGNED])
       const user = userEvent.setup()
       renderCaptures()
@@ -380,23 +385,37 @@ describe('CapturesPage', () => {
       expect(await screen.findByRole('heading', { name: 'Editar captura' })).toBeInTheDocument()
       expect(screen.getByLabelText('Título')).toHaveValue('Captura sin empresa')
       expect(screen.getByRole('combobox', { name: 'Plantilla' })).toBeInTheDocument()
-      // Sin empresa no hay contacto que asignar desde la edición
-      expect(screen.queryByRole('combobox', { name: 'Contacto' })).not.toBeInTheDocument()
+      // Sin empresa no hay participantes que asignar desde la edición
+      expect(screen.queryByTestId('interview-participants')).not.toBeInTheDocument()
+      expect(screen.queryByText('Participantes')).not.toBeInTheDocument()
     })
 
-    // SPEC-020 · AC-31 (refuerzo: Contacto solo si la captura tiene empresa)
-    it('includes the Contacto select preloaded in the edit dialog when the capture has a company', async () => {
+    // SPEC-020 · AC-31 (refuerzo: participantes solo si la captura tiene
+    // empresa) + SPEC-046 · AC-22: la lista de Checkbox llega precargada con
+    // los participantes actuales de la captura
+    it('includes the Participantes checklist preloaded with the current contacts in the edit dialog when the capture has a company', async () => {
+      const CONTACT_JOHN: Contact = {
+        ...CONTACT,
+        id: 'ct-2',
+        name: 'John Smith'
+      }
       setCaptures([ASSIGNED])
-      vi.mocked(mockApi.api.db.listContacts).mockResolvedValue({ ok: true, data: [CONTACT] })
+      vi.mocked(mockApi.api.db.listContacts).mockResolvedValue({
+        ok: true,
+        data: [CONTACT, CONTACT_JOHN]
+      })
       const user = userEvent.setup()
       renderCaptures()
 
       await openRowAction(user, 'Entrevista con Acme', 'Editar')
 
       expect(await screen.findByRole('heading', { name: 'Editar captura' })).toBeInTheDocument()
-      const contactSelect = screen.getByRole('combobox', { name: 'Contacto' })
-      // Precargado con el contacto actual de la captura (resuelto lazy)
-      await waitFor(() => expect(contactSelect).toHaveTextContent('Jane Doe'))
+      // Lista de Checkbox precargada: marcado el participante actual (ct-1)
+      const participants = await screen.findByTestId('interview-participants')
+      await waitFor(() =>
+        expect(within(participants).getByRole('checkbox', { name: /Jane Doe/ })).toBeChecked()
+      )
+      expect(within(participants).getByRole('checkbox', { name: /John Smith/ })).not.toBeChecked()
       expect(vi.mocked(mockApi.api.db.listContacts)).toHaveBeenCalledWith('c-1')
     })
 

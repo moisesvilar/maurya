@@ -17,14 +17,14 @@ export interface NewCaptureValues {
 }
 
 /**
- * Valores del Dialog "Editar captura". `contactId` solo viaja si la captura
- * tiene empresa (el Dialog omite el campo en caso contrario): `undefined`
- * significa "no tocar el contacto".
+ * Valores del Dialog "Editar captura". SPEC-046: `contactIds` (participantes
+ * marcados) solo viaja si la captura tiene empresa (el Dialog omite el campo
+ * en caso contrario): `undefined` significa "no tocar los contactos".
  */
 export interface EditCaptureValues {
   title: string
   templateId: string | null
-  contactId?: string | null
+  contactIds?: string[]
 }
 
 export interface UseCapturesResult {
@@ -93,7 +93,9 @@ export function useCaptures(): UseCapturesResult {
       const result = await window.api.db.updateInterview(id, {
         title: values.title,
         templateId: values.templateId,
-        ...(values.contactId !== undefined ? { contactId: values.contactId } : {})
+        // SPEC-046: los N participantes marcados viajan tal cual (undefined =
+        // no tocar los contactos, captura sin empresa).
+        ...(values.contactIds !== undefined ? { contactIds: values.contactIds } : {})
       })
       if (!result.ok) {
         toast.error(result.error.message)

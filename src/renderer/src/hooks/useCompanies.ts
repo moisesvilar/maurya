@@ -32,45 +32,44 @@ function sortByCreatedAtAsc(companies: Company[]): Company[] {
 }
 
 /**
- * Empresas de un discovery (SPEC-011). Persistencia exclusiva vía
- * `api.db.*Company` (SPEC-006): las promesas nunca se rechazan, los fallos
- * viajan como `{ ok: false, error }` y se mapean a error state (listar) o
- * Toast destructive (mutaciones, sin tocar el estado). Orden por `createdAt`
- * asc; la edición no re-ordena (mantiene el orden de alta).
+ * Empresas GLOBALES (SPEC-043 transicional: la página bajo el discovery lista
+ * TODAS las del sistema y el alta ya no envía discoveryId; la sección Empresas
+ * propia llega en H11.2). Persistencia exclusiva vía `api.db.*Company`
+ * (SPEC-006): las promesas nunca se rechazan, los fallos viajan como
+ * `{ ok: false, error }` y se mapean a error state (listar) o Toast
+ * destructive (mutaciones, sin tocar el estado). Orden por `createdAt` asc;
+ * la edición no re-ordena (mantiene el orden de alta).
  */
-export function useCompanies(discoveryId: string): UseCompaniesResult {
+export function useCompanies(): UseCompaniesResult {
   const [state, setState] = useState<CompaniesState>({ status: 'loading' })
 
   // El estado inicial ya es loading, así el efecto de montaje no hace setState
   // síncrono (react-hooks/set-state-in-effect); los setState viven en el
   // callback de la promesa (patrón useDiscoveries).
   useEffect(() => {
-    void window.api.db.listCompanies(discoveryId).then((result) => {
+    void window.api.db.listCompanies().then((result) => {
       if (result.ok) {
         setState({ status: 'ready', companies: sortByCreatedAtAsc(result.data) })
       } else {
         setState({ status: 'error', message: result.error.message })
       }
     })
-  }, [discoveryId])
+  }, [])
 
-  const createCompany = useCallback(
-    async (values: CompanyFormValues): Promise<boolean> => {
-      const result = await window.api.db.createCompany({ discoveryId, ...values })
-      if (!result.ok) {
-        toast.error(result.error.message)
-        return false
-      }
-      setState((prev) =>
-        prev.status === 'ready'
-          ? { status: 'ready', companies: [...prev.companies, result.data] }
-          : prev
-      )
-      toast('Empresa creada')
-      return true
-    },
-    [discoveryId]
-  )
+  const createCompany = useCallback(async (values: CompanyFormValues): Promise<boolean> => {
+    const result = await window.api.db.createCompany(values)
+    if (!result.ok) {
+      toast.error(result.error.message)
+      return false
+    }
+    setState((prev) =>
+      prev.status === 'ready'
+        ? { status: 'ready', companies: [...prev.companies, result.data] }
+        : prev
+    )
+    toast('Empresa creada')
+    return true
+  }, [])
 
   const updateCompany = useCallback(
     async (id: string, values: CompanyFormValues): Promise<boolean> => {

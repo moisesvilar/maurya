@@ -4,6 +4,7 @@ import type {
   Contact,
   Discovery,
   Interview,
+  InterviewGroup,
   InterviewTemplate,
   Note,
   Company
@@ -226,16 +227,26 @@ function serializeTemplate(template: InterviewTemplate): string {
 function buildUserPrompt(
   interview: Interview,
   discovery: Discovery,
+  group: InterviewGroup | null,
   company: Company | null,
-  contact: Contact | null,
+  contacts: Contact[],
   template: InterviewTemplate,
   history: HistoricalEntry[]
 ): string {
   const sections: string[] = []
 
   // SPEC-020: el discovery viaja siempre; sin empresa es el único contexto
-  // (se omiten las secciones Empresa/Contacto/Histórico).
+  // (se omiten las secciones Empresa/Contactos/Histórico).
   sections.push(`## Discovery\nNombre: ${discovery.name}`)
+
+  // SPEC-046: objetivos del discovery y objetivo del grupo como secciones
+  // condicionales — sin ellos el prompt no cambia (byte-estable con el previo).
+  if (discovery.objectives !== null && discovery.objectives.trim() !== '') {
+    sections.push(`## Objetivos del discovery\n${discovery.objectives}`)
+  }
+  if (group !== null && group.objective !== null && group.objective.trim() !== '') {
+    sections.push(`## Objetivo del grupo\n${group.objective}`)
+  }
 
   if (company !== null) {
     const companyLines = [`Nombre: ${company.name}`]
@@ -245,19 +256,31 @@ function buildUserPrompt(
     if (company.linkedinUrl !== null) {
       companyLines.push(`LinkedIn: ${company.linkedinUrl}`)
     }
+    // SPEC-046: contexto de la empresa (texto libre y/o generado con IA).
+    if (company.context != null && company.context.trim() !== '') {
+      companyLines.push(`Contexto: ${company.context}`)
+    }
     sections.push(`## Empresa\n${companyLines.join('\n')}`)
 
-    if (contact !== null) {
-      const contactLines = [`Nombre: ${contact.name}`]
-      if (contact.position !== null) {
-        contactLines.push(`Cargo: ${contact.position}`)
-      }
-      if (contact.linkedinUrl !== null) {
-        contactLines.push(`LinkedIn: ${contact.linkedinUrl}`)
-      }
-      sections.push(`## Contacto\n${contactLines.join('\n')}`)
+    // SPEC-046: TODOS los participantes, un bloque por contacto en el orden
+    // de contactIds; el texto de degradación se conserva EXACTO (SPEC-020).
+    if (contacts.length > 0) {
+      const contactBlocks = contacts.map((contact) => {
+        const contactLines = [`Nombre: ${contact.name}`]
+        if (contact.position !== null) {
+          contactLines.push(`Cargo: ${contact.position}`)
+        }
+        if (contact.linkedinUrl !== null) {
+          contactLines.push(`LinkedIn: ${contact.linkedinUrl}`)
+        }
+        if (contact.context != null && contact.context.trim() !== '') {
+          contactLines.push(`Contexto: ${contact.context}`)
+        }
+        return contactLines.join('\n')
+      })
+      sections.push(`## Contactos\n${contactBlocks.join('\n\n')}`)
     } else {
-      sections.push('## Contacto\nSin contacto asignado todavía.')
+      sections.push('## Contactos\nSin contacto asignado todavía.')
     }
   }
 
@@ -405,7 +428,19 @@ async function doGenerate(interviewId: string): Promise<Interview> {
   // tras asignar empresa, el branch vuelve solo al camino completo.
   const discovery = repository.getDiscovery(interview.discoveryId)
   const company = interview.companyId !== null ? repository.getCompany(interview.companyId) : null
-  const contact = interview.contactId !== null ? repository.getContact(interview.contactId) : null
+  // SPEC-046: TODOS los contactos, en el orden de contactIds (la invariante
+  // v3 del repositorio garantiza que las referencias resuelven).
+  const contacts = interview.contactIds.map((contactId) => repository.getContact(contactId))
+  // SPEC-046: el grupo alimenta la sección condicional "Objetivo del grupo";
+  // una referencia rota se tolera (grupo null → sección omitida).
+  let group: InterviewGroup | null = null
+  if (interview.interviewGroupId !== null) {
+    try {
+      group = repository.getInterviewGroup(interview.interviewGroupId)
+    } catch {
+      group = null
+    }
+  }
   const template = repository.getInterviewTemplate(interview.templateId)
   const history =
     interview.companyId !== null ? collectHistoricalContext(interview.companyId, interview.id) : []
@@ -422,7 +457,15 @@ async function doGenerate(interviewId: string): Promise<Interview> {
       messages: [
         {
           role: 'user',
-          content: buildUserPrompt(interview, discovery, company, contact, template, history)
+          content: buildUserPrompt(
+            interview,
+            discovery,
+            group,
+            company,
+            contacts,
+            template,
+            history
+          )
         }
       ]
     })

@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, renameSync } from 'fs'
 import { join } from 'path'
@@ -12,6 +13,7 @@ import type {
   DbStatus,
   Discovery,
   Interview,
+  InterviewGroup,
   InterviewTemplate,
   LinkedinMcpSettings,
   Note,
@@ -26,6 +28,8 @@ export interface DbData {
   companies: Company[]
   contacts: Contact[]
   interviewTemplates: InterviewTemplate[]
+  /** Grupos de entrevistas (SPEC-043): colección requerida en v3. */
+  interviewGroups: InterviewGroup[]
   interviews: Interview[]
   noteTemplates: NoteTemplate[]
   notes: Note[]
@@ -56,8 +60,8 @@ export interface DbData {
   linkedinMcpSettings?: LinkedinMcpSettings
 }
 
-/** v2 (SPEC-020): Interview gana discoveryId obligatorio y companyId nullable. */
-const SCHEMA_VERSION = 2
+/** v3 (SPEC-043): empresas globales + grupos de entrevistas + N contactos por entrevista. */
+const SCHEMA_VERSION = 3
 
 const COLLECTIONS = [
   'discoveries',
@@ -80,13 +84,18 @@ function emptyData(): DbData {
     companies: [],
     contacts: [],
     interviewTemplates: [],
+    interviewGroups: [],
     interviews: [],
     noteTemplates: [],
     notes: []
   }
 }
 
-/** Chequeo estructural mínimo del JSON leído de disco. */
+/**
+ * Chequeo estructural mínimo del JSON leído de disco. COLLECTIONS es la base
+ * común v1/v2/v3; `interviewGroups` solo se exige a partir de v3 (SPEC-043:
+ * un v2 sin la colección debe pasar el chequeo para poder migrarse).
+ */
 function isDbData(value: unknown): value is DbData {
   if (typeof value !== 'object' || value === null) {
     return false
@@ -95,7 +104,40 @@ function isDbData(value: unknown): value is DbData {
   if (typeof record.schemaVersion !== 'number') {
     return false
   }
-  return COLLECTIONS.every((collection) => Array.isArray(record[collection]))
+  if (!COLLECTIONS.every((collection) => Array.isArray(record[collection]))) {
+    return false
+  }
+  if (record.schemaVersion >= 3 && !Array.isArray(record.interviewGroups)) {
+    return false
+  }
+  return true
+}
+
+// ---------------------------------------------------------------------------
+// Formas legadas v1/v2 (SPEC-043): locales al módulo, solo para migrar.
+// ---------------------------------------------------------------------------
+
+/** Company v1/v2: pertenecía a un discovery. */
+interface CompanyV2 extends Company {
+  discoveryId: string
+}
+
+/** Interview v1/v2: contacto único, sin contactIds ni interviewGroupId. */
+interface InterviewV2 extends Omit<Interview, 'contactIds' | 'interviewGroupId'> {
+  contactId: string | null
+}
+
+/** Discovery v1/v2: sin objectives. */
+type DiscoveryV2 = Omit<Discovery, 'objectives'>
+
+/** Forma v1/v2 del almacén (sin interviewGroups). */
+interface DbDataV2 extends Omit<
+  DbData,
+  'discoveries' | 'companies' | 'interviews' | 'interviewGroups'
+> {
+  discoveries: DiscoveryV2[]
+  companies: CompanyV2[]
+  interviews: InterviewV2[]
 }
 
 /**
@@ -105,11 +147,11 @@ function isDbData(value: unknown): value is DbData {
  * decisión documentada en el plan, coherente con la cascada de borrado.
  * En v1 `companyId` nunca es null; el chequeo defensivo cubre datos anómalos.
  */
-function migrateV1ToV2(v1: DbData): DbData {
-  const companiesById = new Map<string, Company>(
+function migrateV1ToV2(v1: DbDataV2): DbDataV2 {
+  const companiesById = new Map<string, CompanyV2>(
     v1.companies.map((company) => [company.id, company])
   )
-  const interviews: Interview[] = []
+  const interviews: InterviewV2[] = []
   const droppedInterviewIds = new Set<string>()
   for (const interview of v1.interviews) {
     const company =
@@ -125,6 +167,53 @@ function migrateV1ToV2(v1: DbData): DbData {
     schemaVersion: 2,
     interviews,
     notes: v1.notes.filter((note) => !droppedInterviewIds.has(note.interviewId))
+  }
+}
+
+/**
+ * Migración v2 → v3 (SPEC-043): empresas globales (drop de discoveryId, sin
+ * deduplicar), Discovery.objectives = null, Interview.contactId → contactIds
+ * ([id] o []), y un grupo «General» por discovery CON entrevistas al que se
+ * asignan todas las entrevistas del discovery. Settings y campos opcionales
+ * (aiUsage, objectiveResults, ...) se conservan intactos por spread.
+ */
+function migrateV2ToV3(v2: DbDataV2): DbData {
+  const now = new Date().toISOString()
+  const discoveryIdsWithInterviews = new Set(
+    v2.interviews.map((interview) => interview.discoveryId)
+  )
+  const interviewGroups: InterviewGroup[] = []
+  const groupIdByDiscovery = new Map<string, string>()
+  for (const discovery of v2.discoveries) {
+    if (!discoveryIdsWithInterviews.has(discovery.id)) {
+      continue // decisión asumida: sin entrevistas no hay grupo «General»
+    }
+    const id = randomUUID()
+    groupIdByDiscovery.set(discovery.id, id)
+    interviewGroups.push({
+      id,
+      discoveryId: discovery.id,
+      name: 'General',
+      objective: null,
+      interviewTemplateId: null,
+      noteTemplateId: null,
+      createdAt: now,
+      updatedAt: now
+    })
+  }
+  return {
+    ...v2,
+    schemaVersion: 3,
+    discoveries: v2.discoveries.map((discovery) => ({ ...discovery, objectives: null })),
+    // Los rest-spreads eliminan literalmente discoveryId/contactId del JSON persistido.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    companies: v2.companies.map(({ discoveryId, ...company }) => company),
+    interviews: v2.interviews.map(({ contactId, ...interview }) => ({
+      ...interview,
+      contactIds: contactId !== null && contactId !== undefined ? [contactId] : [],
+      interviewGroupId: groupIdByDiscovery.get(interview.discoveryId) ?? null
+    })),
+    interviewGroups
   }
 }
 
@@ -157,13 +246,18 @@ export function initStore(baseDir?: string): void {
     if (!isDbData(parsed)) {
       throw new Error('estructura de datos inválida')
     }
-    // Migración síncrona ANTES del primer mutate (SPEC-020); se persiste
-    // atómica. Si falla, cae en el camino `.corrupt-<ts>` de abajo.
+    // Migración síncrona ANTES del primer mutate (SPEC-020/SPEC-043); se
+    // persiste atómica. Si falla, cae en el camino `.corrupt-<ts>` de abajo.
+    // Los casts a DbDataV2 son nominales: isDbData valida la base común y las
+    // formas legadas solo existen para tipar la migración.
     if (parsed.schemaVersion === 1) {
-      data = migrateV1ToV2(parsed)
+      data = migrateV2ToV3(migrateV1ToV2(parsed as unknown as DbDataV2))
+      persist(data)
+    } else if (parsed.schemaVersion === 2) {
+      data = migrateV2ToV3(parsed as unknown as DbDataV2)
       persist(data)
     } else {
-      data = parsed
+      data = parsed // v3: se carga tal cual, sin re-migrar ni reescribir grupos
     }
   } catch (error) {
     const corruptPath = `${dbFilePath}.corrupt-${Date.now()}`

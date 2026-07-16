@@ -2,10 +2,11 @@ import type {
   SearchCompanyHit,
   SearchContactHit,
   SearchDiscoveryHit,
+  SearchGroupHit,
   SearchInterviewHit,
   SearchResults
 } from '../../renderer/src/types/search'
-import type { Company, Discovery } from '../../renderer/src/types/domain'
+import type { Company } from '../../renderer/src/types/domain'
 import { read } from './store'
 
 /** Máximo de resultados por grupo (regla de densidad 8.2 de la spec). */
@@ -24,17 +25,19 @@ export function normalizeSearchText(value: string): string {
 }
 
 function emptyResults(): SearchResults {
-  return { discoveries: [], companies: [], contacts: [], interviews: [] }
+  return { discoveries: [], groups: [], companies: [], contacts: [], interviews: [] }
 }
 
 /**
- * Búsqueda global (SPEC-018): coincidencia por subcadena normalizada sobre
- * nombre de discovery, nombre de empresa, nombre de contacto y título de
- * entrevista, en un único read del snapshot. El contexto (discovery de la
- * empresa, empresa del contacto/entrevista) se resuelve con Maps O(1); si una
- * referencia no resuelve (dato inconsistente) el hit se omite en vez de
- * romper. Query vacía o en blanco → grupos vacíos (el estado inicial lo
- * gestiona la UI sin llamar). Límite de 8 por grupo en orden de inserción.
+ * Búsqueda global (SPEC-018, adaptada al modelo v3 en SPEC-048): coincidencia
+ * por subcadena normalizada sobre nombre de discovery, nombre de grupo de
+ * entrevistas, nombre de empresa, nombre de contacto y título de entrevista,
+ * en un único read del snapshot. El contexto (discovery del grupo, empresa
+ * del contacto/entrevista) se resuelve con Maps O(1); si una referencia no
+ * resuelve (dato inconsistente) el hit se omite en vez de romper — las
+ * empresas, ya globales, no se omiten nunca. Query vacía o en blanco →
+ * grupos vacíos (el estado inicial lo gestiona la UI sin llamar). Límite de
+ * 8 por grupo en orden de inserción.
  */
 export function searchGlobal(query: string): SearchResults {
   const normalizedQuery = normalizeSearchText(query.trim())
@@ -45,9 +48,6 @@ export function searchGlobal(query: string): SearchResults {
   return read((store) => {
     const matches = (text: string): boolean => normalizeSearchText(text).includes(normalizedQuery)
 
-    const discoveriesById = new Map<string, Discovery>(
-      store.discoveries.map((discovery) => [discovery.id, discovery])
-    )
     const companiesById = new Map<string, Company>(
       store.companies.map((company) => [company.id, company])
     )
@@ -62,24 +62,42 @@ export function searchGlobal(query: string): SearchResults {
       }
     }
 
+    // SPEC-048: grupos de entrevistas por nombre, con el nombre de su
+    // discovery como contexto; un discovery irresoluble (dato inconsistente)
+    // omite el hit en vez de romper.
+    const discoveryNameById = new Map<string, string>(
+      store.discoveries.map((discovery) => [discovery.id, discovery.name])
+    )
+    const groups: SearchGroupHit[] = []
+    for (const group of store.interviewGroups) {
+      if (groups.length >= GROUP_LIMIT) {
+        break
+      }
+      if (!matches(group.name)) {
+        continue
+      }
+      const discoveryName = discoveryNameById.get(group.discoveryId)
+      if (discoveryName === undefined) {
+        continue
+      }
+      groups.push({
+        id: group.id,
+        discoveryId: group.discoveryId,
+        name: group.name,
+        discoveryName
+      })
+    }
+
+    // SPEC-048: las empresas son globales — toda coincidencia entra, sin
+    // depender de discoveries (deroga el ancla transicional de SPEC-043).
     const companies: SearchCompanyHit[] = []
     for (const company of store.companies) {
       if (companies.length >= GROUP_LIMIT) {
         break
       }
-      if (!matches(company.name)) {
-        continue
+      if (matches(company.name)) {
+        companies.push({ id: company.id, name: company.name })
       }
-      const discovery = discoveriesById.get(company.discoveryId)
-      if (discovery === undefined) {
-        continue
-      }
-      companies.push({
-        id: company.id,
-        discoveryId: company.discoveryId,
-        name: company.name,
-        discoveryName: discovery.name
-      })
     }
 
     const contacts: SearchContactHit[] = []
@@ -98,7 +116,6 @@ export function searchGlobal(query: string): SearchResults {
         id: contact.id,
         name: contact.name,
         companyId: company.id,
-        companyDiscoveryId: company.discoveryId,
         companyName: company.name
       })
     }
@@ -131,6 +148,6 @@ export function searchGlobal(query: string): SearchResults {
       })
     }
 
-    return { discoveries, companies, contacts, interviews }
+    return { discoveries, groups, companies, contacts, interviews }
   })
 }

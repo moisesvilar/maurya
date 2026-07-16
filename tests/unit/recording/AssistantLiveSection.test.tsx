@@ -65,7 +65,6 @@ let mockApi: MockApiHandle
 
 const COMPANY: Company = {
   id: 'c-1',
-  discoveryId: 'd-1',
   name: 'Acme Corp',
   website: null,
   linkedinUrl: null,
@@ -76,6 +75,7 @@ const COMPANY: Company = {
 const DISCOVERY: Discovery = {
   id: 'd-1',
   name: 'Vertical Sanidad',
+  objectives: null,
   createdAt: '2026-07-01T09:00:00.000Z',
   updatedAt: '2026-07-01T09:00:00.000Z'
 }
@@ -85,7 +85,8 @@ function interview(overrides: Partial<Interview> = {}): Interview {
     id: 'i-1',
     discoveryId: 'd-1',
     companyId: 'c-1',
-    contactId: null,
+    contactIds: [],
+    interviewGroupId: null,
     templateId: null,
     title: 'Discovery con Acme',
     status: 'draft',

@@ -152,7 +152,7 @@ function buildSystemPrompt(template: NoteTemplate): string {
 function buildUserPrompt(
   interview: Interview,
   company: Company | null,
-  contact: Contact | null,
+  contacts: Contact[],
   template: NoteTemplate,
   lines: TranscriptLine[]
 ): string {
@@ -168,19 +168,34 @@ function buildUserPrompt(
     if (company.linkedinUrl !== null) {
       companyLines.push(`LinkedIn: ${company.linkedinUrl}`)
     }
+    // SPEC-046: contexto de la empresa (texto libre y/o generado con IA).
+    if (company.context != null && company.context.trim() !== '') {
+      companyLines.push(`Contexto: ${company.context}`)
+    }
     sections.push(`## Empresa\n${companyLines.join('\n')}`)
   } else {
     sections.push('## Empresa\nSin empresa asignada.')
   }
 
-  if (contact !== null) {
-    const contactLines = [`Nombre: ${contact.name}`]
-    if (contact.position !== null) {
-      contactLines.push(`Cargo: ${contact.position}`)
-    }
-    sections.push(`## Contacto\n${contactLines.join('\n')}`)
+  // SPEC-046: TODOS los participantes, un bloque por contacto en el orden de
+  // contactIds; el texto de degradación se conserva EXACTO (SPEC-020).
+  if (contacts.length > 0) {
+    const contactBlocks = contacts.map((contact) => {
+      const contactLines = [`Nombre: ${contact.name}`]
+      if (contact.position !== null) {
+        contactLines.push(`Cargo: ${contact.position}`)
+      }
+      if (contact.linkedinUrl !== null) {
+        contactLines.push(`LinkedIn: ${contact.linkedinUrl}`)
+      }
+      if (contact.context != null && contact.context.trim() !== '') {
+        contactLines.push(`Contexto: ${contact.context}`)
+      }
+      return contactLines.join('\n')
+    })
+    sections.push(`## Contactos\n${contactBlocks.join('\n\n')}`)
   } else {
-    sections.push('## Contacto\nSin contacto asignado.')
+    sections.push('## Contactos\nSin contacto asignado.')
   }
 
   const templateLines = template.sections.map(
@@ -321,7 +336,9 @@ async function doGenerate(
 
   // SPEC-020: empresa nullable en capturas capture-first; el prompt degrada.
   const company = interview.companyId !== null ? repository.getCompany(interview.companyId) : null
-  const contact = interview.contactId !== null ? repository.getContact(interview.contactId) : null
+  // SPEC-046: TODOS los contactos, en el orden de contactIds (la invariante
+  // v3 del repositorio garantiza que las referencias resuelven).
+  const contacts = interview.contactIds.map((contactId) => repository.getContact(contactId))
 
   const client = new Anthropic({ apiKey })
   let response: Anthropic.Message
@@ -335,7 +352,7 @@ async function doGenerate(
       messages: [
         {
           role: 'user',
-          content: buildUserPrompt(interview, company, contact, template, transcript.lines)
+          content: buildUserPrompt(interview, company, contacts, template, transcript.lines)
         }
       ]
     })

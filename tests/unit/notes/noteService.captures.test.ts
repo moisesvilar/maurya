@@ -133,7 +133,9 @@ describe('noteService (SPEC-020 capturas)', () => {
       messages: Array<{ content: string }>
     }
     expect(params.messages[0].content).toContain('## Empresa\nSin empresa asignada.')
-    expect(params.messages[0].content).toContain('## Contacto\nSin contacto asignado.')
+    // SPEC-046: la sección pasa a «## Contactos» (bloque por participante);
+    // el texto de degradación se conserva EXACTO (deroga la forma de SPEC-020)
+    expect(params.messages[0].content).toContain('## Contactos\nSin contacto asignado.')
     // Y la nota se genera y persiste igual que en una entrevista con empresa
     expect(result.note.contentMarkdown).toBe('## Dolores\n\nRegistro manual detectado.')
     expect(result.interview.status).toBe('summarized')

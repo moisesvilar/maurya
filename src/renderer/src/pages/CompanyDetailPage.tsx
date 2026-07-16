@@ -41,7 +41,8 @@ import { InterviewFormDialog } from '@/components/interviews/InterviewFormDialog
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
 import { MarkdownView } from '@/components/markdown/MarkdownView'
 import { useContacts } from '@/hooks/useContacts'
-import { useInterviews } from '@/hooks/useInterviews'
+import { useDiscoveries } from '@/hooks/useDiscoveries'
+import { useInterviews, type InterviewFormValues } from '@/hooks/useInterviews'
 import { useInterviewTemplates } from '@/hooks/useInterviewTemplates'
 import type { CompanyFormValues } from '@/hooks/useCompanies'
 import type { Company, Contact, Interview } from '@/types/domain'
@@ -62,19 +63,21 @@ function hostnameOf(url: string): string {
 }
 
 /**
- * Detalle de una empresa (SPEC-011, ruta
- * /discoveries/:discoveryId/companies/:companyId — Layout 2 detalle, la top
- * bar sigue marcando "Discoveries" por prefijo): back button "Volver" al
- * detalle del discovery, h1 con el nombre, fila muted con los enlaces
- * externos (hostname visible) y la sección Contactos con CRUD completo.
- * Resuelve la empresa con `getCompany` (SPEC-006); un id inexistente o un
- * error del bridge muestran el error state con enlace "Volver a Discoveries".
+ * Detalle de una empresa (SPEC-011; SPEC-044 la traslada a la ruta GLOBAL
+ * /companies/:companyId — Layout 2 detalle, la top bar marca "Empresas" por
+ * prefijo): back button "Volver" al listado global, h1 con el nombre, fila
+ * muted con los enlaces externos (hostname visible) y las secciones Contexto
+ * (con generación IA), Contactos y Entrevistas con CRUD completo. Resuelve la
+ * empresa con `getCompany` (SPEC-006); un id inexistente o un error del
+ * bridge muestran el error state con enlace "Volver a Empresas". El discovery
+ * ya no viaja en la URL: el Dialog de nueva entrevista lo pide con un Select
+ * requerido y los links a entrevistas usan el `discoveryId` de cada una.
  * Los Dialogs viven a nivel de página, FUERA del DropdownMenu, gobernados por
  * pendingEdit/pendingDelete; la apertura desde onSelect se difiere con
  * setTimeout(0) (mitigador del incidente conocido de Radix dropdown → dialog).
  */
 export function CompanyDetailPage(): React.ReactElement {
-  const { discoveryId, companyId } = useParams<{ discoveryId: string; companyId: string }>()
+  const { companyId } = useParams<{ companyId: string }>()
   const navigate = useNavigate()
   const [state, setState] = useState<CompanyDetailState>({ status: 'loading' })
   const {
@@ -89,12 +92,16 @@ export function CompanyDetailPage(): React.ReactElement {
     createInterview,
     updateInterview,
     removeInterview
-  } = useInterviews(discoveryId ?? '', companyId ?? '')
+  } = useInterviews(companyId ?? '')
   // UNA sola carga de templates a nivel de página (SPEC-013): alimenta el
   // Select del Dialog y la resolución de nombres de las filas; si el fetch
   // falla, el Select degrada a solo "Sin template" y las filas omiten el
   // nombre del template.
   const { state: templatesState } = useInterviewTemplates()
+  // UNA sola carga de discoveries a nivel de página (SPEC-044): alimenta el
+  // Select requerido del Dialog de entrevista; si el fetch falla, degrada a
+  // "No hay discoveries" con el aviso del Dialog.
+  const { state: discoveriesState } = useDiscoveries()
   const [createOpen, setCreateOpen] = useState(false)
   const [pendingEdit, setPendingEdit] = useState<Contact | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Contact | null>(null)
@@ -185,6 +192,25 @@ export function CompanyDetailPage(): React.ReactElement {
     setPendingDelete(null)
   }
 
+  /**
+   * SPEC-044-iter-1 (AC-21 de la base): tras crear la entrevista con éxito
+   * se navega a su detalle por la ruta anidada, construida con el discovery
+   * elegido en el Dialog y el id devuelto por el hook. Devuelve boolean para
+   * conservar el contrato del Dialog (cerrar/resetear solo en éxito); si el
+   * hook devuelve null (envelope ok: false, toast de error ya emitido), no
+   * se navega y el Dialog permanece abierto.
+   */
+  const handleInterviewCreate = async (values: InterviewFormValues): Promise<boolean> => {
+    const interview = await createInterview(values)
+    if (interview === null) {
+      return false
+    }
+    void navigate(
+      `/discoveries/${values.discoveryId}/companies/${companyId}/interviews/${interview.id}`
+    )
+    return true
+  }
+
   const openInterviewEdit = (interview: Interview): void => {
     setTimeout(() => setPendingInterviewEdit(interview), 0)
   }
@@ -202,6 +228,7 @@ export function CompanyDetailPage(): React.ReactElement {
 
   const contacts = contactsState.status === 'ready' ? contactsState.contacts : []
   const templates = templatesState.status === 'ready' ? templatesState.templates : []
+  const discoveries = discoveriesState.status === 'ready' ? discoveriesState.discoveries : []
 
   const company = state.status === 'ready' ? state.company : null
   // Generación del contexto de empresa: clave de Anthropic + al menos una
@@ -218,25 +245,28 @@ export function CompanyDetailPage(): React.ReactElement {
     capabilities !== null && capabilities.hasAnthropicKey && capabilities.linkedinMcpConfigured
 
   /**
-   * Fila muted "{contacto} · {template}" (solo los nombres que existan y se
+   * Fila muted "{contactos} · {template}" (solo los nombres que existan y se
    * resuelvan con los listados ya cargados; referencias rotas se omiten).
+   * SPEC-043: los contactos de `contactIds` se unen por ", " en su orden.
    */
   const interviewRefsLabel = (interview: Interview): string => {
-    const contactName =
-      interview.contactId !== null
-        ? (contacts.find((contact) => contact.id === interview.contactId)?.name ?? null)
-        : null
+    const contactLabel = interview.contactIds
+      .map((contactId) => contacts.find((contact) => contact.id === contactId)?.name)
+      .filter((name): name is string => name !== undefined)
+      .join(', ')
     const templateName =
       interview.templateId !== null
         ? (templates.find((template) => template.id === interview.templateId)?.name ?? null)
         : null
-    return [contactName, templateName].filter((name): name is string => name !== null).join(' · ')
+    return [contactLabel === '' ? null : contactLabel, templateName]
+      .filter((name): name is string => name !== null)
+      .join(' · ')
   }
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <div>
-        <Button variant="ghost" onClick={() => void navigate(`/discoveries/${discoveryId}`)}>
+        <Button variant="ghost" onClick={() => void navigate('/companies')}>
           <ArrowLeft />
           Volver
         </Button>
@@ -252,8 +282,8 @@ export function CompanyDetailPage(): React.ReactElement {
       {state.status === 'error' && (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
           <p className="text-sm text-muted-foreground">{state.message}</p>
-          <Link to="/discoveries" className="text-sm font-medium underline underline-offset-4">
-            Volver a Discoveries
+          <Link to="/companies" className="text-sm font-medium underline underline-offset-4">
+            Volver a Empresas
           </Link>
         </div>
       )}
@@ -486,8 +516,10 @@ export function CompanyDetailPage(): React.ReactElement {
                       className="flex items-center justify-between gap-2 px-4 py-3"
                     >
                       <div className="flex items-center gap-3">
+                        {/* SPEC-044: el discoveryId del link sale de la propia
+                            entrevista (la ruta anidada de detalle no se toca) */}
                         <Link
-                          to={`/discoveries/${discoveryId}/companies/${companyId}/interviews/${interview.id}`}
+                          to={`/discoveries/${interview.discoveryId}/companies/${companyId}/interviews/${interview.id}`}
                           className="text-sm font-medium underline-offset-4 hover:underline"
                         >
                           {interview.title}
@@ -571,7 +603,8 @@ export function CompanyDetailPage(): React.ReactElement {
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar contacto</AlertDialogTitle>
             <AlertDialogDescription>
-              Se eliminará permanentemente «{pendingDelete?.name ?? ''}».
+              Se eliminará permanentemente «{pendingDelete?.name ?? ''}». Las entrevistas que lo
+              referencian lo perderán como participante.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -589,9 +622,10 @@ export function CompanyDetailPage(): React.ReactElement {
         title="Nueva entrevista"
         submitLabel="Crear"
         companyName={state.status === 'ready' ? state.company.name : ''}
+        discoveries={discoveries}
         contacts={contacts}
         templates={templates}
-        onSubmit={createInterview}
+        onSubmit={handleInterviewCreate}
       />
 
       <InterviewFormDialog
@@ -604,6 +638,7 @@ export function CompanyDetailPage(): React.ReactElement {
         title="Editar entrevista"
         submitLabel="Guardar"
         companyName={state.status === 'ready' ? state.company.name : ''}
+        discoveries={discoveries}
         contacts={contacts}
         templates={templates}
         interview={pendingInterviewEdit}

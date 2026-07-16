@@ -116,7 +116,7 @@ const ANALYSIS_JSON = {
 
 function seedScriptInterview(): string {
   const discovery = repository.createDiscovery({ name: 'Discovery Maurya' })
-  const company = repository.createCompany({ discoveryId: discovery.id, name: 'Acme Corp' })
+  const company = repository.createCompany({ name: 'Acme Corp' })
   const template = repository.createInterviewTemplate({
     name: 'Entrevista de problema',
     phase: 'problem',

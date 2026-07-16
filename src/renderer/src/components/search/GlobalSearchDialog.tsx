@@ -1,6 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Building2, FolderSearch, MessagesSquare, User } from 'lucide-react'
+import { Building2, FolderSearch, Layers, MessagesSquare, User } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
   Command,
@@ -23,14 +23,14 @@ export interface GlobalSearchDialogProps {
  * Diálogo de búsqueda global (SPEC-018): command palette sobre cmdk con
  * `shouldFilter={false}` — la coincidencia (case/diacríticos-insensitive) se
  * calcula en main y aquí solo se pintan los resultados ya filtrados, de forma
- * determinista y testeable. Grupos en orden fijo Discoveries → Empresas →
- * Contactos → Entrevistas, solo los que tienen resultados. Cerrar el diálogo
- * resetea la query (reabrir = búsqueda nueva).
+ * determinista y testeable. Grupos en orden fijo Discoveries → Grupos →
+ * Empresas → Contactos → Entrevistas (SPEC-048), solo los que tienen
+ * resultados. Cerrar el diálogo resetea la query (reabrir = búsqueda nueva).
  *
- * Rutas de destino: las ANIDADAS reales de App.tsx
- * (`/discoveries/:discoveryId/companies/:companyId[/interviews/:interviewId]`),
- * desviación documentada respecto a las rutas planas de la nota técnica de la
- * spec (plan §3: misma intención, las planas no existen).
+ * Rutas de destino (SPEC-048, modelo v3): empresas y contactos navegan al
+ * detalle global directo `/companies/:companyId`; los grupos a
+ * `/discoveries/:discoveryId/groups/:groupId`; las entrevistas conservan la
+ * ruta anidada (o `/captures/:id` sin empresa, SPEC-020).
  */
 export function GlobalSearchDialog({
   open,
@@ -92,21 +92,35 @@ export function GlobalSearchDialog({
                   ))}
                 </CommandGroup>
               )}
+              {results.groups.length > 0 && (
+                <CommandGroup heading="Grupos">
+                  {results.groups.map((hit) => (
+                    <CommandItem
+                      key={`group-${hit.id}`}
+                      value={`group-${hit.id}`}
+                      onSelect={() =>
+                        closeAndNavigate(`/discoveries/${hit.discoveryId}/groups/${hit.id}`)
+                      }
+                    >
+                      <Layers />
+                      <span className="truncate">{hit.name}</span>
+                      <span className="ml-auto truncate text-xs text-muted-foreground">
+                        {hit.discoveryName}
+                      </span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
               {results.companies.length > 0 && (
                 <CommandGroup heading="Empresas">
                   {results.companies.map((hit) => (
                     <CommandItem
                       key={`company-${hit.id}`}
                       value={`company-${hit.id}`}
-                      onSelect={() =>
-                        closeAndNavigate(`/discoveries/${hit.discoveryId}/companies/${hit.id}`)
-                      }
+                      onSelect={() => closeAndNavigate(`/companies/${hit.id}`)}
                     >
                       <Building2 />
                       <span className="truncate">{hit.name}</span>
-                      <span className="ml-auto truncate text-xs text-muted-foreground">
-                        {hit.discoveryName}
-                      </span>
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -117,11 +131,7 @@ export function GlobalSearchDialog({
                     <CommandItem
                       key={`contact-${hit.id}`}
                       value={`contact-${hit.id}`}
-                      onSelect={() =>
-                        closeAndNavigate(
-                          `/discoveries/${hit.companyDiscoveryId}/companies/${hit.companyId}`
-                        )
-                      }
+                      onSelect={() => closeAndNavigate(`/companies/${hit.companyId}`)}
                     >
                       <User />
                       <span className="truncate">{hit.name}</span>

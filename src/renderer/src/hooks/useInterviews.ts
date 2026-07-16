@@ -8,21 +8,34 @@ export type InterviewsState =
   | { status: 'error'; message: string }
   | { status: 'ready'; interviews: Interview[] }
 
-/** Valores del formulario de entrevista (sentinels ya mapeados a null). */
+/**
+ * Valores del formulario de entrevista (sentinels ya mapeados a null).
+ * SPEC-046: `contactIds` lleva los N participantes marcados en la lista de
+ * Checkbox, en el orden de marcado (deroga el selector único de SPEC-043).
+ * SPEC-044: `discoveryId` viaja en los values (elegido en el Select del
+ * Dialog en creación; en edición es el de la propia entrevista, pero
+ * `updateInterview` NO lo envía en el patch).
+ */
 export interface InterviewFormValues {
+  discoveryId: string
   title: string
-  contactId: string | null
+  contactIds: string[]
   templateId: string | null
 }
 
 export interface UseInterviewsResult {
   state: InterviewsState
-  /** Crea una entrevista (main fija status draft); true si se creó. */
-  createInterview: (values: InterviewFormValues) => Promise<boolean>
   /**
-   * Edita una entrevista. El patch lleva SOLO los 3 campos del formulario
-   * (null limpia la referencia); NUNCA envía `status` ni los campos de
-   * H3/H4 (scriptMarkdown, objectives, wavPath, transcriptPath).
+   * Crea una entrevista (main fija status draft). SPEC-044-iter-1: devuelve
+   * la entrevista creada (o null en fallo) para que el caller pueda navegar
+   * a su detalle con el id devuelto; los toasts siguen viviendo en el hook.
+   */
+  createInterview: (values: InterviewFormValues) => Promise<Interview | null>
+  /**
+   * Edita una entrevista. El patch lleva SOLO título, contactos y template
+   * (null limpia la referencia); NUNCA envía `discoveryId` (SPEC-044) ni
+   * `status` ni los campos de H3/H4 (scriptMarkdown, objectives, wavPath,
+   * transcriptPath).
    */
   updateInterview: (id: string, values: InterviewFormValues) => Promise<boolean>
   /** Elimina una entrevista (la cascada de notas la resuelve SPEC-006). */
@@ -40,10 +53,12 @@ function sortByCreatedAtAsc(interviews: Interview[]): Interview[] {
  * viajan como `{ ok: false, error }` y se mapean a error state (listar) o
  * Toast destructive (mutaciones, sin tocar el estado). Orden por `createdAt`
  * asc; la edición no re-ordena (mantiene el orden de alta). Calco del patrón
- * useContacts (SPEC-011). SPEC-020: la creación exige también el discoveryId
- * de la empresa (ancla obligatoria de toda entrevista en el schema v2).
+ * useContacts (SPEC-011). SPEC-044: la sección Entrevistas vive en
+ * /companies/:companyId, sin discovery en la URL — el `discoveryId` (ancla
+ * obligatoria de toda entrevista) viaja en los values del formulario; el
+ * listado sigue siendo `listInterviews(companyId)`.
  */
-export function useInterviews(discoveryId: string, companyId: string): UseInterviewsResult {
+export function useInterviews(companyId: string): UseInterviewsResult {
   const [state, setState] = useState<InterviewsState>({ status: 'loading' })
 
   // El estado inicial ya es loading, así el efecto de montaje no hace setState
@@ -60,12 +75,20 @@ export function useInterviews(discoveryId: string, companyId: string): UseInterv
   }, [companyId])
 
   const createInterview = useCallback(
-    async (values: InterviewFormValues): Promise<boolean> => {
+    async (values: InterviewFormValues): Promise<Interview | null> => {
       // Sin `status`: el repositorio de main fija 'draft' en la creación.
-      const result = await window.api.db.createInterview({ discoveryId, companyId, ...values })
+      // SPEC-046: los N participantes marcados viajan tal cual en contactIds.
+      // SPEC-044: el discovery es el elegido en el Select del Dialog.
+      const result = await window.api.db.createInterview({
+        discoveryId: values.discoveryId,
+        companyId,
+        title: values.title,
+        contactIds: values.contactIds,
+        templateId: values.templateId
+      })
       if (!result.ok) {
         toast.error(result.error.message)
-        return false
+        return null
       }
       setState((prev) =>
         prev.status === 'ready'
@@ -73,16 +96,18 @@ export function useInterviews(discoveryId: string, companyId: string): UseInterv
           : prev
       )
       toast('Entrevista creada')
-      return true
+      // SPEC-044-iter-1: devolver la entrevista permite al caller navegar
+      // al detalle recién creado (AC-21 de la spec base).
+      return result.data
     },
-    [discoveryId, companyId]
+    [companyId]
   )
 
   const updateInterview = useCallback(
     async (id: string, values: InterviewFormValues): Promise<boolean> => {
       const result = await window.api.db.updateInterview(id, {
         title: values.title,
-        contactId: values.contactId,
+        contactIds: values.contactIds,
         templateId: values.templateId
       })
       if (!result.ok) {

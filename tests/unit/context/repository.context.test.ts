@@ -12,7 +12,6 @@ import { DbOperationError } from '../../../src/main/db/errors'
 import {
   createCompany,
   createContact,
-  createDiscovery,
   getCompany,
   getContact,
   getLinkedinMcpSettings,
@@ -45,12 +44,10 @@ beforeEach(() => {
 
 describe('repository (campo context de empresas y contactos)', () => {
   it('creates companies with context null by default and persists the provided context', () => {
-    const discovery = createDiscovery({ name: 'Disco' })
-    const bare = createCompany({ discoveryId: discovery.id, name: 'Acme' })
+    const bare = createCompany({ name: 'Acme' })
     expect(bare.context).toBeNull()
 
     const withContext = createCompany({
-      discoveryId: discovery.id,
       name: 'Globex',
       context: 'Fabrican humo con propósito'
     })
@@ -59,9 +56,7 @@ describe('repository (campo context de empresas y contactos)', () => {
   })
 
   it('updates and clears the company context via patch without touching other fields', () => {
-    const discovery = createDiscovery({ name: 'Disco' })
     const company = createCompany({
-      discoveryId: discovery.id,
       name: 'Acme',
       website: 'https://acme.test'
     })
@@ -79,8 +74,7 @@ describe('repository (campo context de empresas y contactos)', () => {
   })
 
   it('creates and updates the contact context with the same semantics', () => {
-    const discovery = createDiscovery({ name: 'Disco' })
-    const company = createCompany({ discoveryId: discovery.id, name: 'Acme' })
+    const company = createCompany({ name: 'Acme' })
     const contact = createContact({ companyId: company.id, name: 'Ada' })
     expect(contact.context).toBeNull()
 
@@ -94,8 +88,7 @@ describe('repository (campo context de empresas y contactos)', () => {
   })
 
   it('keeps legacy records without the field readable (context undefined tolerated)', () => {
-    const discovery = createDiscovery({ name: 'Disco' })
-    const company = createCompany({ discoveryId: discovery.id, name: 'Acme' })
+    const company = createCompany({ name: 'Acme' })
     // Simula un registro anterior a la feature: sin la propiedad context
     const raw = readDbFile()
     raw.companies = raw.companies.map((entry) =>
