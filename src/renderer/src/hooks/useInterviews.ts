@@ -96,6 +96,11 @@ export function useInterviews(companyId: string): UseInterviewsResult {
           : prev
       )
       toast('Entrevista creada')
+      // Disparo fire-and-forget de la autogeneración del guión (patrón
+      // SPEC-033, extendido a este flujo por decisión humana 2026-07-17).
+      // Main aplica los guards (sin plantilla / sin clave / guión presente)
+      // en silencio; la navegación del caller nunca espera al LLM.
+      void window.api.llm.autoGenerateScript(result.data.id)
       // SPEC-044-iter-1: devolver la entrevista permite al caller navegar
       // al detalle recién creado (AC-21 de la spec base).
       return result.data

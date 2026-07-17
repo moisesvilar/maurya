@@ -85,6 +85,11 @@ export function useGroupInterviews(groupId: string): UseGroupInterviewsResult {
         return null
       }
       toast('Entrevista creada')
+      // Disparo fire-and-forget de la autogeneración del guión (patrón
+      // SPEC-033, extendido a este flujo por decisión humana 2026-07-17).
+      // Main aplica los guards (sin plantilla / sin clave / guión presente)
+      // en silencio; la navegación del caller nunca espera al LLM.
+      void window.api.llm.autoGenerateScript(result.data.id)
       // Recarga completa: main re-resuelve los nombres de las referencias.
       load()
       return result.data

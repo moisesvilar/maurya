@@ -8,6 +8,16 @@ import type { Company, Contact, Interview, Note } from './domain'
  * (`hasAnthropicKey`) y resultados tipados.
  */
 
+/**
+ * Tope de longitud del guión en caracteres de markdown. Es el MISMO número en
+ * toda la cadena: la generación en main trunca a este límite, el editor del
+ * guión no deja crecer más allá, y el asistente en vivo (SCRIPT_EXCERPT_CHARS)
+ * incluye exactamente este tamaño en su prompt — así nunca existe guión que no
+ * quepa entero en el prompt del asistente. Constante runtime (no solo tipo):
+ * este módulo sigue sin depender del DOM y main puede importarla con valor.
+ */
+export const SCRIPT_MAX_CHARS = 6000
+
 export type LlmErrorKind =
   | 'no-key'
   | 'no-template'

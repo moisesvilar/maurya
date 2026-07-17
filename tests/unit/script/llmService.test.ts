@@ -13,6 +13,7 @@ import { generateInterviewScript, LlmOperationError } from '../../../src/main/ll
 import * as repository from '../../../src/main/db/repository'
 import { initStore } from '../../../src/main/db/store'
 import type { Interview, InterviewTemplate } from '../../../src/renderer/src/types/domain'
+import { SCRIPT_MAX_CHARS } from '../../../src/renderer/src/types/llm'
 import type { LlmErrorKind } from '../../../src/renderer/src/types/llm'
 
 const harness = vi.hoisted(() => {
@@ -163,6 +164,26 @@ describe('llmService', () => {
           schema: expect.objectContaining({ required: ['scriptMarkdown', 'objectives'] })
         }
       })
+    })
+
+    // Tope del guión (decisión humana 2026-07-17): SCRIPT_MAX_CHARS = 6000 —
+    // el mismo número que SCRIPT_EXCERPT_CHARS del asistente en vivo. Se pide
+    // por prompt Y se garantiza truncando antes de persistir.
+    it('truncates the generated script to SCRIPT_MAX_CHARS before persisting and asks for the limit in the prompt', async () => {
+      const { interview } = seedBase()
+      const oversized = JSON.stringify({
+        scriptMarkdown: '# Guión\n' + 'x'.repeat(SCRIPT_MAX_CHARS),
+        objectives: ['Objetivo uno']
+      })
+      harness.create.mockResolvedValue(sdkResponse(oversized))
+
+      const updated = await generateInterviewScript(interview.id)
+
+      expect(updated.scriptMarkdown).toHaveLength(SCRIPT_MAX_CHARS)
+      expect(repository.getInterview(interview.id).scriptMarkdown).toHaveLength(SCRIPT_MAX_CHARS)
+      // La regla de longitud viaja en el system prompt
+      const params = harness.create.mock.calls[0][0] as { system: string }
+      expect(params.system).toContain(`Máximo ${SCRIPT_MAX_CHARS} caracteres`)
     })
   })
 

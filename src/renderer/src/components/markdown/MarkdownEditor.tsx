@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react'
 import { Bold, Heading2, Heading3, Italic, List, ListOrdered, Quote } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Editor } from '@tiptap/core'
+import { Extension } from '@tiptap/core'
 import { Markdown } from '@tiptap/markdown'
+import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Button } from '@/components/ui/button'
@@ -70,6 +72,53 @@ const TOOLBAR_ACTIONS: ToolbarAction[] = [
   }
 ]
 
+interface MarkdownCharLimitOptions {
+  maxChars: number | null
+}
+
+/**
+ * Límite de longitud en caracteres del MARKDOWN serializado (no del texto
+ * visible): es la métrica que consumen la persistencia y el prompt del
+ * asistente (SCRIPT_MAX_CHARS). Veta la transacción entera (escritura o
+ * pegado) si el documento resultante supera el límite, PERO siempre permite
+ * las ediciones que no lo hacen crecer — un contenido heredado por encima del
+ * límite se puede seguir acortando. Exportada para testearla headless (la
+ * escritura libre no es reproducible en jsdom).
+ */
+export const MarkdownCharLimit = Extension.create<MarkdownCharLimitOptions>({
+  name: 'markdownCharLimit',
+
+  addOptions() {
+    return { maxChars: null }
+  },
+
+  addProseMirrorPlugins() {
+    const { maxChars } = this.options
+    if (maxChars === null) {
+      return []
+    }
+    const { editor } = this
+    return [
+      new Plugin({
+        key: new PluginKey('markdownCharLimit'),
+        filterTransaction: (transaction, state) => {
+          if (!transaction.docChanged) {
+            return true
+          }
+          const serialize = (doc: typeof transaction.doc): number =>
+            editor.storage.markdown.manager.serialize(doc.toJSON()).length
+          const nextLength = serialize(transaction.doc)
+          if (nextLength <= maxChars) {
+            return true
+          }
+          // Por encima del límite solo se admite lo que acorta (o iguala).
+          return nextLength <= serialize(state.doc)
+        }
+      })
+    ]
+  }
+})
+
 interface MarkdownEditorProps {
   /** Markdown con el que se monta el editor; los cambios salen por onChange. */
   initialMarkdown: string
@@ -82,6 +131,12 @@ interface MarkdownEditorProps {
    * interno acotado para no desbordar el modal. Estable durante el montaje.
    */
   size?: 'default' | 'compact'
+  /**
+   * Tope de caracteres del markdown serializado (p. ej. SCRIPT_MAX_CHARS para
+   * el guión): el editor rechaza las ediciones que lo superarían y muestra el
+   * contador `actual/máximo`. Sin definir = sin límite. Estable en el montaje.
+   */
+  maxChars?: number
 }
 
 /**
@@ -98,10 +153,11 @@ export function MarkdownEditor({
   onChange,
   ariaLabel,
   testId,
-  size = 'default'
+  size = 'default',
+  maxChars
 }: MarkdownEditorProps): React.ReactElement {
   const editor = useEditor({
-    extensions: [StarterKit, Markdown],
+    extensions: [StarterKit, Markdown, MarkdownCharLimit.configure({ maxChars: maxChars ?? null })],
     content: initialMarkdown,
     contentType: 'markdown',
     onUpdate: ({ editor: current }) => onChange(current.getMarkdown()),
@@ -170,6 +226,13 @@ export function MarkdownEditor({
       <div className={cn('overflow-y-auto', size === 'compact' ? 'max-h-[45vh]' : 'max-h-[70vh]')}>
         <EditorContent editor={editor} />
       </div>
+      {maxChars !== undefined && (
+        // Contador de markdown serializado; el re-render por transacción (el
+        // renderTick de la toolbar) lo mantiene al día sin estado extra.
+        <div className="border-t px-4 py-1.5 text-right text-xs text-muted-foreground">
+          {(editor?.getMarkdown() ?? initialMarkdown).length}/{maxChars} caracteres
+        </div>
+      )}
     </div>
   )
 }

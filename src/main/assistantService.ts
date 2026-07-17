@@ -13,6 +13,7 @@ import type {
   AssistantUpdateEvent
 } from '../renderer/src/types/assistant'
 import type { AiUsage } from '../renderer/src/types/domain'
+import { SCRIPT_MAX_CHARS } from '../renderer/src/types/llm'
 import type { LlmError } from '../renderer/src/types/llm'
 import { getAnthropicKey, mapSdkError, toLlmError, LlmOperationError } from './llmService'
 import { computeCostUsd, extractUsage, roundUpUsd } from './aiCost'
@@ -46,8 +47,12 @@ export const MIN_INTERVAL_MS = 20000
 export const FALLBACK_INTERVAL_MS = 45000
 /** Últimos caracteres de conversación incluidos en el prompt. */
 export const TRANSCRIPT_WINDOW_CHARS = 4000
-/** Máximo de caracteres del guión incluidos en el prompt. */
-export const SCRIPT_EXCERPT_CHARS = 6000
+/**
+ * Máximo de caracteres del guión incluidos en el prompt. Atado al tope global
+ * del guión (SCRIPT_MAX_CHARS): generación y editor no dejan crecer el guión
+ * más allá, así que el prompt siempre lo incluye ENTERO.
+ */
+export const SCRIPT_EXCERPT_CHARS = SCRIPT_MAX_CHARS
 
 // Constantes del modelo (documentadas; ajustables si el humano quiere otro
 // equilibrio latencia/coste). NUNCA enviar temperature/top_p/top_k ni
