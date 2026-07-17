@@ -329,11 +329,11 @@ describe('CompanyDetailPage (entrevistas)', () => {
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     })
 
-    // SPEC-033 · AC-09: la autogeneración del guión es exclusiva del flujo de
-    // capturas — crear una entrevista desde la empresa NO dispara
-    // llm.autoGenerateScript (comportamiento SPEC-013 intacto, incluso con
-    // template asignado)
-    it('does not fire the script auto-generation when creating an interview from the company flow (SPEC-033)', async () => {
+    // SPEC-033 · AC-09 DEROGADO (decisión humana 2026-07-17): la autogeneración
+    // deja de ser exclusiva del flujo de capturas — crear una entrevista desde
+    // la empresa TAMBIÉN dispara llm.autoGenerateScript (fire-and-forget; los
+    // guards sin plantilla/sin clave/guión presente siguen viviendo en main)
+    it('fires the script auto-generation when creating an interview from the company flow', async () => {
       setContacts([CONTACT])
       setTemplates([TEMPLATE])
       const created = interview({ title: 'Entrevista con Jane' })
@@ -352,7 +352,9 @@ describe('CompanyDetailPage (entrevistas)', () => {
 
       await waitFor(() => expect(vi.mocked(mockApi.api.db.createInterview)).toHaveBeenCalled())
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-      expect(vi.mocked(mockApi.api.llm.autoGenerateScript)).not.toHaveBeenCalled()
+      // Disparo incondicional con el id recién creado (los guards viven en main)
+      expect(vi.mocked(mockApi.api.llm.autoGenerateScript)).toHaveBeenCalledWith('i-1')
+      expect(vi.mocked(mockApi.api.llm.autoGenerateScript)).toHaveBeenCalledTimes(1)
     })
 
     // SPEC-013 · AC-06 (adaptado por SPEC-044: se elige discovery para aislar

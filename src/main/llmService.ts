@@ -9,6 +9,7 @@ import type {
   Note,
   Company
 } from '../renderer/src/types/domain'
+import { SCRIPT_MAX_CHARS } from '../renderer/src/types/llm'
 import type { LlmError, LlmErrorKind, LlmStatus } from '../renderer/src/types/llm'
 import { getDecryptedSecret } from './secretsService'
 import { extractUsage, recordInterviewUsage } from './aiCost'
@@ -200,7 +201,7 @@ function buildSystemPrompt(template: InterviewTemplate, hasCompany: boolean): st
     task,
     'Reglas:',
     '- Escribe TODO en español.',
-    '- `scriptMarkdown`: el guión completo en markdown, conservando la estructura de bloques del template (títulos, preguntas y guías adaptadas al caso concreto).',
+    `- \`scriptMarkdown\`: el guión completo en markdown, conservando la estructura de bloques del template (títulos, preguntas y guías adaptadas al caso concreto). Máximo ${SCRIPT_MAX_CHARS} caracteres de markdown: sé conciso, el asistente en vivo solo usa hasta ese límite.`,
     '- `objectives`: entre 3 y 7 objetivos concretos y accionables para esta entrevista, uno por elemento.',
     '- Si hay entrevistas anteriores con la misma empresa, NO repitas lo ya validado: usa ese contexto para profundizar en lo pendiente y referencia lo aprendido.',
     '- Responde únicamente con el JSON pedido.'
@@ -497,8 +498,11 @@ async function doGenerate(interviewId: string): Promise<Interview> {
   recordInterviewUsage(interview.id, extractUsage(response))
 
   // Persistir SOLO tras parseo válido (AC: ante error la entrevista no cambia)
+  // El tope de longitud se pide por prompt Y se garantiza aquí: un guión que
+  // exceda SCRIPT_MAX_CHARS jamás se persiste — el asistente en vivo incluye
+  // exactamente ese tamaño en su prompt (SCRIPT_EXCERPT_CHARS).
   return repository.updateInterview(interview.id, {
-    scriptMarkdown: generated.scriptMarkdown,
+    scriptMarkdown: generated.scriptMarkdown.slice(0, SCRIPT_MAX_CHARS),
     objectives: generated.objectives,
     status: 'prepared'
   })

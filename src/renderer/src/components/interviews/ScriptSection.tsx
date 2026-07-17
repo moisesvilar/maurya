@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MarkdownEditor } from '@/components/markdown/MarkdownEditor'
 import type { Interview } from '@/types/domain'
+import { SCRIPT_MAX_CHARS } from '@/types/llm'
 
 type KeyStatus = 'loading' | 'ok' | 'missing'
 
@@ -262,6 +263,9 @@ export function ScriptSection({
             onChange={setScriptDraft}
             ariaLabel="Guión"
             testId="script-markdown-editor"
+            // Tope del guión: lo que no cabe en el prompt del asistente en
+            // vivo (SCRIPT_EXCERPT_CHARS) no debe poder escribirse.
+            maxChars={SCRIPT_MAX_CHARS}
           />
           {/* SPEC-042: el bloque de edición de objetivos que vivía aquí queda
               derogado — la edición vive en ObjectivesSection */}

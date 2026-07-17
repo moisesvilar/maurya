@@ -403,6 +403,10 @@ describe('InterviewGroupDetailPage', () => {
         })
       )
       expect((await screen.findAllByText('Entrevista creada')).length).toBeGreaterThanOrEqual(1)
+      // Autogeneración del guión también en este flujo (decisión humana
+      // 2026-07-17, patrón SPEC-033): disparo fire-and-forget con el id creado
+      expect(vi.mocked(mockApi.api.llm.autoGenerateScript)).toHaveBeenCalledWith('i-9')
+      expect(vi.mocked(mockApi.api.llm.autoGenerateScript)).toHaveBeenCalledTimes(1)
       // Navegación al detalle (ruta anidada con la empresa elegida)
       expect(await screen.findByText('INTERVIEW_DETAIL_PROBE')).toBeInTheDocument()
     })
