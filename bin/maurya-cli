@@ -1,0 +1,14 @@
+#!/usr/bin/env node
+/**
+ * Wrapper ejecutable de maurya-cli: carga el bundle generado por
+ * `npm run cli:build` (esbuild, Node puro, sin Electron).
+ */
+const { existsSync } = require('fs')
+const { join } = require('path')
+
+const bundle = join(__dirname, '..', 'out', 'cli', 'index.cjs')
+if (!existsSync(bundle)) {
+  process.stderr.write('maurya-cli: bundle no encontrado. Ejecuta antes: npm run cli:build\n')
+  process.exit(1)
+}
+require(bundle)
