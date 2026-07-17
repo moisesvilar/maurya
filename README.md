@@ -54,6 +54,39 @@ npm run build:mac    # typecheck + electron-vite build + electron-builder --mac
   `env -u ELECTRON_RUN_AS_NODE npm run dev`.
 - Requisitos: macOS 14.2+ (backend CATap del loopback), Node 20+.
 
+## CLI (`maurya-cli`)
+
+Ejecutable de línea de comandos para crear y gestionar los datos de Maurya
+(discoveries, empresas, contactos, grupos de entrevistas, entrevistas y
+plantillas) **sin abrir la app**, pensado para integrarse con agentes (Claude
+Code, scripts). Usa la misma capa de persistencia que la app —mismas
+validaciones, integridad referencial y escritura atómica— sobre el mismo
+`db.json` de userData.
+
+```bash
+npm run cli:build        # genera out/cli/index.cjs (una vez, o tras cambiar src/cli o src/main/db)
+./bin/maurya-cli --help  # ayuda general; también: npm run cli -- --help
+
+# Ejemplos
+./bin/maurya-cli discovery create --name "Discovery SaaS" --objectives "Validar dolor de facturación"
+./bin/maurya-cli company create --name "Acme Corp" --website "https://acme.example"
+./bin/maurya-cli contact create --company-id <companyId> --name "Jane Roe" --position "CFO"
+./bin/maurya-cli search jane
+```
+
+- Salida: siempre un único JSON `{ ok: true, data } | { ok: false, error: { kind, message } }`
+  en stdout, con exit code 0/1 — parseable directamente por un agente.
+- Entidades: `discovery`, `company`, `contact`, `interview-group`, `interview`,
+  `interview-template`, `note-template`, cada una con
+  `create / list / get / update / delete`; además `search <consulta>` y `status`.
+- Campos por flags (`--name`, `--company-id`, …) o payload completo con
+  `--json '{...}'` (necesario para `null` y estructuras anidadas).
+- Directorio de datos: `--data-dir` > `$MAURYA_DATA_DIR` > userData de la app.
+- **Aviso**: con la app abierta, su siguiente escritura puede pisar los cambios
+  del CLI — úsalo con la app cerrada o recárgala después.
+
+Referencia completa (tabla de flags por entidad y más ejemplos): [`docs/cli.md`](docs/cli.md).
+
 ## Licencia
 
 Maurya es open source bajo licencia [MIT](LICENSE).
