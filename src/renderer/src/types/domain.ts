@@ -87,14 +87,103 @@ export interface InterviewTemplate {
 export type InterviewStatus = 'draft' | 'prepared' | 'recorded' | 'summarized'
 
 /**
+ * Modelos de Claude seleccionables por tarea (revisión de coste 2026-07).
+ * Lista cerrada: la tabla de tarifas de aiCost.ts y el mapeo del parámetro
+ * thinking de aiModels.ts cubren exactamente estos IDs.
+ */
+export type AiModelId = 'claude-haiku-4-5' | 'claude-sonnet-5' | 'claude-opus-4-8'
+
+/**
+ * Tareas de IA configurables (revisión de coste 2026-07). Cada llamada al LLM
+ * de la app pertenece a exactamente una tarea; el modelo y el thinking de cada
+ * una se configuran en Ajustes con defaults en aiModels.ts.
+ */
+export type AiTaskId =
+  | 'assistantInteractive'
+  | 'assistantMaintenance'
+  | 'scriptGeneration'
+  | 'noteGeneration'
+  | 'objectiveEvaluation'
+  | 'companyContext'
+  | 'contactContext'
+
+/** Configuración de una tarea de IA: modelo + thinking (si el modelo lo soporta). */
+export interface AiTaskConfig {
+  model: AiModelId
+  thinking: boolean
+}
+
+/** Ajustes de modelos por tarea, singleton en db.json (patrón aiCostSettings). */
+export type AiTaskSettings = Record<AiTaskId, AiTaskConfig>
+
+/** IDs de modelo válidos, en orden de coste ascendente (Select de Ajustes). */
+export const AI_MODEL_IDS: readonly AiModelId[] = [
+  'claude-haiku-4-5',
+  'claude-sonnet-5',
+  'claude-opus-4-8'
+]
+
+/** IDs de tarea en el orden de presentación de la UI de Ajustes. */
+export const AI_TASK_IDS: readonly AiTaskId[] = [
+  'assistantInteractive',
+  'assistantMaintenance',
+  'scriptGeneration',
+  'noteGeneration',
+  'objectiveEvaluation',
+  'companyContext',
+  'contactContext'
+]
+
+/** true si el valor es un AiModelId conocido (validación de settings). */
+export function isAiModelId(value: unknown): value is AiModelId {
+  return typeof value === 'string' && (AI_MODEL_IDS as readonly string[]).includes(value)
+}
+
+/**
+ * Defaults acordados en la revisión de coste 2026-07: Haiku sin thinking para
+ * el juicio interactivo del asistente (sensible a latencia, error barato);
+ * Sonnet 5 con thinking para el mantenimiento de cola/objetivos (error
+ * irreversible, sin urgencia de latencia); Opus con adaptive para las llamadas
+ * únicas de calidad (guión, nota, evaluación, contexto), como hasta ahora.
+ */
+export const DEFAULT_AI_TASK_SETTINGS: AiTaskSettings = {
+  assistantInteractive: { model: 'claude-haiku-4-5', thinking: false },
+  assistantMaintenance: { model: 'claude-sonnet-5', thinking: true },
+  scriptGeneration: { model: 'claude-opus-4-8', thinking: true },
+  noteGeneration: { model: 'claude-opus-4-8', thinking: true },
+  objectiveEvaluation: { model: 'claude-opus-4-8', thinking: true },
+  companyContext: { model: 'claude-opus-4-8', thinking: true },
+  contactContext: { model: 'claude-opus-4-8', thinking: true }
+}
+
+/**
+ * Desglose de uso de UNA tarea dentro de una entrevista. A diferencia del
+ * total plegado de AiUsage, aquí `inputTokens` son SOLO los tokens de entrada
+ * no cacheados: los componentes de caché van aparte para poder auditar el
+ * hit-rate real y tarificar cada componente con su precio.
+ */
+export interface AiTaskUsage {
+  calls: number
+  inputTokens: number
+  outputTokens: number
+  cacheWriteTokens: number
+  cacheReadTokens: number
+  estimatedCostUsd: number
+}
+
+/**
  * Acumulado de uso de IA de una entrevista (SPEC-021): llamadas al LLM,
  * tokens de entrada/salida y coste estimado en USD según la tarifa del modelo.
+ * `inputTokens` va plegado (entrada + caché) por retrocompatibilidad con la
+ * UI; `byTask` (revisión de coste 2026-07) guarda el desglose por tarea con
+ * los 4 componentes de tokens. Registros antiguos no traen `byTask`.
  */
 export interface AiUsage {
   calls: number
   inputTokens: number
   outputTokens: number
   estimatedCostUsd: number
+  byTask?: Partial<Record<AiTaskId, AiTaskUsage>>
 }
 
 /**
@@ -543,6 +632,10 @@ export interface DbApi {
   /** Ajustes del asistente en vivo (SPEC-036): tamaño de la cola de preguntas. */
   getAssistantSettings: () => Promise<DbResult<AssistantSettings>>
   setAssistantSettings: (settings: AssistantSettings) => Promise<DbResult<AssistantSettings>>
+
+  /** Ajustes de modelos por tarea de IA (revisión de coste 2026-07). */
+  getAiTaskSettings: () => Promise<DbResult<AiTaskSettings>>
+  setAiTaskSettings: (settings: AiTaskSettings) => Promise<DbResult<AiTaskSettings>>
 
   /** Ajustes del MCP de LinkedIn: URL del servidor (el token va por api.secrets). */
   getLinkedinMcpSettings: () => Promise<DbResult<LinkedinMcpSettings>>

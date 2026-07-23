@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { Interview } from '../renderer/src/types/domain'
 import { getAnthropicKey, mapSdkError, LlmOperationError } from './llmService'
 import { extractUsage, recordInterviewUsage } from './aiCost'
+import { resolveTaskConfig, thinkingParamFor } from './aiModels'
 import * as repository from './db/repository'
 
 /**
@@ -21,9 +22,10 @@ import * as repository from './db/repository'
  *   durante el guardado.
  */
 
-// Constantes del modelo (Notas técnicas de la spec). NUNCA enviar
-// temperature/top_p/top_k ni budget_tokens: devuelven 400 en este modelo.
-const MODEL = 'claude-opus-4-8'
+// Constantes del modelo (Notas técnicas de la spec). El modelo y el thinking
+// vienen de los ajustes por tarea — comparte 'objectiveEvaluation' con la
+// evaluación post-grabación (mismo dominio: juicio sobre objetivos). NUNCA
+// enviar temperature/top_p/top_k: devuelven 400.
 const MAX_TOKENS = 4096
 /** Tope de la explicación reescrita: ~50 palabras (mismo que REASON_MAX_CHARS de SPEC-025). */
 const TEXT_MAX_CHARS = 400
@@ -154,12 +156,13 @@ export async function overrideInterviewObjective(
   const previous = interview.objectiveResults?.[objectiveIndex] ?? null
 
   const client = new Anthropic({ apiKey })
+  const taskConfig = resolveTaskConfig('objectiveEvaluation')
   let response: Anthropic.Message
   try {
     response = await client.messages.create({
-      model: MODEL,
+      model: taskConfig.model,
       max_tokens: MAX_TOKENS,
-      thinking: { type: 'adaptive' },
+      ...thinkingParamFor(taskConfig.model, taskConfig.thinking, MAX_TOKENS),
       output_config: { format: { type: 'json_schema', schema: OUTPUT_SCHEMA } },
       system: buildSystemPrompt(),
       messages: [
@@ -193,7 +196,12 @@ export async function overrideInterviewObjective(
 
   // Coste (SPEC-021): solo tras parseo válido y ANTES de persistir, para que
   // la Interview devuelta ya incluya el aiUsage actualizado. Jamás lanza.
-  recordInterviewUsage(interview.id, extractUsage(response))
+  recordInterviewUsage(
+    interview.id,
+    'objectiveEvaluation',
+    taskConfig.model,
+    extractUsage(response)
+  )
 
   // Persistencia atómica en un único mutate, SOLO tras parseo válido
   return repository.setInterviewObjectiveOverride(interview.id, objectiveIndex, {

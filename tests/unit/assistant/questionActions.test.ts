@@ -23,7 +23,8 @@ import {
   resolveAssistantItem,
   setAssistantPinned,
   startAssistant,
-  stopAssistant
+  stopAssistant,
+  triggerAssistantMaintenance
 } from '../../../src/main/assistantService'
 import { computeCostUsd } from '../../../src/main/aiCost'
 import * as repository from '../../../src/main/db/repository'
@@ -221,11 +222,11 @@ function startSession(): void {
  */
 async function analyze(overrides: Record<string, unknown> = {}): Promise<void> {
   analysisCount += 1
-  const expectedCalls = analysisCount
+  const expectedCalls = harness.create.mock.calls.length + 1
   const eventsBefore = assistantEvents(send).length
   harness.create.mockResolvedValueOnce(sdkResponse(analysisPayload(overrides)))
-  if (expectedCalls > 1) {
-    vi.setSystemTime(BASE_TIME_MS + (expectedCalls - 1) * (MIN_INTERVAL_MS + 1000))
+  if (analysisCount > 1) {
+    vi.setSystemTime(BASE_TIME_MS + (analysisCount - 1) * (MIN_INTERVAL_MS + 1000))
   }
   feedFinal()
   feedFinal()
@@ -239,21 +240,25 @@ async function analyze(overrides: Record<string, unknown> = {}): Promise<void> {
 }
 
 /**
- * Marca respondida una pregunta y espera el análisis INMEDIATO que dispara
- * (SPEC-039): sin avanzar el reloj ni inyectar líneas nuevas — la inmediatez
+ * Marca respondida una pregunta y espera la llamada de MANTENIMIENTO
+ * INMEDIATA que dispara (SPEC-039, adaptada al split de la revisión de coste
+ * 2026-07): sin avanzar el reloj ni inyectar líneas nuevas — la inmediatez
  * (sin material nuevo mínimo ni intervalo) es parte de lo verificado.
  */
 async function resolveAnswered(
   itemId: string,
   overrides: Record<string, unknown> = {}
 ): Promise<void> {
-  analysisCount += 1
-  const expectedCalls = analysisCount
-  harness.create.mockResolvedValueOnce(sdkResponse(analysisPayload(overrides)))
+  const expectedCalls = harness.create.mock.calls.length + 1
+  const eventsBefore = assistantEvents(send).length
+  harness.create.mockResolvedValueOnce(
+    sdkResponse({ resolvedQueueIndexes: [], objectivesMet: [], ...overrides })
+  )
   resolveAssistantItem(itemId, 'answered')
   await vi.waitFor(() => expect(harness.create).toHaveBeenCalledTimes(expectedCalls))
   await vi.waitFor(() => {
-    expect(assistantEvents(send).at(-1)?.state).toBe('active')
+    // 2 eventos: la re-emisión de la retirada manual + el del mantenimiento
+    expect(assistantEvents(send).length).toBeGreaterThanOrEqual(eventsBefore + 2)
   })
 }
 
@@ -318,9 +323,9 @@ describe('assistantService (acciones por pregunta SPEC-039)', () => {
       resolveAssistantItem(firstId, 'discarded')
       expect(lastQueue().pinned.map((item) => item.suggestedQuestion)).toEqual(['¿Pregunta dos?'])
 
-      // 'answered' sobre la otra anclada: sale también (candidata del análisis
-      // inmediato casi idéntica a la respondida → suprimida, cola limpia)
-      await resolveAnswered(secondId, { suggestedQuestion: '  pregunta dos ' })
+      // 'answered' sobre la otra anclada: sale también (el mantenimiento
+      // inmediato no repone nada: no produce candidatas, cola limpia)
+      await resolveAnswered(secondId)
       expect(lastQueue().pinned).toEqual([])
       expect(pendingQuestions()).toEqual([])
       expect(stopAssistant()?.questionOutcomes).toEqual([
@@ -329,34 +334,33 @@ describe('assistantService (acciones por pregunta SPEC-039)', () => {
       ])
     })
 
-    // SPEC-039 · AC-07 (answered sin vuelo ni pausa: UNA llamada inmediata en background)
-    it('fires one immediate background analysis on answered whose objectivesMet updates the live tracking', async () => {
+    // SPEC-039 · AC-07 (answered sin vuelo ni pausa: UNA llamada inmediata en
+    // background — de MANTENIMIENTO tras la revisión de coste 2026-07)
+    it('fires one immediate background maintenance call on answered whose objectivesMet updates the live tracking', async () => {
       startSession()
       await analyze({ suggestedQuestion: TOOL_QUESTION })
       const itemId = lastQueue().pending[0].id
 
       // Sin avanzar el reloj ni inyectar líneas: la llamada es inmediata
-      // (sin esperar a los disparadores de 3 líneas / 20 s)
-      await resolveAnswered(itemId, {
-        objectivesMet: [1],
-        suggestedQuestion: TOOL_QUESTION_VARIANT
-      })
+      // (sin esperar a los disparadores de 3 líneas / 20 s ni al timer de 30 s)
+      await resolveAnswered(itemId, { objectivesMet: [1] })
 
       expect(harness.create).toHaveBeenCalledTimes(2)
       const last = assistantEvents(send).at(-1)
-      // El objectivesMet del análisis inmediato actualiza el seguimiento en vivo
+      // El objectivesMet del mantenimiento inmediato actualiza el seguimiento
       expect(last?.objectivesMet).toEqual([1])
-      // La respondida salió de la cola (y la candidata casi idéntica se suprime)
+      // La respondida salió de la cola (retirada manual)
       expect(last?.queue.pending).toEqual([])
     })
 
-    // SPEC-039 · AC-08 (guard in-flight intacto: answered en vuelo no lanza otra llamada)
-    it('does not fire an extra call when answered arrives with an analysis already in flight', async () => {
+    // SPEC-039 · AC-08 (guard in-flight intacto — ahora es el guard PROPIO del
+    // mantenimiento: un mantenimiento en vuelo bloquea la llamada extra)
+    it('does not fire an extra call when answered arrives with a maintenance call already in flight', async () => {
       startSession()
       await analyze({ suggestedQuestion: TOOL_QUESTION })
       const itemId = lastQueue().pending[0].id
 
-      // Segundo análisis en vuelo: promesa diferida controlada por el test
+      // Mantenimiento en vuelo: promesa diferida controlada por el test
       let resolveSdk: ((value: unknown) => void) | null = null
       harness.create.mockImplementationOnce(
         () =>
@@ -364,16 +368,12 @@ describe('assistantService (acciones por pregunta SPEC-039)', () => {
             resolveSdk = resolve
           })
       )
-      vi.setSystemTime(BASE_TIME_MS + MIN_INTERVAL_MS + 1000)
-      feedFinal()
-      feedFinal()
-      feedFinal()
+      triggerAssistantMaintenance()
       await vi.waitFor(() => expect(harness.create).toHaveBeenCalledTimes(2))
 
       resolveAssistantItem(itemId, 'answered')
 
-      // La pregunta sale igualmente (evento con spinner conservado) sin llamada extra
-      expect(assistantEvents(send).at(-1)?.state).toBe('analyzing')
+      // La pregunta sale igualmente sin llamada extra (guard maintenanceInFlight)
       expect(assistantEvents(send).at(-1)?.queue.pending).toEqual([])
       expect(harness.create).toHaveBeenCalledTimes(2)
 
@@ -381,12 +381,11 @@ describe('assistantService (acciones por pregunta SPEC-039)', () => {
         throw new Error('la llamada en vuelo no llegó a iniciarse')
       }
       ;(resolveSdk as (value: unknown) => void)(
-        sdkResponse(analysisPayload({ suggestedQuestion: '¿Otra pregunta distinta del tema?' }))
+        sdkResponse({ resolvedQueueIndexes: [], objectivesMet: [0] })
       )
-      await vi.waitFor(() => expect(assistantEvents(send).at(-1)?.state).toBe('active'))
+      await vi.waitFor(() => expect(assistantEvents(send).at(-1)?.objectivesMet).toEqual([0]))
       // Tampoco después del aterrizaje: siguen siendo 2 llamadas en total
       expect(harness.create).toHaveBeenCalledTimes(2)
-      expect(pendingQuestions()).toEqual(['¿Otra pregunta distinta del tema?'])
     })
 
     // SPEC-039 · AC-09 (gate de límite SPEC-021 intacto: pausado → sin llamada)
@@ -448,15 +447,16 @@ describe('assistantService (acciones por pregunta SPEC-039)', () => {
       expect(stopAssistant()?.suggestionCount).toBe(1)
     })
 
-    // SPEC-039 · AC-12 (candidata casi idéntica a una respondida → suprimida)
+    // SPEC-039 · AC-12 (candidata casi idéntica a una respondida → suprimida;
+    // revisado: el mantenimiento inmediato no produce candidatas — la
+    // supresión se verifica sobre el SIGUIENTE análisis interactivo)
     it('suppresses a later candidate almost identical to an answered question', async () => {
       startSession()
       await analyze({ suggestedQuestion: TOOL_QUESTION })
+      await resolveAnswered(lastQueue().pending[0].id)
 
-      // El análisis inmediato de 'answered' devuelve una casi idéntica: se descarta
-      await resolveAnswered(lastQueue().pending[0].id, {
-        suggestedQuestion: TOOL_QUESTION_VARIANT
-      })
+      // Un análisis posterior devuelve una casi idéntica a la respondida
+      await analyze({ suggestedQuestion: TOOL_QUESTION_VARIANT })
 
       expect(pendingQuestions()).toEqual([])
       expect(stopAssistant()?.suggestionCount).toBe(1)
@@ -476,16 +476,19 @@ describe('assistantService (acciones por pregunta SPEC-039)', () => {
       )
 
       resolveAssistantItem(lastQueue().pending[1].id, 'discarded') // uno
-      await resolveAnswered(lastQueue().pending[0].id, {
-        suggestedQuestion: '¿Pregunta tres?'
-      }) // dos → dispara la 3ª llamada
+      await resolveAnswered(lastQueue().pending[0].id) // dos → mantenimiento (3ª llamada)
+      await analyze({ suggestedQuestion: '¿Pregunta tres?' }) // 4ª llamada
 
-      // El 3er análisis lleva la lista (descartadas primero) con la instrucción
-      expect(createCall(2).messages[0].content).toContain(
+      // El análisis interactivo posterior lleva la lista (descartadas primero)
+      expect(createCall(3).messages[0].content).toContain(
         '## Preguntas ya descartadas o respondidas por el entrevistador (NO las repitas ni propongas variantes)\n- ¿Pregunta uno?\n- ¿Pregunta dos?'
       )
-      // La lista viaja SOLO en el mensaje de usuario, nunca en el prefijo cacheado
-      expect(JSON.stringify(createCall(2).system)).not.toContain('descartadas')
+      // La lista viaja SOLO en el mensaje de usuario, nunca en el prefijo
+      // cacheado ni en la llamada de mantenimiento
+      expect(JSON.stringify(createCall(3).system)).not.toContain('descartadas')
+      expect(createCall(2).messages[0].content).not.toContain(
+        'Preguntas ya descartadas o respondidas'
+      )
     })
   })
 
@@ -496,7 +499,7 @@ describe('assistantService (acciones por pregunta SPEC-039)', () => {
       await analyze({ suggestedQuestion: '¿Pregunta uno?' })
       await analyze({ suggestedQuestion: '¿Pregunta dos?' })
       resolveAssistantItem(lastQueue().pending[1].id, 'discarded')
-      await resolveAnswered(lastQueue().pending[0].id, { suggestedQuestion: '¿Pregunta tres?' })
+      await resolveAnswered(lastQueue().pending[0].id)
 
       // stopAssistant: descartadas primero, respondidas después (orden del contrato)
       const summary = stopAssistant()
@@ -535,26 +538,40 @@ describe('assistantService (acciones por pregunta SPEC-039)', () => {
       const summary = stopAssistant()
       expect(summary?.questionOutcomes).toEqual([])
       expect(summary?.suggestionCount).toBe(1)
+      // Revisión de coste 2026-07: el interactivo corre en Haiku por defecto
+      // y el usage viaja con su desglose byTask
       expect(summary?.usage).toEqual({
         calls: 1,
         inputTokens: 1000,
         outputTokens: 500,
-        estimatedCostUsd: computeCostUsd(1000, 500)
+        estimatedCostUsd: computeCostUsd('claude-haiku-4-5', 1000, 500),
+        byTask: {
+          assistantInteractive: {
+            calls: 1,
+            inputTokens: 1000,
+            outputTokens: 500,
+            cacheWriteTokens: 0,
+            cacheReadTokens: 0,
+            estimatedCostUsd: computeCostUsd('claude-haiku-4-5', 1000, 500)
+          }
+        }
       })
     })
   })
 
   describe('regression (SPEC-021/023/036 invariants)', () => {
-    // SPEC-039 · AC-23 (prefijo cacheado byte-idéntico con acciones manuales entre medias)
+    // SPEC-039 · AC-23 (prefijo cacheado byte-idéntico con acciones manuales
+    // entre medias; el mantenimiento tiene su PROPIO prefijo, también estable)
     it('keeps the system blocks byte-identical across analyses with manual actions in between', async () => {
       startSession()
       await analyze({ suggestedQuestion: '¿Pregunta uno?' })
       resolveAssistantItem(lastQueue().pending[0].id, 'discarded')
       await analyze({ suggestedQuestion: '¿Pregunta dos?' })
-      await resolveAnswered(lastQueue().pending[0].id, { suggestedQuestion: '¿Pregunta tres?' })
+      await resolveAnswered(lastQueue().pending[0].id) // mantenimiento (3ª llamada)
+      await analyze({ suggestedQuestion: '¿Pregunta cuatro?' }) // 4ª llamada
 
       expect(JSON.stringify(createCall(1).system)).toBe(JSON.stringify(createCall(0).system))
-      expect(JSON.stringify(createCall(2).system)).toBe(JSON.stringify(createCall(0).system))
+      expect(JSON.stringify(createCall(3).system)).toBe(JSON.stringify(createCall(0).system))
     })
 
     // SPEC-039 · AC-24 (suggestionCount sigue contando solo candidatas aceptadas)
@@ -564,8 +581,9 @@ describe('assistantService (acciones por pregunta SPEC-039)', () => {
       await analyze({ suggestedQuestion: '¿Pregunta dos?' })
 
       resolveAssistantItem(lastQueue().pending[1].id, 'discarded') // uno
-      // El análisis inmediato devuelve una casi idéntica a la respondida: suprimida
-      await resolveAnswered(lastQueue().pending[0].id, { suggestedQuestion: '  pregunta dos ' })
+      await resolveAnswered(lastQueue().pending[0].id) // dos → mantenimiento
+      // Un análisis posterior devuelve una casi idéntica a la respondida: suprimida
+      await analyze({ suggestedQuestion: '  pregunta dos ' })
 
       // Solo cuentan las 2 aceptadas; ni las acciones ni la suprimida suman
       expect(stopAssistant()?.suggestionCount).toBe(2)

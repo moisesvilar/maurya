@@ -1,6 +1,10 @@
 import { randomUUID } from 'crypto'
 import type {
   AiCostSettings,
+  AiTaskConfig,
+  AiTaskId,
+  AiTaskSettings,
+  AiTaskUsage,
   AiUsage,
   AssistantSettings,
   Company,
@@ -34,7 +38,12 @@ import type {
   UpdateNotePatch,
   UpdateNoteTemplatePatch
 } from '../../renderer/src/types/domain'
-import { CUSTOM_PROMPT_IDS } from '../../renderer/src/types/domain'
+import {
+  AI_TASK_IDS,
+  CUSTOM_PROMPT_IDS,
+  DEFAULT_AI_TASK_SETTINGS,
+  isAiModelId
+} from '../../renderer/src/types/domain'
 import type {
   AssignCompanyInput,
   AssignCompanyResult,
@@ -932,6 +941,51 @@ export function setAiCostSettings(settings: AiCostSettings): AiCostSettings {
   })
 }
 
+/**
+ * Ajustes de modelos por tarea de IA (revisión de coste 2026-07) con
+ * normalización defensiva POR TAREA (patrón assistantSettings): una tarea
+ * ausente, con modelo desconocido o con thinking no booleano vuelve a su
+ * default sin afectar a las demás; un singleton ilegible devuelve todos los
+ * defaults. Nunca lanza.
+ */
+export function getAiTaskSettings(): AiTaskSettings {
+  return read((store) => {
+    const raw: unknown = store.aiTaskSettings
+    const source = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
+    const settings = {} as AiTaskSettings
+    for (const task of AI_TASK_IDS) {
+      const entry: unknown = source[task]
+      const candidate =
+        typeof entry === 'object' && entry !== null ? (entry as Record<string, unknown>) : null
+      if (
+        candidate !== null &&
+        isAiModelId(candidate.model) &&
+        typeof candidate.thinking === 'boolean'
+      ) {
+        settings[task] = { model: candidate.model, thinking: candidate.thinking }
+      } else {
+        settings[task] = { ...DEFAULT_AI_TASK_SETTINGS[task] }
+      }
+    }
+    return settings
+  })
+}
+
+export function setAiTaskSettings(settings: AiTaskSettings): AiTaskSettings {
+  const normalized = {} as AiTaskSettings
+  for (const task of AI_TASK_IDS) {
+    const entry: AiTaskConfig | undefined = settings[task]
+    if (entry === undefined || !isAiModelId(entry.model) || typeof entry.thinking !== 'boolean') {
+      throw validationError('Configuración de modelos de IA inválida')
+    }
+    normalized[task] = { model: entry.model, thinking: entry.thinking }
+  }
+  return mutate((draft) => {
+    draft.aiTaskSettings = normalized
+    return normalized
+  })
+}
+
 // ---------------------------------------------------------------------------
 // Asistente en vivo (SPEC-036)
 // ---------------------------------------------------------------------------
@@ -1122,11 +1176,38 @@ export function addInterviewAiUsage(id: string, delta: AiUsage): Interview {
       outputTokens: 0,
       estimatedCostUsd: 0
     }
+    // Desglose por tarea (revisión de coste 2026-07): merge componente a
+    // componente. Registros antiguos sin byTask parten de {}; un delta sin
+    // byTask (no debería ocurrir tras la revisión) conserva el existente.
+    let byTask = base.byTask
+    if (delta.byTask !== undefined) {
+      const merged: NonNullable<AiUsage['byTask']> = { ...(base.byTask ?? {}) }
+      for (const [task, usage] of Object.entries(delta.byTask) as Array<[AiTaskId, AiTaskUsage]>) {
+        const previous: AiTaskUsage = merged[task] ?? {
+          calls: 0,
+          inputTokens: 0,
+          outputTokens: 0,
+          cacheWriteTokens: 0,
+          cacheReadTokens: 0,
+          estimatedCostUsd: 0
+        }
+        merged[task] = {
+          calls: previous.calls + usage.calls,
+          inputTokens: previous.inputTokens + usage.inputTokens,
+          outputTokens: previous.outputTokens + usage.outputTokens,
+          cacheWriteTokens: previous.cacheWriteTokens + usage.cacheWriteTokens,
+          cacheReadTokens: previous.cacheReadTokens + usage.cacheReadTokens,
+          estimatedCostUsd: previous.estimatedCostUsd + usage.estimatedCostUsd
+        }
+      }
+      byTask = merged
+    }
     interview.aiUsage = {
       calls: base.calls + delta.calls,
       inputTokens: base.inputTokens + delta.inputTokens,
       outputTokens: base.outputTokens + delta.outputTokens,
-      estimatedCostUsd: base.estimatedCostUsd + delta.estimatedCostUsd
+      estimatedCostUsd: base.estimatedCostUsd + delta.estimatedCostUsd,
+      ...(byTask !== undefined ? { byTask } : {})
     }
     return interview
   })

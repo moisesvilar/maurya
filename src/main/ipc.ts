@@ -60,7 +60,7 @@ import {
 } from './objectiveEvaluationService'
 import { overrideInterviewObjective } from './objectiveOverrideService'
 import { autoGenerateInterviewScript } from './scriptAutoGenerationService'
-import { recordInterviewUsage } from './aiCost'
+import { recordAssistantSessionUsage } from './aiCost'
 
 /**
  * Registra un canal secrets:* que SIEMPRE resuelve con el envelope
@@ -273,7 +273,9 @@ export function registerIpcHandlers(): void {
       // Best-effort (recordInterviewUsage jamás lanza): un fallo de medición
       // nunca afecta a wavPath/transcriptPath ni a la parada.
       if (assistantSummary !== null && assistantSummary.usage.calls > 0) {
-        recordInterviewUsage(activeInterviewId, assistantSummary.usage)
+        // El usage de la sesión ya viene desglosado por tarea (byTask) y con
+        // el coste recomputado por componentes con la tarifa de cada modelo.
+        recordAssistantSessionUsage(activeInterviewId, assistantSummary.usage)
       }
       // Desenlaces manuales de las preguntas (SPEC-039) ANTES de
       // updateInterview: la Interview devuelta en StopResult ya los lleva.

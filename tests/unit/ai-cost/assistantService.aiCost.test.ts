@@ -236,11 +236,13 @@ describe('assistantService (coste de IA SPEC-021)', () => {
     await waitForCreateCalls(1)
     await waitForActive()
     // El evento 'active' lleva el acumulado de la sesión tras cada análisis
-    expect(assistantEvents(send).at(-1)?.usage).toEqual({
+    // (revisión de coste 2026-07: tarifa del modelo de la tarea — Haiku por
+    // defecto en el interactivo — y desglose byTask)
+    expect(assistantEvents(send).at(-1)?.usage).toMatchObject({
       calls: 1,
       inputTokens: 1000,
       outputTokens: 500,
-      estimatedCostUsd: computeCostUsd(1000, 500)
+      estimatedCostUsd: computeCostUsd('claude-haiku-4-5', 1000, 500)
     })
 
     vi.setSystemTime(BASE_TIME_MS + MIN_INTERVAL_MS + 1000)
@@ -253,11 +255,16 @@ describe('assistantService (coste de IA SPEC-021)', () => {
     })
 
     const summary = stopAssistant()
-    expect(summary?.usage).toEqual({
+    expect(summary?.usage).toMatchObject({
       calls: 2,
       inputTokens: 2000,
       outputTokens: 1000,
-      estimatedCostUsd: computeCostUsd(2000, 1000)
+      estimatedCostUsd: computeCostUsd('claude-haiku-4-5', 2000, 1000)
+    })
+    expect(summary?.usage.byTask?.assistantInteractive).toMatchObject({
+      calls: 2,
+      inputTokens: 2000,
+      outputTokens: 1000
     })
 
     // El bloque assistant del transcript.json registra el total de la sesión
@@ -378,11 +385,11 @@ describe('assistantService (coste de IA SPEC-021)', () => {
     await waitForActive()
 
     expect(assistantEvents(send).some((event) => event.state === 'paused')).toBe(false)
-    expect(assistantEvents(send).at(-1)?.usage).toEqual({
+    expect(assistantEvents(send).at(-1)?.usage).toMatchObject({
       calls: 1,
       inputTokens: 100_000,
       outputTokens: 100_000,
-      estimatedCostUsd: computeCostUsd(100_000, 100_000)
+      estimatedCostUsd: computeCostUsd('claude-haiku-4-5', 100_000, 100_000)
     })
   })
 })

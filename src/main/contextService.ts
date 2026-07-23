@@ -1,7 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk'
-import type { Company, Contact, LinkedinMcpSettings } from '../renderer/src/types/domain'
+import type {
+  AiTaskConfig,
+  Company,
+  Contact,
+  LinkedinMcpSettings
+} from '../renderer/src/types/domain'
 import type { ContextCapabilities } from '../renderer/src/types/llm'
 import { getAnthropicKey, LlmOperationError, mapSdkError } from './llmService'
+import { resolveTaskConfig, thinkingParamFor } from './aiModels'
 import { getDecryptedSecret } from './secretsService'
 import * as repository from './db/repository'
 
@@ -22,8 +28,8 @@ import * as repository from './db/repository'
  */
 
 // Constantes del modelo (mismas reglas que llmService: NUNCA enviar
-// temperature/top_p/top_k ni budget_tokens — devuelven 400 en este modelo).
-const MODEL = 'claude-opus-4-8'
+// temperature/top_p/top_k — devuelven 400). El modelo y el thinking vienen de
+// los ajustes por tarea ('companyContext'/'contactContext', default Opus 4.8).
 const SUMMARY_MAX_TOKENS = 4000
 const LINKEDIN_MAX_TOKENS = 8000
 /** Beta del conector MCP de la API de Anthropic. */
@@ -276,6 +282,7 @@ function betaTextOf(message: Anthropic.Beta.Messages.BetaMessage): string {
  */
 async function fetchLinkedinReport(
   client: Anthropic,
+  config: AiTaskConfig,
   mcp: LinkedinMcpConnection,
   task: string
 ): Promise<string | null> {
@@ -284,9 +291,9 @@ async function fetchLinkedinReport(
   try {
     for (let attempt = 0; ; attempt++) {
       response = await client.beta.messages.create({
-        model: MODEL,
+        model: config.model,
         max_tokens: LINKEDIN_MAX_TOKENS,
-        thinking: { type: 'adaptive' },
+        ...thinkingParamFor(config.model, config.thinking, LINKEDIN_MAX_TOKENS),
         betas: [MCP_BETA],
         mcp_servers: [
           {
@@ -348,15 +355,16 @@ function parseGeneratedContext(raw: string): string {
 
 async function summarizeContext(
   client: Anthropic,
+  config: AiTaskConfig,
   systemTask: string,
   userPrompt: string
 ): Promise<string> {
   let response: Anthropic.Message
   try {
     response = await client.messages.create({
-      model: MODEL,
+      model: config.model,
       max_tokens: SUMMARY_MAX_TOKENS,
-      thinking: { type: 'adaptive' },
+      ...thinkingParamFor(config.model, config.thinking, SUMMARY_MAX_TOKENS),
       output_config: { format: { type: 'json_schema', schema: CONTEXT_SCHEMA } },
       system: [
         systemTask,
@@ -422,6 +430,9 @@ async function doGenerateCompanyContext(companyId: string): Promise<Company> {
   }
 
   const client = new Anthropic({ apiKey })
+  // Config por tarea (revisión de coste 2026-07): una para las dos llamadas
+  // (informe LinkedIn + resumen) de la generación de contexto de empresa.
+  const taskConfig = resolveTaskConfig('companyContext')
 
   // Fuente 1: la web (best-effort; si falla y hay LinkedIn, se degrada)
   const webText = company.website !== null ? await scrapeWebsite(company.website) : null
@@ -433,6 +444,7 @@ async function doGenerateCompanyContext(companyId: string): Promise<Company> {
     try {
       linkedinReport = await fetchLinkedinReport(
         client,
+        taskConfig,
         mcp,
         `Obtén información de la empresa "${company.name}" desde su página de LinkedIn: ${company.linkedinUrl}. Interesan: descripción, sector, tamaño (empleados), sede, productos/servicios, publicaciones o señales recientes.`
       )
@@ -470,6 +482,7 @@ async function doGenerateCompanyContext(companyId: string): Promise<Company> {
 
   const context = await summarizeContext(
     client,
+    taskConfig,
     'Tu tarea: redactar el campo "contexto" de una empresa para preparar entrevistas de discovery (The Mom Test).',
     sections.join('\n\n')
   )
@@ -520,8 +533,11 @@ async function doGenerateContactContext(contactId: string): Promise<Contact> {
   }
 
   const client = new Anthropic({ apiKey })
+  // Config por tarea (revisión de coste 2026-07): informe + resumen del contacto
+  const taskConfig = resolveTaskConfig('contactContext')
   const linkedinReport = await fetchLinkedinReport(
     client,
+    taskConfig,
     mcp,
     `Obtén información del perfil de LinkedIn de "${contact.name}"${
       contact.position !== null ? ` (${contact.position})` : ''
@@ -549,6 +565,7 @@ async function doGenerateContactContext(contactId: string): Promise<Contact> {
 
   const context = await summarizeContext(
     client,
+    taskConfig,
     'Tu tarea: redactar el campo "contexto" de un contacto (la persona a entrevistar) para preparar entrevistas de discovery (The Mom Test).',
     sections.join('\n\n')
   )

@@ -404,13 +404,22 @@ describe('assistantService (similitud SPEC-037)', () => {
     })
 
     // SPEC-037 · AC-12 (gate de capacidad intacto para candidatas NO similares)
-    it('discards a distinct candidate by the capacity gate when pending is at its maximum', async () => {
+    // Revisado por la revisión de coste 2026-07: con las pendientes al máximo
+    // los disparos por líneas SE SALTAN (degradación de frecuencia) — el gate
+    // actúa ya en el disparador y la cola queda intacta sin llamada nueva.
+    it('skips line-triggered analyses instead of calling when pending is at its maximum', async () => {
       startSession()
       await analyze({ suggestedQuestion: '¿Pregunta sobre herramientas de agenda?' })
       await analyze({ suggestedQuestion: '¿Pregunta sobre presupuesto anual disponible?' })
       await analyze({ suggestedQuestion: '¿Pregunta sobre decisiones internas del equipo?' })
-      await analyze({ suggestedQuestion: '¿Pregunta sobre clientes perdidos este trimestre?' })
 
+      vi.setSystemTime(BASE_TIME_MS + 10 * (MIN_INTERVAL_MS + 1000))
+      feedFinal()
+      feedFinal()
+      feedFinal()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(harness.create).toHaveBeenCalledTimes(3)
       expect(pendingQuestions()).toEqual([
         '¿Pregunta sobre decisiones internas del equipo?',
         '¿Pregunta sobre presupuesto anual disponible?',

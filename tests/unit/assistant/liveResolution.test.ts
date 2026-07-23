@@ -22,7 +22,8 @@ import {
   MIN_INTERVAL_MS,
   setAssistantPinned,
   startAssistant,
-  stopAssistant
+  stopAssistant,
+  triggerAssistantMaintenance
 } from '../../../src/main/assistantService'
 import * as repository from '../../../src/main/db/repository'
 import { initStore } from '../../../src/main/db/store'
@@ -212,11 +213,11 @@ function startSession(): void {
  */
 async function analyze(overrides: Record<string, unknown> = {}): Promise<void> {
   analysisCount += 1
-  const expectedCalls = analysisCount
+  const expectedCalls = harness.create.mock.calls.length + 1
   const eventsBefore = assistantEvents(send).length
   harness.create.mockResolvedValueOnce(sdkResponse(analysisPayload(overrides)))
-  if (expectedCalls > 1) {
-    vi.setSystemTime(BASE_TIME_MS + (expectedCalls - 1) * (MIN_INTERVAL_MS + 1000))
+  if (analysisCount > 1) {
+    vi.setSystemTime(BASE_TIME_MS + (analysisCount - 1) * (MIN_INTERVAL_MS + 1000))
   }
   feedFinal()
   feedFinal()
@@ -226,6 +227,24 @@ async function analyze(overrides: Record<string, unknown> = {}): Promise<void> {
     const events = assistantEvents(send)
     expect(events.length).toBeGreaterThanOrEqual(eventsBefore + 2)
     expect(events.at(-1)?.state).toBe('active')
+  })
+}
+
+/**
+ * Ejecuta UNA llamada de mantenimiento completa (revisión de coste 2026-07):
+ * el temporizador de 30 s es real y no dispara en el arnés, así que se usa el
+ * disparador exportado para QA.
+ */
+async function maintain(overrides: Record<string, unknown> = {}): Promise<void> {
+  const expectedCalls = harness.create.mock.calls.length + 1
+  const eventsBefore = assistantEvents(send).length
+  harness.create.mockResolvedValueOnce(
+    sdkResponse({ resolvedQueueIndexes: [], objectivesMet: [], ...overrides })
+  )
+  triggerAssistantMaintenance()
+  await vi.waitFor(() => expect(harness.create).toHaveBeenCalledTimes(expectedCalls))
+  await vi.waitFor(() => {
+    expect(assistantEvents(send).length).toBeGreaterThanOrEqual(eventsBefore + 1)
   })
 }
 
@@ -349,25 +368,35 @@ describe('assistantService (resolución en vivo SPEC-038)', () => {
   })
 
   describe('prompt first barrier', () => {
-    // SPEC-038 · AC-08 (revisión una a una + respondidas sin formularse)
-    it('instructs the model to review every queued question and mark answered ones even if never asked verbatim', async () => {
+    // SPEC-038 · AC-08, revisado por la revisión de coste 2026-07: la
+    // revisión una a una + respondidas sin formularse vive ahora en el
+    // prompt de la llamada de MANTENIMIENTO.
+    it('instructs the maintenance model to review every queued question and mark answered ones even if never asked verbatim', async () => {
       startSession()
-      await analyze()
+      await analyze({ suggestedQuestion: TOOL_QUESTION })
+      await maintain()
 
-      const text = systemText(0)
-      expect(text).toContain('en CADA análisis revisa UNA A UNA las preguntas en cola')
+      const text = systemText(1)
+      expect(text).toContain('revisa UNA A UNA las preguntas en cola')
       expect(text).toContain(
         'aunque la formulación difiera o la respuesta haya llegado sin que nadie hiciera la pregunta'
       )
+      // El prompt interactivo ya no pide la revisión de la cola
+      expect(systemText(0)).not.toContain('resolvedQueueIndexes')
     })
 
-    // SPEC-038 · AC-09 (la Tarea pide primero revisar la cola y después la jugada)
-    it('asks first for the queue review and then for the next move in the user task section', async () => {
+    // SPEC-038 · AC-09, revisado: la Tarea del mantenimiento pide la revisión
+    // de cola y objetivos; la del análisis interactivo, solo la jugada.
+    it('asks the maintenance call for the queue review and the interactive call for the next move', async () => {
       startSession()
-      await analyze()
+      await analyze({ suggestedQuestion: TOOL_QUESTION })
+      await maintain()
 
       expect(createCall(0).messages[0].content).toContain(
-        '## Tarea\nPrimero revisa la cola de preguntas y marca en `resolvedQueueIndexes` las que el interlocutor ya haya respondido; después analiza la conversación y decide la siguiente jugada del entrevistador.'
+        '## Tarea\nAnaliza la conversación y decide la siguiente jugada del entrevistador.'
+      )
+      expect(createCall(1).messages[0].content).toContain(
+        '## Tarea\nRevisa la cola de preguntas y los objetivos contra la conversación y devuelve el JSON pedido.'
       )
     })
   })
@@ -382,39 +411,32 @@ describe('assistantService (resolución en vivo SPEC-038)', () => {
       expect(JSON.stringify(createCall(1).system)).toBe(JSON.stringify(createCall(0).system))
     })
 
-    // SPEC-038 · AC-11 (resolvedQueueIndexes del análisis sigue resolviendo por id)
-    it('still resolves pending questions marked by the analysis through snapshot indexes', async () => {
+    // SPEC-038 · AC-11, revisado: resolvedQueueIndexes del MANTENIMIENTO
+    // sigue resolviendo por id sobre el snapshot
+    it('still resolves pending questions marked by maintenance through snapshot indexes', async () => {
       startSession()
       await analyze({ suggestedQuestion: '¿Pregunta sobre herramientas de agenda?' })
       await analyze({ suggestedQuestion: '¿Pregunta sobre presupuesto anual disponible?' })
 
-      // Snapshot en el 3er análisis: [presupuesto (0), herramientas (1)]
-      await analyze({
-        suggestedQuestion: '¿Pregunta sobre decisiones internas del equipo?',
-        resolvedQueueIndexes: [1]
-      })
+      // Snapshot del mantenimiento: [presupuesto (0), herramientas (1)]
+      await maintain({ resolvedQueueIndexes: [1] })
 
-      expect(pendingQuestions()).toEqual([
-        '¿Pregunta sobre decisiones internas del equipo?',
-        '¿Pregunta sobre presupuesto anual disponible?'
-      ])
+      expect(pendingQuestions()).toEqual(['¿Pregunta sobre presupuesto anual disponible?'])
     })
 
-    // SPEC-038 · AC-12 (un índice anclado devuelto por el análisis se ignora)
-    it('ignores an analysis-resolved index that points to a pinned question', async () => {
+    // SPEC-038 · AC-12, revisado: un índice anclado devuelto por el
+    // mantenimiento se ignora
+    it('ignores a maintenance-resolved index that points to a pinned question', async () => {
       startSession()
       await analyze({ suggestedQuestion: '¿Pregunta sobre herramientas de agenda?' })
       setAssistantPinned(lastQueue().pending[0].id, true)
 
-      await analyze({
-        suggestedQuestion: '¿Pregunta sobre presupuesto anual disponible?',
-        resolvedQueueIndexes: [0]
-      })
+      await maintain({ resolvedQueueIndexes: [0] })
 
       expect(lastQueue().pinned.map((item) => item.suggestedQuestion)).toEqual([
         '¿Pregunta sobre herramientas de agenda?'
       ])
-      expect(pendingQuestions()).toEqual(['¿Pregunta sobre presupuesto anual disponible?'])
+      expect(pendingQuestions()).toEqual([])
     })
 
     // SPEC-038 · AC-13 (la resolución por formulación no toca suggestionCount)

@@ -7,6 +7,7 @@ import { vi } from 'vitest'
 import type { AssistantApi, AssistantUpdateEvent } from '@/types/assistant'
 import type { MauryaApi, TranscriptResultEvent, TranscriptionStatusEvent } from '@/types/audio'
 import type { DbApi } from '@/types/domain'
+import { DEFAULT_AI_TASK_SETTINGS } from '@/types/domain'
 import type { LlmApi, ObjectiveEvaluationEvent, ScriptGenerationEvent } from '@/types/llm'
 import type { NotesApi } from '@/types/notes'
 import type { SecretsApi } from '@/types/secrets'
@@ -228,6 +229,13 @@ function createMockDbApi(): DbApi {
       .fn<DbApi['getAssistantSettings']>()
       .mockResolvedValue({ ok: true, data: { queueSize: 3 } }),
     setAssistantSettings: vi.fn<DbApi['setAssistantSettings']>(),
+
+    // Modelos por tarea de IA (revisión de coste 2026-07; default de
+    // solo-lectura seguro: los defaults por tarea; el set se configura por test)
+    getAiTaskSettings: vi
+      .fn<DbApi['getAiTaskSettings']>()
+      .mockResolvedValue({ ok: true, data: DEFAULT_AI_TASK_SETTINGS }),
+    setAiTaskSettings: vi.fn<DbApi['setAiTaskSettings']>(),
 
     // MCP de LinkedIn (default de solo-lectura seguro: no configurado; el set
     // se configura por test)
