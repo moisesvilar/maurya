@@ -129,16 +129,6 @@ function renderCaptureDetail(): RenderResult {
   )
 }
 
-/** La sección «Grabación» (el <section> que envuelve su heading). */
-async function grabacionSection(): Promise<HTMLElement> {
-  const heading = await screen.findByRole('heading', { name: 'Grabación' })
-  const section = heading.closest('section')
-  if (section === null) {
-    throw new Error('El heading «Grabación» debe vivir dentro de un <section>')
-  }
-  return section
-}
-
 /**
  * Arranca la grabación desde el botón de la CABECERA (capture-start-button)
  * atravesando el aviso de consentimiento (SPEC-019) sin persistir preferencia.
@@ -218,19 +208,20 @@ describe('CaptureDetailPage (SPEC-035 capture UI cleanup)', () => {
       expect(screen.queryByText(LIVE_LINE_TEXT)).not.toBeInTheDocument()
       expect(screen.queryByText('Hablante 1')).not.toBeInTheDocument()
       expect(screen.queryByText('Esperando audio…')).not.toBeInTheDocument()
-      // El resto de la sesión en vivo sigue presente en la sección
-      const section = await grabacionSection()
-      expect(within(section).getByText('00:00')).toBeInTheDocument()
-      expect(within(section).getByRole('button', { name: 'Detener' })).toBeInTheDocument()
-      expect(within(section).getAllByRole('progressbar')).toHaveLength(2)
-      expect(within(section).getByLabelText('Nivel de Micrófono')).toBeInTheDocument()
-      expect(within(section).getByLabelText('Nivel de Sistema')).toBeInTheDocument()
+      // El resto de la sesión en vivo vive en la top bar (extensión de
+      // SPEC-034: cronómetro, Detener y medidores compactos); la sección
+      // «Grabación» desaparece del final mientras se graba
+      const controls = screen.getByTestId('topbar-recording-controls')
+      expect(within(controls).getByText('00:00')).toBeInTheDocument()
+      expect(within(controls).getByRole('button', { name: 'Detener' })).toBeInTheDocument()
+      expect(within(controls).getAllByRole('progressbar')).toHaveLength(2)
+      expect(within(controls).getByLabelText('Nivel de Micrófono')).toBeInTheDocument()
+      expect(within(controls).getByLabelText('Nivel de Sistema')).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Grabación' })).not.toBeInTheDocument()
       // SPEC-041 (derogación posicional, precedente SPEC-030): el panel del
-      // asistente ya no vive dentro de la sección «Grabación» — la página lo
-      // pinta arriba, en el contenedor assistant-live-section, mientras se
-      // graba. El aserto funcional (panel presente durante la grabación de la
-      // captura) se conserva en la nueva ubicación.
-      expect(within(section).queryByText(ASSISTANT_INITIAL_TEXT)).not.toBeInTheDocument()
+      // asistente vive arriba, en el contenedor assistant-live-section,
+      // mientras se graba. El aserto funcional (panel presente durante la
+      // grabación de la captura) se conserva en esa ubicación.
       const liveSection = screen.getByTestId('assistant-live-section')
       expect(within(liveSection).getByText(ASSISTANT_INITIAL_TEXT)).toBeInTheDocument()
     })

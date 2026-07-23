@@ -400,13 +400,14 @@ describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
       const title = await screen.findByRole('heading', { name: 'Captura sin empresa', level: 1 })
       const panel = await screen.findByTestId('assistant-live-section')
       const guion = await screen.findByRole('heading', { name: 'Guión' })
-      const grabacion = await screen.findByRole('heading', { name: 'Grabación' })
 
-      // Sin sección Objetivos en la captura: cabecera → panel → Nota/Guión → Grabación
+      // Sin sección Objetivos en la captura: cabecera → panel → Nota/Guión.
+      // La sección «Grabación» ya no cierra la página mientras se graba: la
+      // sesión en vivo vive en la top bar (extensión de SPEC-034).
       expect(screen.queryByRole('heading', { name: 'Objetivos', level: 3 })).not.toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Grabación' })).not.toBeInTheDocument()
       expectBefore(title, panel)
       expectBefore(panel, guion)
-      expectBefore(guion, grabacion)
     })
 
     // SPEC-041 · AC-06 (captura sin grabar: el panel no aparece)
