@@ -58,10 +58,14 @@ export const SCRIPT_EXCERPT_CHARS = SCRIPT_MAX_CHARS
 // equilibrio latencia/coste). NUNCA enviar temperature/top_p/top_k ni
 // budget_tokens: devuelven 400 en este modelo. cache_control SÍ está permitido.
 const MODEL = 'claude-opus-4-8'
-// SPEC-023: 1024 → 512. Con la salida acotada por schema (baseline ~136 tok de
-// salida) queda margen ~3,7×; un JSON truncado cae en la red de seguridad
-// existente (stop_reason !== 'end_turn' → error de formato → reintento natural).
-const MAX_TOKENS = 512
+// SPEC-023 bajó 1024 → 512 contando solo el JSON visible (~136 tok), pero con
+// adaptive thinking los tokens de razonamiento TAMBIÉN consumen max_tokens y
+// varían por llamada: cuando thinking + JSON superaba 512, la respuesta moría
+// con stop_reason max_tokens (error aleatorio en producción). 4096 (alineado
+// con objectiveEvaluationService, mismo modelo y salida estructurada) da aire
+// al thinking; la latencia de SPEC-023 no se resiente porque la salida visible
+// sigue acotada por los maxLength del schema, no por este tope.
+const MAX_TOKENS = 4096
 
 // Topes de longitud de la salida (SPEC-023): DEBEN ser los mismos números en
 // el schema y en el texto del prompt (contradicción prompt↔schema = riesgo).
