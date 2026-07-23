@@ -9,7 +9,12 @@ import { mkdtempSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { generateInterviewScript, LlmOperationError } from '../../../src/main/llmService'
+import {
+  generateInterviewScript,
+  LlmOperationError,
+  SCRIPT_TARGET_CHARS,
+  truncateMarkdownAtBoundary
+} from '../../../src/main/llmService'
 import * as repository from '../../../src/main/db/repository'
 import { initStore } from '../../../src/main/db/store'
 import type { Interview, InterviewTemplate } from '../../../src/renderer/src/types/domain'
@@ -168,22 +173,35 @@ describe('llmService', () => {
 
     // Tope del guión (decisión humana 2026-07-17): SCRIPT_MAX_CHARS = 6000 —
     // el mismo número que SCRIPT_EXCERPT_CHARS del asistente en vivo. Se pide
-    // por prompt Y se garantiza truncando antes de persistir.
-    it('truncates the generated script to SCRIPT_MAX_CHARS before persisting and asks for the limit in the prompt', async () => {
+    // por prompt (tope duro + objetivo blando SCRIPT_TARGET_CHARS) Y se
+    // garantiza recortando en un límite de línea antes de persistir: jamás se
+    // persiste una frase amputada.
+    it('truncates an oversized script at the last complete line under SCRIPT_MAX_CHARS and asks for both limits in the prompt', async () => {
       const { interview } = seedBase()
-      const oversized = JSON.stringify({
-        scriptMarkdown: '# Guión\n' + 'x'.repeat(SCRIPT_MAX_CHARS),
-        objectives: ['Objetivo uno']
-      })
-      harness.create.mockResolvedValue(sdkResponse(oversized))
+      // Guión realista multi-línea que excede el tope por unos cientos de
+      // caracteres (el caso real: el modelo se pasa por poco).
+      const lines = ['# Guión adaptado']
+      while (lines.join('\n').length <= SCRIPT_MAX_CHARS + 300) {
+        lines.push('- ¿Cómo gestiona hoy el equipo el proceso regulatorio de principio a fin?')
+      }
+      const oversizedScript = lines.join('\n')
+      harness.create.mockResolvedValue(
+        sdkResponse(
+          JSON.stringify({ scriptMarkdown: oversizedScript, objectives: ['Objetivo uno'] })
+        )
+      )
 
       const updated = await generateInterviewScript(interview.id)
 
-      expect(updated.scriptMarkdown).toHaveLength(SCRIPT_MAX_CHARS)
-      expect(repository.getInterview(interview.id).scriptMarkdown).toHaveLength(SCRIPT_MAX_CHARS)
-      // La regla de longitud viaja en el system prompt
+      expect(updated.scriptMarkdown.length).toBeLessThanOrEqual(SCRIPT_MAX_CHARS)
+      // El corte cae en un límite de línea: lo persistido es un prefijo del
+      // generado que termina en línea completa, nunca una frase a medias.
+      expect(oversizedScript.startsWith(updated.scriptMarkdown + '\n')).toBe(true)
+      expect(repository.getInterview(interview.id).scriptMarkdown).toBe(updated.scriptMarkdown)
+      // Ambas reglas de longitud viajan en el system prompt
       const params = harness.create.mock.calls[0][0] as { system: string }
       expect(params.system).toContain(`Máximo ${SCRIPT_MAX_CHARS} caracteres`)
+      expect(params.system).toContain(`apunta a unos ${SCRIPT_TARGET_CHARS}`)
     })
   })
 
@@ -326,6 +344,27 @@ describe('llmService', () => {
       expect(persisted.scriptMarkdown).toBeNull()
       expect(persisted.objectives).toEqual([])
       expect(persisted.status).toBe('draft')
+    })
+  })
+
+  describe('truncateMarkdownAtBoundary', () => {
+    it('returns the markdown untouched when it fits in the limit', () => {
+      const markdown = '# Guión\n- Pregunta uno'
+      expect(truncateMarkdownAtBoundary(markdown, markdown.length)).toBe(markdown)
+    })
+
+    it('cuts at the last complete line within the limit', () => {
+      const markdown = 'Primera línea completa.\nSegunda línea que se corta por la mitad'
+      expect(truncateMarkdownAtBoundary(markdown, 30)).toBe('Primera línea completa.')
+    })
+
+    it('falls back to the last sentence end when there are no line breaks', () => {
+      const markdown = 'Primera frase. Segunda frase que no cabe entera'
+      expect(truncateMarkdownAtBoundary(markdown, 30)).toBe('Primera frase.')
+    })
+
+    it('falls back to a hard cut when there is no safe boundary at all', () => {
+      expect(truncateMarkdownAtBoundary('x'.repeat(50), 10)).toBe('x'.repeat(10))
     })
   })
 })
