@@ -398,13 +398,14 @@ describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
       await startFromHeader(user)
 
       const title = await screen.findByRole('heading', { name: 'Captura sin empresa', level: 1 })
+      const objetivos = await screen.findByRole('heading', { name: 'Objetivos', level: 3 })
       const panel = await screen.findByTestId('assistant-live-section')
       const guion = await screen.findByRole('heading', { name: 'Guión' })
       const grabacion = await screen.findByRole('heading', { name: 'Grabación' })
 
-      // Sin sección Objetivos en la captura: cabecera → panel → Nota/Guión → Grabación
-      expect(screen.queryByRole('heading', { name: 'Objetivos', level: 3 })).not.toBeInTheDocument()
-      expectBefore(title, panel)
+      // Mismo orden que la entrevista: cabecera → Objetivos → panel → Nota/Guión → Grabación
+      expectBefore(title, objetivos)
+      expectBefore(objetivos, panel)
       expectBefore(panel, guion)
       expectBefore(guion, grabacion)
     })

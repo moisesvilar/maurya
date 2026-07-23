@@ -8,6 +8,7 @@ import { AssignCompanySheet } from '@/components/captures/AssignCompanySheet'
 import { AssistantLiveSection } from '@/components/recording/AssistantLiveSection'
 import { AiCostInline } from '@/components/interviews/AiCostInline'
 import { NoteScriptSections } from '@/components/interviews/NoteScriptSections'
+import { ObjectivesSection } from '@/components/interviews/ObjectivesSection'
 import { TopBarPortal } from '@/components/layout/TopBarSlot'
 import { CaptureTopBarControls } from '@/components/recording/CaptureTopBarControls'
 import { RecordingSection } from '@/components/recording/RecordingSection'
@@ -31,9 +32,11 @@ type CaptureDetailState =
 
 /**
  * Detalle de una captura (SPEC-020, ruta /captures/:id — Layout 2 detalle):
- * misma experiencia que el detalle de entrevista de Discoveries — las secciones
- * Nota y Guión compuestas por NoteScriptSections (SPEC-027: apiladas o en
- * pestañas "Notas"/"Guión") y, al final, la sección Grabación (RecordingSection,
+ * misma experiencia que el detalle de entrevista de Discoveries — la sección
+ * Objetivos (ObjectivesSection, SPEC-025: indicador de progreso principal),
+ * las secciones Nota y Guión compuestas por NoteScriptSections (SPEC-027:
+ * apiladas o en pestañas "Notas"/"Guión") y, al final, la sección Grabación
+ * (RecordingSection,
  * SPEC-030: material de archivo tras el flujo end-to-end), con el mismo
  * onInterviewUpdated compartido. La diferencia es el contexto: la captura
  * puede no tener empresa todavía; en ese caso la cabecera muestra el botón
@@ -230,8 +233,11 @@ function CaptureDetailContent({
         </div>
       </div>
 
-      {/* SPEC-041: el panel del asistente, encima de Nota/Guión (la captura
-          no tiene sección Objetivos), solo mientras se graba */}
+      {/* Mismo orden que el detalle de entrevista: Objetivos (indicador de
+          progreso principal, SPEC-025) → panel del asistente (SPEC-041, solo
+          mientras se graba) → Nota/Guión */}
+      <ObjectivesSection interview={interview} onInterviewUpdated={onInterviewUpdated} />
+
       <AssistantLiveSection controller={controller} />
 
       <NoteScriptSections interview={interview} onInterviewUpdated={onInterviewUpdated} />
