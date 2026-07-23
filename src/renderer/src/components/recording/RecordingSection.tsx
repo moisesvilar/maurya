@@ -29,6 +29,7 @@ import { LevelMeter } from '@/components/spike/LevelMeter'
 import { StopOnCloseDialog } from '@/components/spike/StopOnCloseDialog'
 import { useRecordingController } from '@/hooks/useRecordingController'
 import type { RecordingController } from '@/hooks/useRecordingController'
+import { formatElapsed } from '@/lib/formatElapsed'
 import { cn } from '@/lib/utils'
 import type { Interview } from '@/types/domain'
 
@@ -48,12 +49,6 @@ interface RecordingSectionProps {
    * CaptureDetailPage); sin controller siempre es 'interview'.
    */
   variant?: 'interview' | 'capture'
-}
-
-function formatElapsed(totalSeconds: number): string {
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
 /**
@@ -122,12 +117,15 @@ interface DiscardDialogState {
 }
 
 /**
- * JSX de la sección. Condicionales por variante: el bloque «Estado 1 —
- * Preparación» solo se pinta en modo entrevista (en la captura esos controles
- * viven en la top bar y la cabecera, SPEC-034), y el área de transcripción en
- * vivo del bloque Grabando también es solo de la entrevista (SPEC-035: en la
- * captura se retira la UI, no la transcripción). Los Alerts de error y los
- * diálogos (consentimiento, close guard, sobrescribir) se renderizan en ambas.
+ * JSX de la sección. Condicionales por variante: los bloques «Estado 1 —
+ * Preparación» y «Estado 2 — Grabando» solo se pintan en modo entrevista — en
+ * la captura la preparación vive en la top bar y la cabecera (SPEC-034) y la
+ * sesión en vivo completa también sube a la top bar (extensión de SPEC-034:
+ * cronómetro, Detener, estado y medidores en CaptureTopBarControls), por lo
+ * que la sección entera — heading incluido — desaparece del final mientras se
+ * graba y solo persisten los avisos (errores, degradado, sin key). Los Alerts
+ * de error y los diálogos (consentimiento, close guard, sobrescribir) se
+ * renderizan en ambas variantes.
  */
 function RecordingSectionView({
   controller,
@@ -213,7 +211,11 @@ function RecordingSectionView({
 
   return (
     <section className="flex flex-col gap-4">
-      <h3 className="text-lg font-semibold">Grabación</h3>
+      {/* Grabando una captura la sesión vive en la top bar: sin heading aquí
+          (los avisos de abajo se explican solos) */}
+      {!(variant === 'capture' && capturing) && (
+        <h3 className="text-lg font-semibold">Grabación</h3>
+      )}
 
       {error !== null && <CaptureErrorAlert error={error} />}
       {transcription.error !== null && <CaptureErrorAlert error={transcription.error} />}
@@ -221,8 +223,10 @@ function RecordingSectionView({
           durante la sesión; el gate `capturing` lo retira al terminar */}
       {capturing && transcription.degraded && <DegradedTranscriptionAlert />}
 
-      {/* Estado 2 — Grabando */}
-      {capturing && (
+      {/* Estado 2 — Grabando: solo en el detalle de entrevista clásico; en la
+          captura la sesión en vivo (cronómetro, Detener, estado, medidores)
+          vive en la top bar (CaptureTopBarControls, extensión de SPEC-034) */}
+      {capturing && variant === 'interview' && (
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-4">
             <span
@@ -245,25 +249,19 @@ function RecordingSectionView({
           {/* SPEC-041: el panel del asistente ya no vive aquí — las páginas
               lo pintan arriba (AssistantLiveSection, entre objetivos y
               Nota/Guión) mientras se graba. La Grabación conserva cronómetro,
-              Detener, medidores y (solo entrevista) la transcripción. */}
+              Detener, medidores y la transcripción en vivo (SPEC-035: en la
+              captura esa área nunca se pinta). */}
           {/* SPEC-025: el seguimiento en vivo de objetivos se pinta en la
               sección "Objetivos" superior del detalle, no aquí */}
           <div className="space-y-3">
             <LevelMeter label="Micrófono" value={levels.microphone} />
             <LevelMeter label="Sistema" value={levels.system} />
           </div>
-          {/* SPEC-035: el área de transcripción en vivo solo se pinta en el
-              detalle de entrevista clásico; en la captura el foco durante la
-              llamada son el asistente y los objetivos. La transcripción sigue
-              corriendo igual: badge de estado, asistente y persistencia
-              (transcript.json) intactos. */}
-          {variant === 'interview' && (
-            <TranscriptArea
-              status={transcription.status}
-              lines={transcription.lines}
-              partials={transcription.partials}
-            />
-          )}
+          <TranscriptArea
+            status={transcription.status}
+            lines={transcription.lines}
+            partials={transcription.partials}
+          />
           {transcription.status === 'no-key' && <NoKeyAlert />}
           <MicSelect
             devices={devices}
@@ -273,6 +271,10 @@ function RecordingSectionView({
           />
         </div>
       )}
+
+      {/* Grabando una captura, el aviso de key ausente sigue anclado aquí
+          (la top bar solo lleva la sesión compacta) */}
+      {capturing && variant === 'capture' && transcription.status === 'no-key' && <NoKeyAlert />}
 
       {/* Estado 3 — Grabada (resumen persistente) */}
       {recorded && (

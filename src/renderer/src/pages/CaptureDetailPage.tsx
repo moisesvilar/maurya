@@ -43,9 +43,11 @@ type CaptureDetailState =
  * "Asignar empresa" que abre el Sheet de asignación diferida.
  * SPEC-034: los controles de preparación de la grabación suben — permisos y
  * micrófono a la top bar (portal al slot del Layout) y «Iniciar grabación» a
- * la cabecera — solo en estado Preparación; el estado lo posee el
- * useRecordingController creado en el ready-branch (CaptureDetailContent) y
- * compartido con la sección Grabación por prop.
+ * la cabecera — solo en estado Preparación; extensión posterior: durante la
+ * Grabación la sesión en vivo (cronómetro, Detener, estado de transcripción y
+ * medidores) también vive en la top bar, siempre visible sin scroll. El estado
+ * lo posee el useRecordingController creado en el ready-branch
+ * (CaptureDetailContent) y compartido con la sección Grabación por prop.
  * Carga encadenada: getInterview y, con el resultado, getDiscovery +
  * condicionales getCompany/getContact — los fallos de estas resoluciones de
  * contexto degradan a "Sin empresa"/"Sin contacto", nunca a error state; el
@@ -191,9 +193,12 @@ function CaptureDetailContent({
 
   return (
     <>
-      {/* La condición vive FUERA del portal: fuera de Preparación el testid
-          desaparece del DOM de la top bar (sin controles muertos) */}
-      {preparation && (
+      {/* La condición vive FUERA del portal: en Grabada los testids
+          desaparecen del DOM de la top bar (sin controles muertos). En
+          Preparación el portal lleva permisos + micrófono (SPEC-034) y en
+          Grabando la sesión en vivo (cronómetro, Detener, estado, medidores);
+          CaptureTopBarControls elige por estado del controller. */}
+      {!controller.recorded && (
         <TopBarPortal>
           <CaptureTopBarControls controller={controller} />
         </TopBarPortal>
