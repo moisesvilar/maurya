@@ -21,6 +21,7 @@ import { DegradedTranscriptionAlert } from '@/components/recording/DegradedTrans
 import { LatencyRow } from '@/components/recording/LatencyRow'
 import { MicSelect } from '@/components/recording/MicSelect'
 import { NoKeyAlert } from '@/components/recording/NoKeyAlert'
+import { OpenSettingsButton } from '@/components/recording/OpenSettingsButton'
 import { PermissionBadges } from '@/components/recording/PermissionBadges'
 import { TranscriptArea } from '@/components/recording/TranscriptArea'
 import { TranscriptionStatusBadge } from '@/components/recording/transcriptionStatusBadge'
@@ -30,6 +31,7 @@ import { StopOnCloseDialog } from '@/components/spike/StopOnCloseDialog'
 import { useRecordingController } from '@/hooks/useRecordingController'
 import type { RecordingController } from '@/hooks/useRecordingController'
 import { formatElapsed } from '@/lib/formatElapsed'
+import { isPermissionError } from '@/lib/permissionError'
 import { cn } from '@/lib/utils'
 import type { Interview } from '@/types/domain'
 
@@ -217,7 +219,10 @@ function RecordingSectionView({
         <h3 className="text-lg font-semibold">Grabación</h3>
       )}
 
-      {error !== null && <CaptureErrorAlert error={error} />}
+      {/* SPEC-049: los errores de permiso ya no se pintan aquí — las páginas
+          los muestran arriba, bajo la cabecera (PermissionErrorAlert); el
+          resto de errores de captura siguen en la sección */}
+      {error !== null && !isPermissionError(error) && <CaptureErrorAlert error={error} />}
       {transcription.error !== null && <CaptureErrorAlert error={transcription.error} />}
       {/* Modo degradado sin diarización (SPEC-022): informativo, persistente
           durante la sesión; el gate `capturing` lo retira al terminar */}
@@ -308,7 +313,12 @@ function RecordingSectionView({
           la captura estos controles viven en la top bar y la cabecera (SPEC-034) */}
       {variant === 'interview' && !capturing && !recorded && (
         <div className="flex flex-col gap-4">
-          <PermissionBadges permissions={permissions} />
+          {/* SPEC-049: badges y acción correctiva comparten fila (botón a la
+              derecha, solo con algún permiso no concedido) */}
+          <div className="flex flex-wrap items-center gap-4">
+            <PermissionBadges permissions={permissions} />
+            <OpenSettingsButton permissions={permissions} />
+          </div>
           <MicSelect
             devices={devices}
             selectedDeviceId={selectedDeviceId}

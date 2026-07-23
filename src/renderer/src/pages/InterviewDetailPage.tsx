@@ -8,6 +8,7 @@ import { AiCostInline } from '@/components/interviews/AiCostInline'
 import { NoteScriptSections } from '@/components/interviews/NoteScriptSections'
 import { ObjectivesSection } from '@/components/interviews/ObjectivesSection'
 import { AssistantLiveSection } from '@/components/recording/AssistantLiveSection'
+import { PermissionErrorAlert } from '@/components/recording/PermissionErrorAlert'
 import { RecordingSection } from '@/components/recording/RecordingSection'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
 import { useContacts } from '@/hooks/useContacts'
@@ -196,6 +197,11 @@ function InterviewDetailContent({
           <AiCostInline aiUsage={interview.aiUsage} />
         </p>
       </div>
+
+      {/* SPEC-049: el error de permiso al iniciar la grabación se pinta aquí,
+          bajo la cabecera y antes de Objetivos — visible sin scroll (la
+          sección Grabación del final ya no lo muestra) */}
+      <PermissionErrorAlert error={controller.error} />
 
       {/* SPEC-025: los objetivos van arriba del todo, inmediatamente tras
           la cabecera — son el indicador de progreso principal */}
