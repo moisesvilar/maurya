@@ -90,6 +90,10 @@ export function registerDbIpcHandlers(): void {
   handleDb('db:assistant-settings:get', repository.getAssistantSettings)
   handleDb('db:assistant-settings:set', repository.setAssistantSettings)
 
+  // Ajustes de modelos por tarea de IA (revisión de coste 2026-07).
+  handleDb('db:ai-task-settings:get', repository.getAiTaskSettings)
+  handleDb('db:ai-task-settings:set', repository.setAiTaskSettings)
+
   // Ajustes del MCP de LinkedIn: URL del servidor (el token va por secrets:*).
   handleDb('db:linkedin-mcp-settings:get', repository.getLinkedinMcpSettings)
   handleDb('db:linkedin-mcp-settings:set', repository.setLinkedinMcpSettings)

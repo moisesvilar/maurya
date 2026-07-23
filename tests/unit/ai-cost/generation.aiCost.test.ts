@@ -151,12 +151,18 @@ describe('generation cost measurement (SPEC-021)', () => {
 
     const updated = await generateInterviewScript(interview.id)
 
-    // La Interview devuelta YA incluye el aiUsage (la cabecera refresca sin recargar)
-    expect(updated.aiUsage).toEqual({
+    // La Interview devuelta YA incluye el aiUsage (la cabecera refresca sin
+    // recargar), con el desglose byTask de la revisión de coste 2026-07
+    expect(updated.aiUsage).toMatchObject({
       calls: 1,
       inputTokens: 1000,
       outputTokens: 500,
-      estimatedCostUsd: computeCostUsd(1000, 500)
+      estimatedCostUsd: computeCostUsd('claude-opus-4-8', 1000, 500)
+    })
+    expect(updated.aiUsage?.byTask?.scriptGeneration).toMatchObject({
+      calls: 1,
+      inputTokens: 1000,
+      outputTokens: 500
     })
     expect(updated.status).toBe('prepared')
     expect(repository.getInterview(interview.id).aiUsage?.calls).toBe(1)
@@ -181,9 +187,12 @@ describe('generation cost measurement (SPEC-021)', () => {
       outputTokens: 1200
     })
     expect(result.interview.aiUsage?.estimatedCostUsd).toBeCloseTo(
-      computeCostUsd(1000, 500) + computeCostUsd(3000, 700),
+      computeCostUsd('claude-opus-4-8', 1000, 500) + computeCostUsd('claude-opus-4-8', 3000, 700),
       10
     )
+    // Cada generación queda atribuida a su tarea (revisión de coste 2026-07)
+    expect(result.interview.aiUsage?.byTask?.scriptGeneration?.calls).toBe(1)
+    expect(result.interview.aiUsage?.byTask?.noteGeneration?.calls).toBe(1)
   })
 
   // SPEC-021 · AC-04 (generaciones manuales: una llamada que falla no mide nada)
@@ -236,7 +245,7 @@ describe('generation cost measurement (SPEC-021)', () => {
     const updated = await generateInterviewScript(interview.id)
 
     expect(updated.status).toBe('prepared')
-    expect(updated.aiUsage).toEqual({
+    expect(updated.aiUsage).toMatchObject({
       calls: 1,
       inputTokens: 0,
       outputTokens: 0,

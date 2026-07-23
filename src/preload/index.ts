@@ -99,6 +99,10 @@ const db: DbApi = {
   getAssistantSettings: () => ipcRenderer.invoke('db:assistant-settings:get'),
   setAssistantSettings: (settings) => ipcRenderer.invoke('db:assistant-settings:set', settings),
 
+  // Ajustes de modelos por tarea de IA (revisión de coste 2026-07).
+  getAiTaskSettings: () => ipcRenderer.invoke('db:ai-task-settings:get'),
+  setAiTaskSettings: (settings) => ipcRenderer.invoke('db:ai-task-settings:set', settings),
+
   // Ajustes del MCP de LinkedIn: URL del servidor (el token va por api.secrets).
   getLinkedinMcpSettings: () => ipcRenderer.invoke('db:linkedin-mcp-settings:get'),
   setLinkedinMcpSettings: (settings) =>

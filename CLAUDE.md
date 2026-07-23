@@ -149,11 +149,22 @@ persistTranscript`escribe``.transcript.json con { lines, latency, assistant, con
 ### LLM (Claude)
 
 `llmService.ts` (guión + objetivos), `noteService.ts` (nota de resumen +
-export Markdown) y `assistantService.ts` (asistente proactivo en vivo) usan
-`@anthropic-ai/sdk`, modelo `claude-opus-4-8`, structured outputs. Regla del
-modelo: **nunca** enviar `temperature`/`top_p`/`top_k`/`budget_tokens` (dan 400).
-El asistente solo se activa con `interviewId` (nunca en `/capture`) y sin clave
-queda **inerte** (cero llamadas); control de coste por líneas nuevas + intervalo.
+export Markdown), `objectiveEvaluationService.ts`, `contextService.ts` y
+`assistantService.ts` (asistente proactivo en vivo) usan `@anthropic-ai/sdk`
+con structured outputs. **El modelo y el thinking se configuran POR TAREA**
+(revisión de coste 2026-07): catálogo de 7 tareas en `types/domain.ts`
+(`AiTaskId`, defaults en `DEFAULT_AI_TASK_SETTINGS`), tarifas por modelo en
+`aiCost.ts` (desglose de 4 componentes persistido en `aiUsage.byTask`) y
+mapeo del parámetro `thinking` por modelo en `aiModels.ts` — la semántica
+difiere por modelo (Sonnet 5 apagado exige `disabled` explícito; Haiku exige
+`enabled`+`budget_tokens`; una combinación inválida da 400). Regla común:
+**nunca** enviar `temperature`/`top_p`/`top_k` (dan 400); `effort` solo en
+modelos que lo soportan (Haiku no). El asistente corre en DOS llamadas:
+interactiva (sugerencia+alarmas+cursor, default Haiku sin thinking, disparos
+3 líneas/20 s + respaldo 45 s, degradados a solo-respaldo con la cola llena)
+y mantenimiento (resolución de cola + objetivos, default Sonnet 5 con
+thinking, cada 30 s con skip si no hay nada que mantener). Solo se activa con
+`interviewId` (nunca en `/capture`) y sin clave queda **inerte** (cero llamadas).
 
 ### Renderer
 

@@ -4,6 +4,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AiCostCard } from '@/components/settings/AiCostCard'
 import { ApiKeyRow } from '@/components/settings/ApiKeyRow'
+import { AiModelsCard } from '@/components/settings/AiModelsCard'
 import { AssistantSettingsCard } from '@/components/settings/AssistantSettingsCard'
 import { CustomPromptsTab } from '@/components/settings/CustomPromptsTab'
 import { LinkedinMcpCard } from '@/components/settings/LinkedinMcpCard'
@@ -89,6 +90,8 @@ export function SettingsPage(): React.ReactElement {
             />
             {/* Límite de coste de IA por entrevista (SPEC-021), bajo las claves */}
             <AiCostCard />
+            {/* Modelo y thinking por tarea de IA (revisión de coste 2026-07) */}
+            <AiModelsCard />
             {/* Tamaño de la cola de preguntas del asistente (SPEC-036) */}
             <AssistantSettingsCard />
           </section>

@@ -1,42 +1,74 @@
 import type Anthropic from '@anthropic-ai/sdk'
-import type { AiUsage } from '../renderer/src/types/domain'
+import type { AiModelId, AiTaskId, AiTaskUsage, AiUsage } from '../renderer/src/types/domain'
 import * as repository from './db/repository'
 
 /**
- * Medición del coste de IA por entrevista (SPEC-021). Único módulo con la
- * tarifa del modelo y el cálculo del coste estimado; los tres servicios de
- * main (llmService, noteService, assistantService) registran aquí el uso de
- * cada llamada exitosa. La medición es best-effort: un fallo suyo JAMÁS rompe
- * una generación ni la parada de una grabación.
+ * Medición del coste de IA por entrevista (SPEC-021, revisada en la revisión
+ * de coste 2026-07). Único módulo con las tarifas por modelo y el cálculo del
+ * coste estimado; los servicios de main registran aquí el uso de cada llamada
+ * exitosa CON su tarea y su modelo, y el desglose de los 4 componentes de
+ * tokens queda persistido por tarea (auditable el hit-rate de caché). La
+ * medición es best-effort: un fallo suyo JAMÁS rompe una generación ni la
+ * parada de una grabación.
  */
 
-// Tarifa vigente de `claude-opus-4-8` (USD por millón de tokens). Constantes
-// deliberadamente no configurables (decisión de la spec): si el precio cambia,
-// se actualiza aquí en una release.
-export const INPUT_USD_PER_MTOK = 5
-export const OUTPUT_USD_PER_MTOK = 25
-// Prompt caching (SPEC-023): escritura de caché a 1,25× la tarifa de entrada;
-// lectura a 0,1×. Solo el asistente cachea (guión/nota son llamadas únicas).
-export const CACHE_WRITE_USD_PER_MTOK = 6.25
-export const CACHE_READ_USD_PER_MTOK = 0.5
+/** Tarifa de un modelo en USD por millón de tokens, por componente. */
+export interface ModelRates {
+  inputUsdPerMtok: number
+  outputUsdPerMtok: number
+  /** Escritura de caché (TTL 5 min): 1,25× la tarifa de entrada. */
+  cacheWriteUsdPerMtok: number
+  /** Lectura de caché: 0,1× la tarifa de entrada. */
+  cacheReadUsdPerMtok: number
+}
 
 /**
- * Coste estimado en USD de una llamada o acumulado: tokens × tarifa por MTok.
- * `inputTokens` son SOLO los tokens de entrada no cacheados; los componentes
- * de caché (SPEC-023) son opcionales con default 0 — toda llamada de 2
- * argumentos produce el valor idéntico al histórico (retrocompatible).
+ * Tarifas vigentes (USD/MTok), verificadas contra platform.claude.com el
+ * 2026-07-23. Deliberadamente no configurables (decisión de SPEC-021): si un
+ * precio cambia, se actualiza aquí en una release. Nota Sonnet 5: hasta el
+ * 2026-08-31 rige un precio introductorio de 2/10 (caché 2.5/0.2); se tarifica
+ * al precio estándar 3/15 — estimación conservadora (nunca infraestima y el
+ * gate del límite de coste pausa antes, no después).
+ */
+export const MODEL_RATES: Record<AiModelId, ModelRates> = {
+  'claude-haiku-4-5': {
+    inputUsdPerMtok: 1,
+    outputUsdPerMtok: 5,
+    cacheWriteUsdPerMtok: 1.25,
+    cacheReadUsdPerMtok: 0.1
+  },
+  'claude-sonnet-5': {
+    inputUsdPerMtok: 3,
+    outputUsdPerMtok: 15,
+    cacheWriteUsdPerMtok: 3.75,
+    cacheReadUsdPerMtok: 0.3
+  },
+  'claude-opus-4-8': {
+    inputUsdPerMtok: 5,
+    outputUsdPerMtok: 25,
+    cacheWriteUsdPerMtok: 6.25,
+    cacheReadUsdPerMtok: 0.5
+  }
+}
+
+/**
+ * Coste estimado en USD de una llamada o acumulado: tokens × tarifa por MTok
+ * del modelo indicado. `inputTokens` son SOLO los tokens de entrada no
+ * cacheados; los componentes de caché son opcionales con default 0.
  */
 export function computeCostUsd(
+  model: AiModelId,
   inputTokens: number,
   outputTokens: number,
   cacheWriteTokens = 0,
   cacheReadTokens = 0
 ): number {
+  const rates = MODEL_RATES[model]
   return (
-    (inputTokens / 1e6) * INPUT_USD_PER_MTOK +
-    (outputTokens / 1e6) * OUTPUT_USD_PER_MTOK +
-    (cacheWriteTokens / 1e6) * CACHE_WRITE_USD_PER_MTOK +
-    (cacheReadTokens / 1e6) * CACHE_READ_USD_PER_MTOK
+    (inputTokens / 1e6) * rates.inputUsdPerMtok +
+    (outputTokens / 1e6) * rates.outputUsdPerMtok +
+    (cacheWriteTokens / 1e6) * rates.cacheWriteUsdPerMtok +
+    (cacheReadTokens / 1e6) * rates.cacheReadUsdPerMtok
   )
 }
 
@@ -83,41 +115,77 @@ export function extractUsage(response: Anthropic.Message): {
   }
 }
 
-/**
- * Suma al acumulado `aiUsage` persistido de la entrevista el uso de una llamada
- * exitosa (o de una sesión completa del asistente si `calls` viene informado).
- * JAMÁS lanza: un fallo de medición se loguea y no interrumpe al usuario (AC).
- * SPEC-023: los componentes de caché se pliegan en `inputTokens` (suma de los
- * tres) sin cambiar la forma de AiUsage; el coste usa las 4 tarifas. Si el
- * caller aporta `estimatedCostUsd` ya calculado por componentes (el volcado de
- * la sesión del asistente pasa su AiUsage, cuyo inputTokens ya viene plegado),
- * se respeta — recomputarlo desde el total plegado tarificaría el caché a la
- * tarifa de entrada normal y falsearía el importe.
- */
-export function recordInterviewUsage(
-  interviewId: string,
+/** Desglose por tarea de una llamada única (helper de recordInterviewUsage). */
+export function buildTaskUsage(
+  model: AiModelId,
   tokens: {
     inputTokens: number
     outputTokens: number
     cacheCreationInputTokens?: number
     cacheReadInputTokens?: number
-    calls?: number
-    estimatedCostUsd?: number
+  }
+): AiTaskUsage {
+  const cacheWrite = tokens.cacheCreationInputTokens ?? 0
+  const cacheRead = tokens.cacheReadInputTokens ?? 0
+  return {
+    calls: 1,
+    inputTokens: tokens.inputTokens,
+    outputTokens: tokens.outputTokens,
+    cacheWriteTokens: cacheWrite,
+    cacheReadTokens: cacheRead,
+    estimatedCostUsd: computeCostUsd(
+      model,
+      tokens.inputTokens,
+      tokens.outputTokens,
+      cacheWrite,
+      cacheRead
+    )
+  }
+}
+
+/**
+ * Suma al acumulado `aiUsage` persistido de la entrevista el uso de una
+ * llamada exitosa, atribuido a su tarea y tarificado con su modelo. JAMÁS
+ * lanza: un fallo de medición se loguea y no interrumpe al usuario (AC).
+ * Los componentes de caché se pliegan en `inputTokens` del total (forma
+ * histórica de AiUsage para la UI); el desglose real queda en `byTask`.
+ */
+export function recordInterviewUsage(
+  interviewId: string,
+  task: AiTaskId,
+  model: AiModelId,
+  tokens: {
+    inputTokens: number
+    outputTokens: number
+    cacheCreationInputTokens?: number
+    cacheReadInputTokens?: number
   }
 ): void {
   try {
-    const cacheWrite = tokens.cacheCreationInputTokens ?? 0
-    const cacheRead = tokens.cacheReadInputTokens ?? 0
+    const taskUsage = buildTaskUsage(model, tokens)
     const delta: AiUsage = {
-      calls: tokens.calls ?? 1,
-      inputTokens: tokens.inputTokens + cacheWrite + cacheRead,
-      outputTokens: tokens.outputTokens,
-      estimatedCostUsd:
-        tokens.estimatedCostUsd ??
-        computeCostUsd(tokens.inputTokens, tokens.outputTokens, cacheWrite, cacheRead)
+      calls: 1,
+      inputTokens: taskUsage.inputTokens + taskUsage.cacheWriteTokens + taskUsage.cacheReadTokens,
+      outputTokens: taskUsage.outputTokens,
+      estimatedCostUsd: taskUsage.estimatedCostUsd,
+      byTask: { [task]: taskUsage }
     }
     repository.addInterviewAiUsage(interviewId, delta)
   } catch (error) {
     console.error('[aiCost] No se pudo registrar el uso de IA de la entrevista:', error)
+  }
+}
+
+/**
+ * Vuelca el registro completo de una SESIÓN del asistente (varias llamadas ya
+ * agregadas por tarea) al acumulado de la entrevista. El coste del total viene
+ * recomputado por componentes desde `byTask` — recomputar desde el inputTokens
+ * plegado tarificaría el caché a la tarifa de entrada normal. JAMÁS lanza.
+ */
+export function recordAssistantSessionUsage(interviewId: string, usage: AiUsage): void {
+  try {
+    repository.addInterviewAiUsage(interviewId, usage)
+  } catch (error) {
+    console.error('[aiCost] No se pudo registrar el uso de IA de la sesión del asistente:', error)
   }
 }

@@ -12,26 +12,43 @@ import type {
   AssistantSuggestion,
   AssistantUpdateEvent
 } from '../renderer/src/types/assistant'
-import type { AiUsage } from '../renderer/src/types/domain'
+import type { AiTaskConfig, AiTaskUsage, AiUsage } from '../renderer/src/types/domain'
 import { SCRIPT_MAX_CHARS } from '../renderer/src/types/llm'
 import type { LlmError } from '../renderer/src/types/llm'
 import { getAnthropicKey, mapSdkError, toLlmError, LlmOperationError } from './llmService'
 import { computeCostUsd, extractUsage, roundUpUsd } from './aiCost'
+import { resolveTaskConfig, supportsEffort, thinkingParamFor } from './aiModels'
 import { setFinalLineListener } from './transcriptionService'
 import * as repository from './db/repository'
 import { buildPersonaBlock } from './prompts'
 import { REASON_MAX_CHARS, SUGGESTED_QUESTION_MAX_CHARS } from './prompts/defaults'
 
 /**
- * Asistente proactivo en tiempo real (SPEC-016). Vive SOLO en main (patrón
- * llmService + transcriptionService): el SDK de Anthropic y la clave jamás
- * llegan al renderer; por IPC solo viajan eventos tipados.
+ * Asistente proactivo en tiempo real (SPEC-016, split en dos llamadas por la
+ * revisión de coste 2026-07). Vive SOLO en main (patrón llmService +
+ * transcriptionService): el SDK de Anthropic y la clave jamás llegan al
+ * renderer; por IPC solo viajan eventos tipados.
+ *
+ * Dos llamadas con perfiles de riesgo distintos:
+ * - INTERACTIVA (tarea 'assistantInteractive', default Haiku sin thinking):
+ *   acción + pregunta sugerida + motivo + alarmas + cursor de guión. Sensible
+ *   a latencia, error barato (una sugerencia mediocre se ignora). Disparadores
+ *   de SPEC-016 intactos (3 líneas / 20 s + respaldo 45 s); con la COLA LLENA
+ *   se degrada la frecuencia: los disparos por líneas se saltan y solo actúa
+ *   el respaldo (la cola no acepta candidatas nuevas mientras esté llena).
+ * - MANTENIMIENTO (tarea 'assistantMaintenance', default Sonnet 5 con
+ *   thinking): resolución de la cola (resolvedQueueIndexes) + objetivos
+ *   cubiertos (objectivesMet). Error irreversible (quitar de la cola una
+ *   pregunta no respondida) pero sin urgencia: cada 30 s, y con skip
+ *   determinista cuando no hay nada que mantener (cola vacía y sin objetivos
+ *   pendientes) o sin material nuevo.
  *
  * Invariantes:
  * - Solo se activa con `interviewId` (nunca en /capture). Sin clave de
  *   Anthropic queda INERTE: cero timers, cero listeners, cero llamadas.
- * - Control de coste: nunca dos llamadas simultáneas (guard inFlight),
- *   intervalo mínimo entre llamadas y solo con material nuevo suficiente.
+ * - Control de coste: nunca dos llamadas simultáneas DE LA MISMA tarea
+ *   (guards inFlight/maintenanceInFlight), intervalo mínimo entre llamadas y
+ *   solo con material nuevo suficiente.
  * - Un error de análisis NO resetea los contadores: el material acumulado
  *   provoca el reintento natural en la siguiente ventana.
  * - `stopAssistant()` es síncrono y debe llamarse ANTES de persistTranscript.
@@ -55,17 +72,20 @@ export const TRANSCRIPT_WINDOW_CHARS = 4000
 export const SCRIPT_EXCERPT_CHARS = SCRIPT_MAX_CHARS
 
 // Constantes del modelo (documentadas; ajustables si el humano quiere otro
-// equilibrio latencia/coste). NUNCA enviar temperature/top_p/top_k ni
-// budget_tokens: devuelven 400 en este modelo. cache_control SÍ está permitido.
-const MODEL = 'claude-opus-4-8'
+// equilibrio latencia/coste). El MODELO de cada llamada viene de los ajustes
+// por tarea (aiModels.ts); el parámetro thinking lo mapea thinkingParamFor
+// según el modelo. NUNCA enviar temperature/top_p/top_k: devuelven 400 en los
+// modelos del catálogo. cache_control SÍ está permitido.
 // SPEC-023 bajó 1024 → 512 contando solo el JSON visible (~136 tok), pero con
-// adaptive thinking los tokens de razonamiento TAMBIÉN consumen max_tokens y
-// varían por llamada: cuando thinking + JSON superaba 512, la respuesta moría
-// con stop_reason max_tokens (error aleatorio en producción). 4096 (alineado
-// con objectiveEvaluationService, mismo modelo y salida estructurada) da aire
-// al thinking; la latencia de SPEC-023 no se resiente porque la salida visible
-// sigue acotada por los maxLength del schema, no por este tope.
+// thinking los tokens de razonamiento TAMBIÉN consumen max_tokens y varían
+// por llamada: cuando thinking + JSON superaba 512, la respuesta moría con
+// stop_reason max_tokens (error aleatorio en producción). 4096 (alineado con
+// objectiveEvaluationService) da aire al thinking; la latencia de SPEC-023 no
+// se resiente porque la salida visible sigue acotada por los maxLength del
+// schema, no por este tope.
 const MAX_TOKENS = 4096
+/** Intervalo de la llamada de mantenimiento de cola/objetivos (ajustable). */
+export const MAINTENANCE_INTERVAL_MS = 30000
 
 // Topes de longitud de la salida (SPEC-023): DEBEN ser los mismos números en
 // el schema y en el texto del prompt (contradicción prompt↔schema = riesgo).
@@ -80,7 +100,11 @@ const MAX_TOKENS = 4096
  */
 export const SCRIPT_CURSOR_MAX_CHARS = 120
 
-/** Schema de structured outputs: la respuesta del análisis es SIEMPRE este JSON. */
+/**
+ * Schema de structured outputs de la llamada INTERACTIVA: la siguiente jugada
+ * del entrevistador. objectivesMet y resolvedQueueIndexes salieron al schema
+ * de mantenimiento (revisión de coste 2026-07).
+ */
 const OUTPUT_SCHEMA = {
   type: 'object' as const,
   properties: {
@@ -92,24 +116,39 @@ const OUTPUT_SCHEMA = {
       type: 'array' as const,
       items: { type: 'string' as const, enum: ['compliment', 'generic', 'hypothetical'] }
     },
-    objectivesMet: { type: 'array' as const, items: { type: 'integer' as const } },
-    // SPEC-036: índices (0-based) de las preguntas en cola cuyo tema ya quedó
-    // cubierto por la conversación (resolución automática de la cola)
-    resolvedQueueIndexes: { type: 'array' as const, items: { type: 'integer' as const } },
     // SPEC-040: cursor de guión — required con vacío permitido («» cuando el
     // modelo no sabe); el parseo defensivo cubre ambos casos
     scriptCursor: { type: 'string' as const, maxLength: SCRIPT_CURSOR_MAX_CHARS }
   },
-  required: [
-    'action',
-    'suggestedQuestion',
-    'reason',
-    'alarms',
-    'objectivesMet',
-    'resolvedQueueIndexes',
-    'scriptCursor'
-  ],
+  required: ['action', 'suggestedQuestion', 'reason', 'alarms', 'scriptCursor'],
   additionalProperties: false
+}
+
+/**
+ * Schema de la llamada de MANTENIMIENTO (revisión de coste 2026-07): la
+ * resolución de la cola y los objetivos cubiertos, las dos salidas cuyo error
+ * es irreversible en sesión — por eso van en su propia llamada con el modelo
+ * y el thinking configurados para precisión.
+ */
+const MAINTENANCE_OUTPUT_SCHEMA = {
+  type: 'object' as const,
+  properties: {
+    // SPEC-036: índices (0-based) de las preguntas en cola cuyo tema ya quedó
+    // cubierto por la conversación (resolución automática de la cola)
+    resolvedQueueIndexes: { type: 'array' as const, items: { type: 'integer' as const } },
+    objectivesMet: { type: 'array' as const, items: { type: 'integer' as const } }
+  },
+  required: ['resolvedQueueIndexes', 'objectivesMet'],
+  additionalProperties: false
+}
+
+/** Acumulador de tokens de UNA tarea de la sesión (los 4 componentes). */
+interface TaskTokenTotals {
+  calls: number
+  input: number
+  output: number
+  cacheWrite: number
+  cacheRead: number
 }
 
 interface AssistantSession {
@@ -119,12 +158,23 @@ interface AssistantSession {
   /** Guión truncado a SCRIPT_EXCERPT_CHARS; null si la entrevista no tiene. */
   scriptExcerpt: string | null
   apiKey: string
+  /**
+   * Configuración por tarea (revisión de coste 2026-07), leída UNA vez al
+   * arrancar (un cambio en Ajustes a mitad aplica a la siguiente sesión; el
+   * caché es por modelo y un cambio a mitad lo invalidaría).
+   */
+  interactiveConfig: AiTaskConfig
+  maintenanceConfig: AiTaskConfig
   /** Buffer propio de líneas finales de la conversación. */
   lines: TranscriptLine[]
   newLinesSinceLastCall: number
   lastCallAtMs: number
   inFlight: boolean
   fallbackTimer: NodeJS.Timeout | null
+  /** Estado de la llamada de MANTENIMIENTO (cola/objetivos). */
+  maintenanceTimer: NodeJS.Timeout | null
+  maintenanceInFlight: boolean
+  newLinesSinceLastMaintenance: number
   /** Cola de preguntas pendientes (SPEC-036), la más reciente primero. */
   pending: AssistantQueueItem[]
   /** Preguntas ancladas por el usuario (SPEC-036), en orden de anclado. */
@@ -162,12 +212,67 @@ interface AssistantSession {
    * de Date.
    */
   systemBlocks: Anthropic.TextBlockParam[]
+  /** Prefijo fijo de la llamada de mantenimiento (mismas reglas que systemBlocks). */
+  maintenanceSystemBlocks: Anthropic.TextBlockParam[]
   /**
-   * Totales de la sesión por componente (SPEC-023): el coste se recomputa
-   * SIEMPRE desde aquí con las 4 tarifas — recomputar desde el inputTokens ya
+   * Totales de la sesión POR TAREA y por componente (SPEC-023 + revisión de
+   * coste 2026-07): el coste se recomputa SIEMPRE desde aquí con las 4
+   * tarifas DEL MODELO de cada tarea — recomputar desde el inputTokens ya
    * plegado tarificaría el caché a la tarifa de entrada normal.
    */
-  tokenTotals: { input: number; output: number; cacheWrite: number; cacheRead: number }
+  tokenTotals: { interactive: TaskTokenTotals; maintenance: TaskTokenTotals }
+}
+
+function emptyTotals(): TaskTokenTotals {
+  return { calls: 0, input: 0, output: 0, cacheWrite: 0, cacheRead: 0 }
+}
+
+/** Desglose AiTaskUsage de un acumulador, tarificado con el modelo de su tarea. */
+function taskUsageOf(totals: TaskTokenTotals, config: AiTaskConfig): AiTaskUsage {
+  return {
+    calls: totals.calls,
+    inputTokens: totals.input,
+    outputTokens: totals.output,
+    cacheWriteTokens: totals.cacheWrite,
+    cacheReadTokens: totals.cacheRead,
+    estimatedCostUsd: computeCostUsd(
+      config.model,
+      totals.input,
+      totals.output,
+      totals.cacheWrite,
+      totals.cacheRead
+    )
+  }
+}
+
+/**
+ * Recomputa el AiUsage plegado de la sesión desde los totales por tarea
+ * (única fuente de verdad de la medición, SPEC-021/023) y adjunta el desglose
+ * `byTask` con las tareas que ya tengan llamadas.
+ */
+function refreshSessionUsage(target: AssistantSession): void {
+  const interactive = taskUsageOf(target.tokenTotals.interactive, target.interactiveConfig)
+  const maintenance = taskUsageOf(target.tokenTotals.maintenance, target.maintenanceConfig)
+  const byTask: NonNullable<AiUsage['byTask']> = {}
+  if (interactive.calls > 0) {
+    byTask.assistantInteractive = interactive
+  }
+  if (maintenance.calls > 0) {
+    byTask.assistantMaintenance = maintenance
+  }
+  target.usage = {
+    calls: interactive.calls + maintenance.calls,
+    inputTokens:
+      interactive.inputTokens +
+      interactive.cacheWriteTokens +
+      interactive.cacheReadTokens +
+      maintenance.inputTokens +
+      maintenance.cacheWriteTokens +
+      maintenance.cacheReadTokens,
+    outputTokens: interactive.outputTokens + maintenance.outputTokens,
+    estimatedCostUsd: interactive.estimatedCostUsd + maintenance.estimatedCostUsd,
+    ...(Object.keys(byTask).length > 0 ? { byTask } : {})
+  }
 }
 
 let session: AssistantSession | null = null
@@ -408,11 +513,18 @@ export function startAssistant(sender: WebContents, interviewId: string): void {
     objectives,
     scriptExcerpt,
     apiKey,
+    // Config por tarea (revisión de coste 2026-07): leída UNA vez por sesión
+    // (patrón queueSize); resolveTaskConfig degrada a defaults si el store falla.
+    interactiveConfig: resolveTaskConfig('assistantInteractive'),
+    maintenanceConfig: resolveTaskConfig('assistantMaintenance'),
     lines: [],
     newLinesSinceLastCall: 0,
     lastCallAtMs: 0,
     inFlight: false,
     fallbackTimer: null,
+    maintenanceTimer: null,
+    maintenanceInFlight: false,
+    newLinesSinceLastMaintenance: 0,
     // SPEC-036: la cola es estado de sesión — nace vacía en cada grabación
     pending: [],
     pinned: [],
@@ -433,7 +545,8 @@ export function startAssistant(sender: WebContents, interviewId: string): void {
     // (un cambio en Ajustes a mitad aplica a la siguiente sesión) y llega ya
     // envuelto con salvaguarda + delimitadores estáticos (byte-estable).
     systemBlocks: buildSystemBlocks(objectives, scriptExcerpt, buildPersonaBlock('assistant')),
-    tokenTotals: { input: 0, output: 0, cacheWrite: 0, cacheRead: 0 }
+    maintenanceSystemBlocks: buildMaintenanceSystemBlocks(objectives),
+    tokenTotals: { interactive: emptyTotals(), maintenance: emptyTotals() }
   }
   session = target
   setFinalLineListener((line) => {
@@ -444,6 +557,13 @@ export function startAssistant(sender: WebContents, interviewId: string): void {
       maybeAnalyze(target, 1)
     }
   }, FALLBACK_INTERVAL_MS)
+  // Mantenimiento de cola/objetivos (revisión de coste 2026-07): cadencia
+  // propia, sin competir con los disparadores interactivos de SPEC-016.
+  target.maintenanceTimer = setInterval(() => {
+    if (session === target) {
+      maybeRunMaintenance(target)
+    }
+  }, MAINTENANCE_INTERVAL_MS)
   emitUpdate(target, { state: 'idle', queue: buildQueuePayload(target), objectivesMet: [] })
 }
 
@@ -453,11 +573,19 @@ function handleFinalLine(target: AssistantSession, line: TranscriptLine): void {
   }
   target.lines.push(line)
   target.newLinesSinceLastCall += 1
+  target.newLinesSinceLastMaintenance += 1
   // SPEC-038: la resolución por formulación va DESPUÉS de apilar la línea y
   // ANTES de evaluar los disparadores, sin alterarlos (la línea cuenta como
   // material nuevo exactamente igual que antes).
   resolveAskedQuestions(target, line)
-  maybeAnalyze(target, MIN_NEW_FINAL_LINES)
+  // Degradación con cola llena (revisión de coste 2026-07): mientras las
+  // pendientes estén al máximo la cola no acepta candidatas nuevas, así que
+  // los disparos por líneas se saltan y solo actúa el respaldo de 45 s (las
+  // alarmas y el cursor se refrescan a ese ritmo). El mantenimiento sigue su
+  // propia cadencia y es quien puede vaciar la cola.
+  if (target.pending.length < target.maxPending) {
+    maybeAnalyze(target, MIN_NEW_FINAL_LINES)
+  }
 }
 
 /**
@@ -579,11 +707,6 @@ async function runAnalysis(target: AssistantSession): Promise<void> {
   // falla: ante error se "reintenta en la siguiente ventana", no en cascada.
   target.lastCallAtMs = Date.now()
   const linesAtCall = target.newLinesSinceLastCall
-  // Snapshot de la cola tal como viaja en el prompt (SPEC-036): los índices de
-  // resolvedQueueIndexes se resuelven contra este snapshot de ids, no contra
-  // la cola viva (anclar/desanclar en vuelo desplaza los índices vivos).
-  const queueSnapshot: AssistantQueueItem[] = [...target.pending, ...target.pinned]
-  const pendingSnapshotCount = target.pending.length
   // 'analyzing' viaja con la cola completa: el renderer la conserva visible.
   // El usage acompaña solo con ≥1 análisis para que la línea no parpadee.
   const analyzingEvent: AssistantUpdateEvent = {
@@ -601,17 +724,7 @@ async function runAnalysis(target: AssistantSession): Promise<void> {
       return // respuesta tardía tras stop: se descarta
     }
     target.newLinesSinceLastCall -= linesAtCall
-    // 1. Resolución automática (SPEC-036): solo el tramo PENDIENTE del
-    // snapshot; los índices del tramo anclado se ignoran (nunca se
-    // auto-resuelven). La eliminación es por id sobre la cola viva: un ítem
-    // anclado entre medias ya no está en pending y el filtro es un no-op.
-    for (const index of outcome.resolvedQueueIndexes) {
-      if (index < pendingSnapshotCount) {
-        const resolvedId = queueSnapshot[index].id
-        target.pending = target.pending.filter((item) => item.id !== resolvedId)
-      }
-    }
-    // 2. Aceptación de la candidata (SPEC-036): supresión determinista por
+    // 1. Aceptación de la candidata (SPEC-036): supresión determinista por
     // similitud contra TODA la cola (segunda barrera) y gate de capacidad con
     // >= (cubre el exceso temporal por desanclado). suggestionCount solo
     // cuenta candidatas aceptadas.
@@ -622,32 +735,17 @@ async function runAnalysis(target: AssistantSession): Promise<void> {
       target.pending.unshift({ ...outcome.suggestion, id: randomUUID() })
       target.suggestionCount += 1
     }
-    for (const index of outcome.objectivesMet) {
-      target.objectivesMet.add(index)
-    }
-    // 3. Cursor de guión (SPEC-040): solo un cursor válido sustituye al
+    // 2. Cursor de guión (SPEC-040): solo un cursor válido sustituye al
     // previo — el vacío o inválido conserva el último punto conocido.
     if (outcome.scriptCursor !== null) {
       target.scriptCursor = outcome.scriptCursor
     }
     // Medición de la sesión (SPEC-021): SOLO en el camino de éxito completo
     // (una llamada que falla no cambia el acumulado, AC). SPEC-023: se
-    // acumulan los 4 componentes y el coste se recomputa desde los totales
-    // con sus tarifas (los de caché se pliegan en inputTokens para la UI).
-    target.tokenTotals.input += outcome.tokens.inputTokens
-    target.tokenTotals.output += outcome.tokens.outputTokens
-    target.tokenTotals.cacheWrite += outcome.tokens.cacheCreationInputTokens
-    target.tokenTotals.cacheRead += outcome.tokens.cacheReadInputTokens
-    target.usage.calls += 1
-    target.usage.inputTokens =
-      target.tokenTotals.input + target.tokenTotals.cacheWrite + target.tokenTotals.cacheRead
-    target.usage.outputTokens = target.tokenTotals.output
-    target.usage.estimatedCostUsd = computeCostUsd(
-      target.tokenTotals.input,
-      target.tokenTotals.output,
-      target.tokenTotals.cacheWrite,
-      target.tokenTotals.cacheRead
-    )
+    // acumulan los 4 componentes por tarea y el coste se recomputa desde los
+    // totales con las tarifas del modelo de cada tarea.
+    accumulateTokens(target.tokenTotals.interactive, outcome.tokens)
+    refreshSessionUsage(target)
     emitUpdate(target, {
       state: 'active',
       queue: buildQueuePayload(target),
@@ -672,6 +770,133 @@ async function runAnalysis(target: AssistantSession): Promise<void> {
     emitUpdate(target, event)
   } finally {
     target.inFlight = false
+  }
+}
+
+/** Suma los 4 componentes de una llamada al acumulador de su tarea. */
+function accumulateTokens(
+  totals: TaskTokenTotals,
+  tokens: {
+    inputTokens: number
+    outputTokens: number
+    cacheCreationInputTokens: number
+    cacheReadInputTokens: number
+  }
+): void {
+  totals.calls += 1
+  totals.input += tokens.inputTokens
+  totals.output += tokens.outputTokens
+  totals.cacheWrite += tokens.cacheCreationInputTokens
+  totals.cacheRead += tokens.cacheReadInputTokens
+}
+
+// ---------------------------------------------------------------------------
+// Mantenimiento de cola/objetivos (revisión de coste 2026-07)
+// ---------------------------------------------------------------------------
+
+/**
+ * Evalúa los disparadores del mantenimiento: guard propio (puede convivir con
+ * un análisis interactivo en vuelo, nunca con otro mantenimiento), ≥1 línea
+ * nueva desde el último mantenimiento, y el skip determinista — sin cola y
+ * sin objetivos pendientes no hay nada que mantener, cero llamadas. El gate
+ * de límite de coste (SPEC-021) aplica igual que al análisis interactivo.
+ */
+function maybeRunMaintenance(target: AssistantSession): void {
+  if (target.maintenanceInFlight) {
+    return
+  }
+  if (target.newLinesSinceLastMaintenance < 1) {
+    return
+  }
+  const hasQueue = target.pending.length + target.pinned.length > 0
+  const hasPendingObjectives = target.objectives.length > target.objectivesMet.size
+  if (!hasQueue && !hasPendingObjectives) {
+    return
+  }
+  if (blockedByCostLimit(target)) {
+    return
+  }
+  void runMaintenance(target)
+}
+
+/**
+ * Evalúa los disparadores del mantenimiento sobre la sesión activa (mismos
+ * gates que el temporizador). Sin sesión es un no-op silencioso. Exportada
+ * para QA: el temporizador de 30 s es real y los tests lo disparan por aquí.
+ */
+export function triggerAssistantMaintenance(): void {
+  if (session !== null) {
+    maybeRunMaintenance(session)
+  }
+}
+
+/**
+ * Llamada de MANTENIMIENTO: resolución automática de la cola (SPEC-036) +
+ * objetivos cubiertos. No toca el spinner ('analyzing' es solo del análisis
+ * interactivo): es bookkeeping en background y sus resultados se emiten con
+ * el estado derivado del contenido de la cola.
+ */
+async function runMaintenance(target: AssistantSession): Promise<void> {
+  target.maintenanceInFlight = true
+  const linesAtCall = target.newLinesSinceLastMaintenance
+  // Snapshot de la cola tal como viaja en el prompt (SPEC-036): los índices de
+  // resolvedQueueIndexes se resuelven contra este snapshot de ids, no contra
+  // la cola viva (anclar/desanclar en vuelo desplaza los índices vivos).
+  const queueSnapshot: AssistantQueueItem[] = [...target.pending, ...target.pinned]
+  const pendingSnapshotCount = target.pending.length
+  try {
+    const outcome = await requestMaintenance(target, queueSnapshot)
+    if (session !== target) {
+      return // respuesta tardía tras stop: se descarta
+    }
+    target.newLinesSinceLastMaintenance -= linesAtCall
+    // 1. Resolución automática (SPEC-036): solo el tramo PENDIENTE del
+    // snapshot; los índices del tramo anclado se ignoran (nunca se
+    // auto-resuelven). La eliminación es por id sobre la cola viva: un ítem
+    // anclado entre medias ya no está en pending y el filtro es un no-op.
+    for (const index of outcome.resolvedQueueIndexes) {
+      if (index < pendingSnapshotCount) {
+        const resolvedId = queueSnapshot[index].id
+        target.pending = target.pending.filter((item) => item.id !== resolvedId)
+      }
+    }
+    // 2. Objetivos cubiertos: acumulativo, nunca decrece (invariante SPEC-016)
+    for (const index of outcome.objectivesMet) {
+      target.objectivesMet.add(index)
+    }
+    accumulateTokens(target.tokenTotals.maintenance, outcome.tokens)
+    refreshSessionUsage(target)
+    // Estado derivado (patrón setAssistantPinned): un análisis interactivo en
+    // vuelo conserva su spinner; si no, active/idle según la cola.
+    emitUpdate(target, {
+      state: target.inFlight
+        ? 'analyzing'
+        : target.pending.length + target.pinned.length > 0
+          ? 'active'
+          : 'idle',
+      queue: buildQueuePayload(target),
+      objectivesMet: sortedObjectivesMet(target),
+      usage: { ...target.usage }
+    })
+  } catch (error) {
+    if (session !== target) {
+      return
+    }
+    // SIN resetear contadores: el material acumulado reintenta en la
+    // siguiente ventana del temporizador de mantenimiento.
+    const llmError: LlmError = toLlmError(mapSdkError(error))
+    const event: AssistantUpdateEvent = {
+      state: 'error',
+      queue: buildQueuePayload(target),
+      objectivesMet: sortedObjectivesMet(target),
+      error: llmError
+    }
+    if (target.usage.calls > 0) {
+      event.usage = { ...target.usage }
+    }
+    emitUpdate(target, event)
+  } finally {
+    target.maintenanceInFlight = false
   }
 }
 
@@ -700,16 +925,13 @@ function buildSystemPrompt(personaBlock: string): string {
     `- \`scriptCursor\`: el bloque o pregunta del guión que se está tratando ahora mismo (máximo ${SCRIPT_CURSOR_MAX_CHARS} caracteres; string vacío si no hay guión o no se sabe).`,
     `- \`reason\`: el porqué en UNA sola frase corta (máximo ${REASON_MAX_CHARS} caracteres). Con 'dig_deeper', referencia el motivo concreto: la evidencia que falta según The Mom Test o el objetivo aún no cubierto.`,
     "- `alarms`: señales de alarma detectadas en las últimas intervenciones del interlocutor: 'compliment' (cumplidos: «suena interesante»), 'generic' (genéricos: «normalmente hacemos»), 'hypothetical' (futuros hipotéticos: «lo compraríamos»). Array vacío si no hay. Si detectas una alarma, la pregunta sugerida debe reconducir a lo concreto (hechos pasados, casos reales).",
-    '- `objectivesMet`: índices (0-based) de los objetivos YA cubiertos por la conversación, incluidos los que se marcaron cubiertos en análisis anteriores. Array vacío si no hay objetivos.',
     // SPEC-036/037: primera barrera de similitud (la segunda, determinista,
-    // vive en main) + resolución automática de la cola. Texto estático: cambia
-    // entre releases, no dentro de la sesión — byte-estabilidad SPEC-023 intacta.
+    // vive en main). La resolución de la cola y los objetivos cubiertos son
+    // salidas de la llamada de MANTENIMIENTO (revisión de coste 2026-07).
+    // Texto estático: cambia entre releases, no dentro de la sesión —
+    // byte-estabilidad SPEC-023 intacta.
     '- En cada mensaje recibirás la lista numerada de preguntas ya en cola; NO propongas una pregunta igual, casi igual ni una reformulación del mismo tema con otras palabras respecto a ninguna de ellas: aporta la siguiente jugada.',
     '- Si la mejor siguiente pregunta ya está en la cola, repite EXACTAMENTE el mismo texto de la pregunta en cola, sin reformularla.',
-    // SPEC-038: primera barrera reforzada de la resolución en vivo — la
-    // revisión es explícita, una a una, y cubre respuestas con otra
-    // formulación o llegadas sin que nadie hiciera la pregunta. Texto estático.
-    '- `resolvedQueueIndexes`: en CADA análisis revisa UNA A UNA las preguntas en cola y marca los índices (0-based) de las que el interlocutor YA haya respondido, aunque la formulación difiera o la respuesta haya llegado sin que nadie hiciera la pregunta; array vacío si ninguna.',
     '- Responde únicamente con el JSON pedido.'
   ].join('\n')
 }
@@ -719,9 +941,11 @@ function buildSystemPrompt(personaBlock: string): string {
  * guión/objetivos SIN estado dinámico ([cubierto|pendiente] viaja como índices
  * en el mensaje de usuario). `cache_control` ephemeral SOLO en el último
  * bloque: cachea todo el prefijo (TTL 5 min; las llamadas van ≥20 s aparte).
- * Nota: por debajo del mínimo cacheable del modelo (~1024 tokens de prefijo,
- * p. ej. sin guión) el caché no aplica — degradación silenciosa sin error, la
- * ganancia de salida acotada se mantiene.
+ * Nota (corregida en la revisión de coste 2026-07): el mínimo cacheable es
+ * 4096 tokens de prefijo en Opus 4.8 y Haiku 4.5 (2048 en la familia Sonnet
+ * reciente) — NO ~1024, dato de Sonnet 4.5. Un prefijo corto (p. ej. sin
+ * guión) queda por debajo y el caché no aplica: degradación SILENCIOSA sin
+ * error, auditable desde Ajustes con el desglose byTask (cacheReadTokens=0).
  */
 function buildSystemBlocks(
   objectives: string[],
@@ -741,6 +965,34 @@ function buildSystemBlocks(
   }
   if (contextSections.length > 0) {
     blocks.push({ type: 'text', text: contextSections.join('\n\n') })
+  }
+  blocks[blocks.length - 1].cache_control = { type: 'ephemeral' }
+  return blocks
+}
+
+/**
+ * Prefijo fijo de la llamada de MANTENIMIENTO (revisión de coste 2026-07):
+ * instrucciones + textos de los objetivos, construido UNA vez por sesión
+ * (mismas reglas de byte-estabilidad que buildSystemBlocks; la cola y los
+ * índices cubiertos viajan en el mensaje de usuario). Suele quedar por debajo
+ * del mínimo cacheable — el cache_control es inocuo y aprovecha las sesiones
+ * con muchos objetivos.
+ */
+function buildMaintenanceSystemBlocks(objectives: string[]): Anthropic.TextBlockParam[] {
+  const instructions = [
+    'Eres el auditor en vivo de un copiloto de entrevistas de discovery anclado a The Mom Test. En cada mensaje recibirás la ventana reciente de la conversación (transcrita en vivo, puede contener errores), la cola numerada de preguntas del entrevistador y, si existen, los índices de los objetivos ya cubiertos.',
+    'Reglas:',
+    '- `resolvedQueueIndexes`: revisa UNA A UNA las preguntas en cola y marca los índices (0-based) de las que el interlocutor YA haya respondido en la conversación, aunque la formulación difiera o la respuesta haya llegado sin que nadie hiciera la pregunta. Marca un índice SOLO con evidencia clara en la transcripción: ante la duda, NO lo marques (retirar una pregunta no respondida es un error irreversible; dejarla en cola es inocuo). Array vacío si ninguna.',
+    '- `objectivesMet`: índices (0-based) de los objetivos YA cubiertos por la conversación con evidencia concreta (hechos pasados, cifras, ejemplos reales; nunca cumplidos, generalidades ni hipotéticos), incluidos los ya marcados en análisis anteriores. Array vacío si no hay objetivos.',
+    '- Responde únicamente con el JSON pedido.'
+  ].join('\n')
+  const blocks: Anthropic.TextBlockParam[] = [{ type: 'text', text: instructions }]
+  if (objectives.length > 0) {
+    const objectiveLines = objectives.map((objective, index) => `${index}. ${objective}`)
+    blocks.push({
+      type: 'text',
+      text: `## Objetivos de la entrevista\n${objectiveLines.join('\n')}`
+    })
   }
   blocks[blocks.length - 1].cache_control = { type: 'ephemeral' }
   return blocks
@@ -808,10 +1060,52 @@ function buildUserPrompt(target: AssistantSession): string {
     )
   }
 
-  // SPEC-038: primero la revisión de la cola (preguntas ya respondidas),
-  // después la siguiente jugada. Parte variable: sin restricción de bytes.
+  // Parte variable: sin restricción de bytes. La revisión de la cola
+  // (SPEC-038) vive ahora en la llamada de mantenimiento.
   sections.push(
-    '## Tarea\nPrimero revisa la cola de preguntas y marca en `resolvedQueueIndexes` las que el interlocutor ya haya respondido; después analiza la conversación y decide la siguiente jugada del entrevistador. Devuélvelo todo en el JSON pedido.'
+    '## Tarea\nAnaliza la conversación y decide la siguiente jugada del entrevistador. Devuélvela en el JSON pedido.'
+  )
+
+  return sections.join('\n\n')
+}
+
+/**
+ * Parte VARIABLE del prompt de MANTENIMIENTO: índices cubiertos + ventana de
+ * conversación + cola numerada (el snapshot exacto contra el que se resuelven
+ * los índices) + tarea. Mismo etiquetado de hablantes que el interactivo.
+ */
+function buildMaintenanceUserPrompt(
+  target: AssistantSession,
+  queueSnapshot: AssistantQueueItem[]
+): string {
+  const sections: string[] = []
+
+  if (target.objectives.length > 0) {
+    const covered = sortedObjectivesMet(target)
+    sections.push(
+      `## Objetivos ya cubiertos (índices)\n${covered.length > 0 ? covered.join(', ') : 'ninguno'}`
+    )
+  }
+
+  const conversation = target.lines
+    .map((line) => {
+      const speaker = line.speaker !== null ? ` s${line.speaker}` : ''
+      return `[${line.channel}${speaker}] ${line.text}`
+    })
+    .join('\n')
+    .slice(-TRANSCRIPT_WINDOW_CHARS)
+  sections.push(
+    `## Conversación reciente (mic = entrevistador, system = interlocutor)\n${conversation}`
+  )
+
+  const queueLines =
+    queueSnapshot.length > 0
+      ? queueSnapshot.map((item, index) => `${index}. ${item.suggestedQuestion}`).join('\n')
+      : 'ninguna'
+  sections.push(`## Preguntas en cola (índices 0-based)\n${queueLines}`)
+
+  sections.push(
+    '## Tarea\nRevisa la cola de preguntas y los objetivos contra la conversación y devuelve el JSON pedido.'
   )
 
   return sections.join('\n\n')
@@ -823,11 +1117,16 @@ function buildUserPrompt(target: AssistantSession): string {
 
 interface AnalysisOutcome {
   suggestion: AssistantSuggestion
-  objectivesMet: number[]
-  /** Índices de la cola (tal como viajó en el prompt) ya cubiertos (SPEC-036). */
-  resolvedQueueIndexes: number[]
   /** Cursor de guión (SPEC-040): string no vacío tras trim, o null (se conserva el previo). */
   scriptCursor: string | null
+}
+
+/** Tokens de una respuesta (SPEC-021/023): los 4 componentes, con sus tarifas. */
+interface ResponseTokens {
+  inputTokens: number
+  outputTokens: number
+  cacheCreationInputTokens: number
+  cacheReadInputTokens: number
 }
 
 /**
@@ -836,18 +1135,24 @@ interface AnalysisOutcome {
  * caché) para que el acumulador recompute el coste con sus tarifas reales.
  */
 interface AnalysisResult extends AnalysisOutcome {
-  tokens: {
-    inputTokens: number
-    outputTokens: number
-    cacheCreationInputTokens: number
-    cacheReadInputTokens: number
-  }
+  tokens: ResponseTokens
+}
+
+/** Outcome de la llamada de mantenimiento (revisión de coste 2026-07). */
+interface MaintenanceOutcome {
+  /** Índices de la cola (tal como viajó en el prompt) ya cubiertos (SPEC-036). */
+  resolvedQueueIndexes: number[]
+  objectivesMet: number[]
+}
+
+interface MaintenanceResult extends MaintenanceOutcome {
+  tokens: ResponseTokens
 }
 
 const FORMAT_ERROR_MESSAGE = 'La respuesta de la IA no tiene el formato esperado.'
 
-/** Valida la forma del JSON devuelto; alarmas e índices fuera de rango se filtran. */
-function parseAnalysis(raw: string, objectiveCount: number, queueCount: number): AnalysisOutcome {
+/** Valida la forma del JSON devuelto por el análisis interactivo; alarmas se filtran. */
+function parseAnalysis(raw: string): AnalysisOutcome {
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
@@ -875,20 +1180,6 @@ function parseAnalysis(raw: string, objectiveCount: number, queueCount: number):
           item === 'compliment' || item === 'generic' || item === 'hypothetical'
       )
     : []
-  const objectivesMet: number[] = Array.isArray(record.objectivesMet)
-    ? record.objectivesMet.filter(
-        (item): item is number =>
-          typeof item === 'number' && Number.isInteger(item) && item >= 0 && item < objectiveCount
-      )
-    : []
-  // SPEC-036: mismo parseo defensivo que objectivesMet — no-array → [];
-  // no-enteros y fuera de [0, queueCount) se filtran
-  const resolvedQueueIndexes: number[] = Array.isArray(record.resolvedQueueIndexes)
-    ? record.resolvedQueueIndexes.filter(
-        (item): item is number =>
-          typeof item === 'number' && Number.isInteger(item) && item >= 0 && item < queueCount
-      )
-    : []
   // SPEC-040: extracción defensiva del cursor (patrón objectivesMet) — solo
   // un string con contenido tras trim vale; ausente, no-string o vacío → null,
   // sin invalidar el análisis (nunca lanza por esto)
@@ -902,21 +1193,71 @@ function parseAnalysis(raw: string, objectiveCount: number, queueCount: number):
       reason: reason.trim(),
       alarms
     },
-    objectivesMet,
-    resolvedQueueIndexes,
     scriptCursor
   }
 }
 
+/**
+ * Valida la forma del JSON del mantenimiento (revisión de coste 2026-07):
+ * mismo parseo defensivo que el histórico de SPEC-036 — no-array → [];
+ * no-enteros y fuera de rango se filtran, nunca invalidan la llamada entera.
+ */
+export function parseMaintenance(
+  raw: string,
+  objectiveCount: number,
+  queueCount: number
+): MaintenanceOutcome {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw new LlmOperationError('format', FORMAT_ERROR_MESSAGE)
+  }
+  if (typeof parsed !== 'object' || parsed === null) {
+    throw new LlmOperationError('format', FORMAT_ERROR_MESSAGE)
+  }
+  const record = parsed as Record<string, unknown>
+  const resolvedQueueIndexes: number[] = Array.isArray(record.resolvedQueueIndexes)
+    ? record.resolvedQueueIndexes.filter(
+        (item): item is number =>
+          typeof item === 'number' && Number.isInteger(item) && item >= 0 && item < queueCount
+      )
+    : []
+  const objectivesMet: number[] = Array.isArray(record.objectivesMet)
+    ? record.objectivesMet.filter(
+        (item): item is number =>
+          typeof item === 'number' && Number.isInteger(item) && item >= 0 && item < objectiveCount
+      )
+    : []
+  return { resolvedQueueIndexes, objectivesMet }
+}
+
+/** Extrae el primer bloque text (filtrando thinking) o lanza error tipado. */
+function textBlockOf(response: Anthropic.Message): Anthropic.TextBlock {
+  const textBlock = response.content.find(
+    (block): block is Anthropic.TextBlock => block.type === 'text'
+  )
+  if (textBlock === undefined) {
+    throw new LlmOperationError('format', 'La respuesta de la IA no contiene texto.')
+  }
+  return textBlock
+}
+
 async function requestSuggestion(target: AssistantSession): Promise<AnalysisResult> {
   const client = new Anthropic({ apiKey: target.apiKey })
+  const config = target.interactiveConfig
   let response: Anthropic.Message
   try {
     response = await client.messages.create({
-      model: MODEL,
+      model: config.model,
       max_tokens: MAX_TOKENS,
-      thinking: { type: 'adaptive' },
-      output_config: { effort: 'low', format: { type: 'json_schema', schema: OUTPUT_SCHEMA } },
+      // thinking según (modelo, ajuste): mapeo válido por modelo en aiModels
+      ...thinkingParamFor(config.model, config.thinking, MAX_TOKENS),
+      // effort 'low' histórico del asistente, solo donde el modelo lo soporta
+      output_config: {
+        ...(supportsEffort(config.model) ? { effort: 'low' as const } : {}),
+        format: { type: 'json_schema', schema: OUTPUT_SCHEMA }
+      },
       // SPEC-023: prefijo fijo cacheado, construido una vez por sesión
       system: target.systemBlocks,
       messages: [{ role: 'user', content: buildUserPrompt(target) }]
@@ -930,19 +1271,47 @@ async function requestSuggestion(target: AssistantSession): Promise<AnalysisResu
       `El análisis no terminó correctamente (stop_reason: ${String(response.stop_reason)}).`
     )
   }
-  // Filtrar bloques thinking: el JSON viene en el primer bloque text
-  const textBlock = response.content.find(
-    (block): block is Anthropic.TextBlock => block.type === 'text'
-  )
-  if (textBlock === undefined) {
-    throw new LlmOperationError('format', 'La respuesta de la IA no contiene texto.')
-  }
   // Los tokens solo acompañan a un análisis parseado con éxito (SPEC-021):
   // parseAnalysis lanza antes de devolverlos si el formato no valida
-  const outcome = parseAnalysis(
-    textBlock.text,
+  const outcome = parseAnalysis(textBlockOf(response).text)
+  return { ...outcome, tokens: extractUsage(response) }
+}
+
+/**
+ * Llamada de MANTENIMIENTO al LLM (revisión de coste 2026-07): cola +
+ * objetivos contra la conversación, con el modelo y thinking de su tarea.
+ */
+async function requestMaintenance(
+  target: AssistantSession,
+  queueSnapshot: AssistantQueueItem[]
+): Promise<MaintenanceResult> {
+  const client = new Anthropic({ apiKey: target.apiKey })
+  const config = target.maintenanceConfig
+  let response: Anthropic.Message
+  try {
+    response = await client.messages.create({
+      model: config.model,
+      max_tokens: MAX_TOKENS,
+      ...thinkingParamFor(config.model, config.thinking, MAX_TOKENS),
+      // Sin effort explícito: el default prioriza la precisión — es la tarea
+      // cuyo error (retirar una pregunta no respondida) es irreversible.
+      output_config: { format: { type: 'json_schema', schema: MAINTENANCE_OUTPUT_SCHEMA } },
+      system: target.maintenanceSystemBlocks,
+      messages: [{ role: 'user', content: buildMaintenanceUserPrompt(target, queueSnapshot) }]
+    })
+  } catch (error) {
+    throw mapSdkError(error)
+  }
+  if (response.stop_reason !== 'end_turn') {
+    throw new LlmOperationError(
+      'format',
+      `El mantenimiento no terminó correctamente (stop_reason: ${String(response.stop_reason)}).`
+    )
+  }
+  const outcome = parseMaintenance(
+    textBlockOf(response).text,
     target.objectives.length,
-    target.pending.length + target.pinned.length
+    queueSnapshot.length
   )
   return { ...outcome, tokens: extractUsage(response) }
 }
@@ -1040,11 +1409,13 @@ export function resolveAssistantItem(itemId: string, outcome: AssistantQuestionO
     event.usage = { ...target.usage }
   }
   emitUpdate(target, event)
-  // Análisis inmediato de 'answered' (SPEC-039): actualiza los objetivos en
-  // vivo sin esperar a los disparadores de 3 líneas/20 s. Guard in-flight y
-  // gate de límite (SPEC-021) intactos: pausado o en vuelo → sin llamada.
-  if (outcome === 'answered' && !target.inFlight && !blockedByCostLimit(target)) {
-    void runAnalysis(target)
+  // Mantenimiento inmediato de 'answered' (SPEC-039, adaptado al split de la
+  // revisión de coste 2026-07): quien actualiza los objetivos es la llamada de
+  // MANTENIMIENTO, así que es la que se dispara sin esperar a su temporizador.
+  // Guard in-flight propio y gate de límite (SPEC-021) intactos: pausado o en
+  // vuelo → sin llamada.
+  if (outcome === 'answered' && !target.maintenanceInFlight && !blockedByCostLimit(target)) {
+    void runMaintenance(target)
   }
 }
 
@@ -1099,6 +1470,10 @@ export function stopAssistant(): AssistantSessionSummary | null {
   if (target.fallbackTimer !== null) {
     clearInterval(target.fallbackTimer)
     target.fallbackTimer = null
+  }
+  if (target.maintenanceTimer !== null) {
+    clearInterval(target.maintenanceTimer)
+    target.maintenanceTimer = null
   }
   // Desenlaces manuales de la sesión (SPEC-039): descartadas primero,
   // respondidas después — mismo orden en transcript.json y en la entrevista.

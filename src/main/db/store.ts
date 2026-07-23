@@ -5,6 +5,7 @@ import { join } from 'path'
 import { writeFileAtomicSync } from '../atomicFile'
 import type {
   AiCostSettings,
+  AiTaskSettings,
   AssistantSettings,
   Company,
   Contact,
@@ -46,6 +47,13 @@ export interface DbData {
    * repositorio.
    */
   assistantSettings?: AssistantSettings
+  /**
+   * Ajustes de modelos por tarea de IA (revisión de coste 2026-07): singleton
+   * opcional, sin bump de schemaVersion (ausente = defaults por tarea;
+   * isDbData lo tolera y persist lo conserva). La lectura se normaliza
+   * defensivamente POR TAREA en el repositorio.
+   */
+  aiTaskSettings?: AiTaskSettings
   /**
    * Overrides de prompts de IA (SPEC-026): colección opcional, sin bump de
    * schemaVersion (ausente = todos los prompts en default; isDbData lo tolera

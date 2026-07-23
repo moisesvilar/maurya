@@ -9,6 +9,7 @@ import type {
 import type { ObjectiveEvaluationEvent } from '../renderer/src/types/llm'
 import { getAnthropicKey, mapSdkError, toLlmError, LlmOperationError } from './llmService'
 import { extractUsage, recordInterviewUsage, roundUpUsd } from './aiCost'
+import { resolveTaskConfig, thinkingParamFor } from './aiModels'
 import { readTranscriptLines } from './noteService'
 import * as repository from './db/repository'
 
@@ -27,9 +28,9 @@ import * as repository from './db/repository'
  *   cubiertos por el asistente viajan como pista explícitamente no vinculante.
  */
 
-// Constantes del modelo (Notas técnicas de la spec). NUNCA enviar
-// temperature/top_p/top_k ni budget_tokens: devuelven 400 en este modelo.
-const MODEL = 'claude-opus-4-8'
+// Constantes del modelo (Notas técnicas de la spec). El modelo y el thinking
+// vienen de los ajustes por tarea ('objectiveEvaluation', default Opus 4.8
+// con adaptive); NUNCA enviar temperature/top_p/top_k: devuelven 400.
 const MAX_TOKENS = 4096
 /** Tope del motivo por objetivo: ~50 palabras. Mismo número en schema y prompt. */
 const REASON_MAX_CHARS = 400
@@ -222,12 +223,14 @@ async function doEvaluate(interviewId: string, objectivesMetHint: number[]): Pro
   }
 
   const client = new Anthropic({ apiKey })
+  // Config por tarea (revisión de coste 2026-07), leída en cada evaluación
+  const taskConfig = resolveTaskConfig('objectiveEvaluation')
   let response: Anthropic.Message
   try {
     response = await client.messages.create({
-      model: MODEL,
+      model: taskConfig.model,
       max_tokens: MAX_TOKENS,
-      thinking: { type: 'adaptive' },
+      ...thinkingParamFor(taskConfig.model, taskConfig.thinking, MAX_TOKENS),
       output_config: { format: { type: 'json_schema', schema: OUTPUT_SCHEMA } },
       system: buildSystemPrompt(),
       messages: [
@@ -266,7 +269,12 @@ async function doEvaluate(interviewId: string, objectivesMetHint: number[]): Pro
 
   // Coste (SPEC-021): solo tras parseo válido y ANTES de persistir, para que
   // la Interview devuelta ya incluya el aiUsage actualizado. Jamás lanza.
-  recordInterviewUsage(interview.id, extractUsage(response))
+  recordInterviewUsage(
+    interview.id,
+    'objectiveEvaluation',
+    taskConfig.model,
+    extractUsage(response)
+  )
 
   // Persistir SOLO tras parseo válido (ante error la entrevista no cambia)
   return repository.setInterviewObjectiveResults(interview.id, results)

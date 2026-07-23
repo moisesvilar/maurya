@@ -18,12 +18,14 @@ import type { WebContents } from 'electron'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   FALLBACK_INTERVAL_MS,
+  MAINTENANCE_INTERVAL_MS,
   MIN_INTERVAL_MS,
   MIN_NEW_FINAL_LINES,
   normalizeQuestion,
   setAssistantPinned,
   startAssistant,
-  stopAssistant
+  stopAssistant,
+  triggerAssistantMaintenance
 } from '../../../src/main/assistantService'
 import * as repository from '../../../src/main/db/repository'
 import { initStore } from '../../../src/main/db/store'
@@ -127,15 +129,23 @@ function sdkResponse(payload: Record<string, unknown>): unknown {
   }
 }
 
-/** Payload con el contrato de salida de SPEC-036 (resolvedQueueIndexes). */
+/** Payload del análisis INTERACTIVO (revisión de coste 2026-07: sin cola/objetivos). */
 function analysisPayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     action: 'continue',
     suggestedQuestion: '¿Cuándo fue la última vez que pasó?',
     reason: 'Ya hay material concreto para avanzar',
     alarms: [],
-    objectivesMet: [],
+    scriptCursor: '',
+    ...overrides
+  }
+}
+
+/** Payload de la llamada de MANTENIMIENTO (resolvedQueueIndexes + objectivesMet). */
+function maintenancePayload(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
     resolvedQueueIndexes: [],
+    objectivesMet: [],
     ...overrides
   }
 }
@@ -227,11 +237,11 @@ function startSession(options: { queueSize?: number } = {}): void {
  */
 async function analyze(overrides: Record<string, unknown> = {}): Promise<void> {
   analysisCount += 1
-  const expectedCalls = analysisCount
+  const expectedCalls = harness.create.mock.calls.length + 1
   const eventsBefore = assistantEvents(send).length
   harness.create.mockResolvedValueOnce(sdkResponse(analysisPayload(overrides)))
-  if (expectedCalls > 1) {
-    vi.setSystemTime(BASE_TIME_MS + (expectedCalls - 1) * (MIN_INTERVAL_MS + 1000))
+  if (analysisCount > 1) {
+    vi.setSystemTime(BASE_TIME_MS + (analysisCount - 1) * (MIN_INTERVAL_MS + 1000))
   }
   feedFinal()
   feedFinal()
@@ -241,6 +251,22 @@ async function analyze(overrides: Record<string, unknown> = {}): Promise<void> {
     const events = assistantEvents(send)
     expect(events.length).toBeGreaterThanOrEqual(eventsBefore + 2)
     expect(events.at(-1)?.state).toBe('active')
+  })
+}
+
+/**
+ * Ejecuta UNA llamada de mantenimiento completa (revisión de coste 2026-07):
+ * el temporizador de 30 s es real y no dispara en el arnés, así que se usa el
+ * disparador exportado para QA; cada mantenimiento exitoso emite 1 evento.
+ */
+async function maintain(overrides: Record<string, unknown> = {}): Promise<void> {
+  const expectedCalls = harness.create.mock.calls.length + 1
+  const eventsBefore = assistantEvents(send).length
+  harness.create.mockResolvedValueOnce(sdkResponse(maintenancePayload(overrides)))
+  triggerAssistantMaintenance()
+  await vi.waitFor(() => expect(harness.create).toHaveBeenCalledTimes(expectedCalls))
+  await vi.waitFor(() => {
+    expect(assistantEvents(send).length).toBeGreaterThanOrEqual(eventsBefore + 1)
   })
 }
 
@@ -352,29 +378,43 @@ describe('assistantService (cola SPEC-036)', () => {
       expect(stopAssistant()?.suggestionCount).toBe(1)
     })
 
-    // SPEC-036 · AC-05 + AC-18 (default 3 sin ajuste persistido: la 4ª se descarta)
-    it('discards new candidates when the pending queue is at the default size of 3', async () => {
+    // SPEC-036 · AC-05 + AC-18, revisado por la revisión de coste 2026-07:
+    // con las pendientes al máximo, los disparos por líneas SE SALTAN
+    // (degradación de frecuencia — solo actúa el respaldo de 45 s), así que
+    // no hay llamada que descartar y la cola queda intacta.
+    it('skips line-triggered analyses while the pending queue is at the default size of 3', async () => {
       startSession()
       await analyze({ suggestedQuestion: '¿Pregunta uno?' })
       await analyze({ suggestedQuestion: '¿Pregunta dos?' })
       await analyze({ suggestedQuestion: '¿Pregunta tres?' })
-      await analyze({ suggestedQuestion: '¿Pregunta cuatro?' })
+      const callsWithFullQueue = harness.create.mock.calls.length
 
+      // Con la cola llena, 3 líneas nuevas fuera de la ventana NO disparan
+      vi.setSystemTime(BASE_TIME_MS + 10 * (MIN_INTERVAL_MS + 1000))
+      feedFinal()
+      feedFinal()
+      feedFinal()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(harness.create).toHaveBeenCalledTimes(callsWithFullQueue)
       expect(pendingQuestions()).toEqual(['¿Pregunta tres?', '¿Pregunta dos?', '¿Pregunta uno?'])
       expect(stopAssistant()?.suggestionCount).toBe(3)
     })
 
-    // SPEC-036 · AC-06 (resolución automática: sale la cubierta, entra la candidata)
-    it('auto-resolves the queued question marked as covered and lets the new candidate take the freed slot', async () => {
+    // SPEC-036 · AC-06, revisado: la resolución automática vive en la llamada
+    // de MANTENIMIENTO; al liberar hueco, la siguiente candidata entra.
+    it('auto-resolves the queued question marked as covered by maintenance and lets the new candidate take the freed slot', async () => {
       startSession()
       await analyze({ suggestedQuestion: '¿Pregunta uno?' })
       await analyze({ suggestedQuestion: '¿Pregunta dos?' })
       await analyze({ suggestedQuestion: '¿Pregunta tres?' })
 
-      // Cola llena [tres, dos, uno]; el análisis marca el índice 2 (uno) como
-      // ya cubierto → sale y la candidata nueva ocupa el hueco
-      await analyze({ suggestedQuestion: '¿Pregunta cuatro?', resolvedQueueIndexes: [2] })
+      // Cola llena [tres, dos, uno]; el mantenimiento marca el índice 2 (uno)
+      // como ya cubierto → sale y la candidata del siguiente análisis entra
+      await maintain({ resolvedQueueIndexes: [2] })
+      expect(pendingQuestions()).toEqual(['¿Pregunta tres?', '¿Pregunta dos?'])
 
+      await analyze({ suggestedQuestion: '¿Pregunta cuatro?' })
       expect(pendingQuestions()).toEqual(['¿Pregunta cuatro?', '¿Pregunta tres?', '¿Pregunta dos?'])
     })
 
@@ -427,18 +467,19 @@ describe('assistantService (cola SPEC-036)', () => {
       expect(lastQueue().pinned.map((item) => item.suggestedQuestion)).toEqual(['¿Pregunta uno?'])
     })
 
-    // SPEC-036 · AC-10 (las ancladas nunca se auto-resuelven)
-    it('never auto-resolves a pinned question even when the analysis marks its index as covered', async () => {
+    // SPEC-036 · AC-10 (las ancladas nunca se auto-resuelven; revisado: la
+    // resolución automática es de la llamada de mantenimiento)
+    it('never auto-resolves a pinned question even when maintenance marks its index as covered', async () => {
       startSession()
       await analyze({ suggestedQuestion: '¿Pregunta uno?' })
       setAssistantPinned(lastQueue().pending[0].id, true)
 
-      // En el prompt la cola es [(anclada) uno] con índice 0: marcarla como
-      // cubierta debe ignorarse (tramo anclado del snapshot)
-      await analyze({ suggestedQuestion: '¿Pregunta dos?', resolvedQueueIndexes: [0] })
+      // En el prompt del mantenimiento la cola es [uno anclada] con índice 0:
+      // marcarla como cubierta debe ignorarse (tramo anclado del snapshot)
+      await maintain({ resolvedQueueIndexes: [0] })
 
       expect(lastQueue().pinned.map((item) => item.suggestedQuestion)).toEqual(['¿Pregunta uno?'])
-      expect(pendingQuestions()).toEqual(['¿Pregunta dos?'])
+      expect(pendingQuestions()).toEqual([])
     })
 
     // SPEC-036 · AC-11 + decisión asumida (desanclar con cola llena: vuelve al
@@ -462,8 +503,16 @@ describe('assistantService (cola SPEC-036)', () => {
       ])
       expect(lastQueue().pinned).toEqual([])
 
-      // Por encima del máximo NO entran candidatas nuevas (gate >=)
-      await analyze({ suggestedQuestion: '¿Pregunta cinco?' })
+      // Por encima del máximo NO entran candidatas nuevas — revisado por la
+      // revisión de coste 2026-07: el bloqueo actúa YA en el disparador (los
+      // disparos por líneas se saltan con las pendientes al máximo o más)
+      const callsBefore = harness.create.mock.calls.length
+      vi.setSystemTime(BASE_TIME_MS + 20 * (MIN_INTERVAL_MS + 1000))
+      feedFinal()
+      feedFinal()
+      feedFinal()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      expect(harness.create).toHaveBeenCalledTimes(callsBefore)
       expect(pendingQuestions()).toEqual([
         '¿Pregunta uno?',
         '¿Pregunta cuatro?',
@@ -474,13 +523,20 @@ describe('assistantService (cola SPEC-036)', () => {
   })
 
   describe('configurable queue size', () => {
-    // SPEC-036 · AC-17 (una sesión nueva usa el tamaño guardado)
+    // SPEC-036 · AC-17 (una sesión nueva usa el tamaño guardado; revisado:
+    // con las pendientes al máximo los disparos por líneas se saltan)
     it('uses the persisted queue size as the pending maximum for a new session', async () => {
       startSession({ queueSize: 1 })
       await analyze({ suggestedQuestion: '¿Pregunta uno?' })
-      await analyze({ suggestedQuestion: '¿Pregunta dos?' })
 
-      // Con tamaño 1 la segunda candidata se descarta
+      // Con tamaño 1 la cola ya está llena: 3 líneas nuevas no disparan
+      vi.setSystemTime(BASE_TIME_MS + 10 * (MIN_INTERVAL_MS + 1000))
+      feedFinal()
+      feedFinal()
+      feedFinal()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+
+      expect(harness.create).toHaveBeenCalledTimes(1)
       expect(pendingQuestions()).toEqual(['¿Pregunta uno?'])
       expect(stopAssistant()?.suggestionCount).toBe(1)
     })
@@ -525,24 +581,30 @@ describe('assistantService (cola SPEC-036)', () => {
       expect(error?.queue.pending.map((item) => item.suggestedQuestion)).toEqual(['¿Pregunta uno?'])
     })
 
-    // SPEC-036 · AC-23 (disparadores SPEC-016/023 intactos: 3 líneas / 20 s / 45 s)
+    // SPEC-036 · AC-23 (disparadores SPEC-016/023 intactos: 3 líneas / 20 s /
+    // 45 s; revisión de coste 2026-07: + mantenimiento cada 30 s)
     it('keeps the SPEC-016/023 triggers untouched by the queue management', () => {
       expect(MIN_NEW_FINAL_LINES).toBe(3)
       expect(MIN_INTERVAL_MS).toBe(20000)
       expect(FALLBACK_INTERVAL_MS).toBe(45000)
+      expect(MAINTENANCE_INTERVAL_MS).toBe(30000)
     })
 
-    // SPEC-036 · contrato de salida (resolvedQueueIndexes requerido en el schema)
-    it('declares resolvedQueueIndexes as a required integer array in the structured output schema', async () => {
+    // SPEC-036 · contrato de salida, revisado: resolvedQueueIndexes vive en el
+    // schema de la llamada de MANTENIMIENTO (y ya no en el interactivo)
+    it('declares resolvedQueueIndexes as a required integer array in the maintenance structured output schema', async () => {
       startSession()
-      await analyze()
+      await analyze({ suggestedQuestion: '¿Pregunta uno?' })
+      await maintain()
 
-      const schema = createCall(0).output_config.format.schema
-      expect(schema.properties.resolvedQueueIndexes).toEqual({
+      const interactiveSchema = createCall(0).output_config.format.schema
+      expect(interactiveSchema.required).not.toContain('resolvedQueueIndexes')
+      const maintenanceSchema = createCall(1).output_config.format.schema
+      expect(maintenanceSchema.properties.resolvedQueueIndexes).toEqual({
         type: 'array',
         items: { type: 'integer' }
       })
-      expect(schema.required).toContain('resolvedQueueIndexes')
+      expect(maintenanceSchema.required).toContain('resolvedQueueIndexes')
     })
   })
 })

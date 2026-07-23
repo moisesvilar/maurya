@@ -17,7 +17,12 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import type { WebContents } from 'electron'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MIN_INTERVAL_MS, startAssistant, stopAssistant } from '../../../src/main/assistantService'
+import {
+  MIN_INTERVAL_MS,
+  startAssistant,
+  stopAssistant,
+  triggerAssistantMaintenance
+} from '../../../src/main/assistantService'
 import * as repository from '../../../src/main/db/repository'
 import { initStore } from '../../../src/main/db/store'
 import type { DeepgramCallbacks } from '../../../src/main/deepgramService'
@@ -195,18 +200,27 @@ async function waitForCreateCalls(count: number): Promise<void> {
 
 /** Dos análisis consecutivos de la misma sesión (el 1º cubre el objetivo 0). */
 async function runTwoAnalyses(): Promise<void> {
-  harness.create.mockResolvedValueOnce(sdkResponse(analysisPayload({ objectivesMet: [0] })))
+  harness.create.mockResolvedValueOnce(sdkResponse(analysisPayload()))
   feedFinal()
   feedFinal()
   feedFinal()
   await waitForCreateCalls(1)
+
+  // Revisión de coste 2026-07: los objetivos cubiertos los reporta la llamada
+  // de MANTENIMIENTO (aquí disparada por la vía exportada para QA) — el
+  // segundo análisis interactivo debe reflejarlos en su mensaje de usuario.
+  harness.create.mockResolvedValueOnce(
+    sdkResponse({ resolvedQueueIndexes: [], objectivesMet: [0] })
+  )
+  triggerAssistantMaintenance()
+  await waitForCreateCalls(2)
 
   harness.create.mockResolvedValueOnce(sdkResponse(analysisPayload()))
   vi.setSystemTime(BASE_TIME_MS + MIN_INTERVAL_MS + 1000)
   feedFinal()
   feedFinal()
   feedFinal()
-  await waitForCreateCalls(2)
+  await waitForCreateCalls(3)
 }
 
 beforeEach(() => {
@@ -264,7 +278,9 @@ describe('assistantService (latencia SPEC-023)', () => {
     await runTwoAnalyses()
 
     const first = createCall(0)
-    const second = createCall(1)
+    // La llamada 1 es el mantenimiento (prefijo propio); la 2 es el segundo
+    // análisis interactivo, cuyo prefijo debe seguir byte-idéntico al primero
+    const second = createCall(2)
     // Prefijo byte a byte idéntico (condición necesaria del acierto de caché),
     // aunque entre llamadas cambiaron objectivesMet y la conversación
     expect(JSON.stringify(second.system)).toBe(JSON.stringify(first.system))

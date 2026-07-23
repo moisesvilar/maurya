@@ -16,7 +16,8 @@ import {
   MIN_INTERVAL_MS,
   MIN_NEW_FINAL_LINES,
   startAssistant,
-  stopAssistant
+  stopAssistant,
+  triggerAssistantMaintenance
 } from '../../../src/main/assistantService'
 import * as repository from '../../../src/main/db/repository'
 import { initStore } from '../../../src/main/db/store'
@@ -304,22 +305,27 @@ describe('assistantService', () => {
 
   describe('objectives tracking', () => {
     // SPEC-016 · AC-09 (servicio: acumulativo y filtrado de índices)
-    it('accumulates objectivesMet across analyses filtering out-of-range indices', async () => {
-      // Primer análisis: cubre el 0 y devuelve un índice fuera de rango (5)
-      harness.create.mockResolvedValueOnce(sdkResponse(analysisPayload({ objectivesMet: [0, 5] })))
+    // Revisión de coste 2026-07: los objetivos cubiertos los reporta la
+    // llamada de MANTENIMIENTO (disparada aquí por la vía exportada para QA;
+    // el temporizador de 30 s es real y no dispara en el arnés).
+    it('accumulates objectivesMet across maintenance calls filtering out-of-range indices', async () => {
+      // Primer mantenimiento: cubre el 0 y devuelve un índice fuera de rango (5)
       feedFinal()
-      feedFinal()
-      feedFinal()
+      harness.create.mockResolvedValueOnce(
+        sdkResponse({ resolvedQueueIndexes: [], objectivesMet: [0, 5] })
+      )
+      triggerAssistantMaintenance()
       await waitForCreateCalls(1)
-      await waitForActive()
-      expect(assistantEvents(send).at(-1)?.objectivesMet).toEqual([0])
+      await vi.waitFor(() => {
+        expect(assistantEvents(send).at(-1)?.objectivesMet).toEqual([0])
+      })
 
-      // Segundo análisis: cubre el 1 → el set solo crece (0 no vuelve a pendiente)
-      harness.create.mockResolvedValueOnce(sdkResponse(analysisPayload({ objectivesMet: [1] })))
-      vi.setSystemTime(BASE_TIME_MS + MIN_INTERVAL_MS + 1000)
+      // Segundo mantenimiento: cubre el 1 → el set solo crece (0 no vuelve a pendiente)
       feedFinal()
-      feedFinal()
-      feedFinal()
+      harness.create.mockResolvedValueOnce(
+        sdkResponse({ resolvedQueueIndexes: [], objectivesMet: [1] })
+      )
+      triggerAssistantMaintenance()
       await waitForCreateCalls(2)
       await vi.waitFor(() => {
         expect(assistantEvents(send).at(-1)?.objectivesMet).toEqual([0, 1])
@@ -382,10 +388,25 @@ describe('assistantService', () => {
       // SDK mockeado no traen bloque usage → 2 llamadas con 0 tokens).
       // SPEC-036: sin contadores de feedback (toEqual fija su ausencia).
       // SPEC-039: el summary gana questionOutcomes (vacío sin acciones manuales).
+      // Revisión de coste 2026-07: el usage viaja con su desglose byTask.
+      const interactiveUsage = {
+        calls: 2,
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheWriteTokens: 0,
+        cacheReadTokens: 0,
+        estimatedCostUsd: 0
+      }
       expect(summary).toEqual({
         suggestionCount: 2,
         questionOutcomes: [],
-        usage: { calls: 2, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }
+        usage: {
+          calls: 2,
+          inputTokens: 0,
+          outputTokens: 0,
+          estimatedCostUsd: 0,
+          byTask: { assistantInteractive: interactiveUsage }
+        }
       })
 
       // AC-12 (vigente en lo no derogado): el transcript.json persiste el
@@ -401,7 +422,13 @@ describe('assistantService', () => {
       expect(persisted.assistant).toEqual({
         suggestionCount: 2,
         questionOutcomes: [],
-        usage: { calls: 2, inputTokens: 0, outputTokens: 0, estimatedCostUsd: 0 }
+        usage: {
+          calls: 2,
+          inputTokens: 0,
+          outputTokens: 0,
+          estimatedCostUsd: 0,
+          byTask: { assistantInteractive: interactiveUsage }
+        }
       })
       expect(persisted.assistant).not.toHaveProperty('feedback')
     })

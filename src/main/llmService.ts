@@ -13,6 +13,7 @@ import { SCRIPT_MAX_CHARS } from '../renderer/src/types/llm'
 import type { LlmError, LlmErrorKind, LlmStatus } from '../renderer/src/types/llm'
 import { getDecryptedSecret } from './secretsService'
 import { extractUsage, recordInterviewUsage } from './aiCost'
+import { resolveTaskConfig, thinkingParamFor } from './aiModels'
 import * as repository from './db/repository'
 import { buildPersonaBlock } from './prompts'
 
@@ -27,9 +28,9 @@ import { buildPersonaBlock } from './prompts'
  *   parsear y validar la respuesta: un fallo de API o de formato no cambia nada.
  */
 
-// Constantes del modelo (Notas técnicas de la spec). NUNCA enviar
-// temperature/top_p/top_k ni budget_tokens: devuelven 400 en este modelo.
-const MODEL = 'claude-opus-4-8'
+// Constantes del modelo (Notas técnicas de la spec). El modelo y el thinking
+// vienen de los ajustes por tarea ('scriptGeneration', default Opus 4.8 con
+// adaptive); NUNCA enviar temperature/top_p/top_k: devuelven 400.
 const MAX_TOKENS = 16000
 /** Máximo de caracteres (finales) de cada transcript/nota del contexto histórico. */
 const TRANSCRIPT_EXCERPT_CHARS = 8000
@@ -479,12 +480,14 @@ async function doGenerate(interviewId: string): Promise<Interview> {
     interview.companyId !== null ? collectHistoricalContext(interview.companyId, interview.id) : []
 
   const client = new Anthropic({ apiKey })
+  // Config por tarea (revisión de coste 2026-07), leída en cada generación
+  const taskConfig = resolveTaskConfig('scriptGeneration')
   let response: Anthropic.Message
   try {
     response = await client.messages.create({
-      model: MODEL,
+      model: taskConfig.model,
       max_tokens: MAX_TOKENS,
-      thinking: { type: 'adaptive' },
+      ...thinkingParamFor(taskConfig.model, taskConfig.thinking, MAX_TOKENS),
       output_config: { format: { type: 'json_schema', schema: OUTPUT_SCHEMA } },
       system: buildSystemPrompt(template, company !== null),
       messages: [
@@ -527,7 +530,7 @@ async function doGenerate(interviewId: string): Promise<Interview> {
   // Medición del coste (SPEC-021): solo tras parseo válido (una llamada que
   // falla no cambia el acumulado) y ANTES de persistir, para que la Interview
   // devuelta ya incluya el aiUsage actualizado. Best-effort: jamás lanza.
-  recordInterviewUsage(interview.id, extractUsage(response))
+  recordInterviewUsage(interview.id, 'scriptGeneration', taskConfig.model, extractUsage(response))
 
   // Persistir SOLO tras parseo válido (AC: ante error la entrevista no cambia)
   // El tope de longitud se pide por prompt Y se garantiza aquí: un guión que
