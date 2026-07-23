@@ -33,6 +33,38 @@ const MODEL = 'claude-opus-4-8'
 const MAX_TOKENS = 16000
 /** Máximo de caracteres (finales) de cada transcript/nota del contexto histórico. */
 const TRANSCRIPT_EXCERPT_CHARS = 8000
+/**
+ * Objetivo blando de longitud del guión pedido en el prompt: deja margen
+ * respecto al tope duro SCRIPT_MAX_CHARS porque el modelo no sabe contar
+ * caracteres con exactitud — con la holgura, el recorte de seguridad de
+ * truncateMarkdownAtBoundary casi nunca llega a actuar.
+ */
+export const SCRIPT_TARGET_CHARS = 5500
+
+/** Marcas de fin de frase para el recorte cuando no hay saltos de línea. */
+const SENTENCE_ENDINGS = ['. ', '! ', '? ']
+
+/**
+ * Recorta el markdown al último límite seguro que quepa en maxChars: el final
+ * de la última línea completa o, si no hay saltos de línea, el final de la
+ * última frase — nunca deja una frase amputada a media palabra. Solo sin
+ * ningún límite seguro (una sola "palabra" gigante) corta por índice.
+ */
+export function truncateMarkdownAtBoundary(markdown: string, maxChars: number): string {
+  if (markdown.length <= maxChars) {
+    return markdown
+  }
+  const window = markdown.slice(0, maxChars)
+  const lastLineBreak = window.lastIndexOf('\n')
+  if (lastLineBreak > 0) {
+    return window.slice(0, lastLineBreak).trimEnd()
+  }
+  const lastSentenceEnd = Math.max(...SENTENCE_ENDINGS.map((mark) => window.lastIndexOf(mark)))
+  if (lastSentenceEnd > 0) {
+    return window.slice(0, lastSentenceEnd + 1)
+  }
+  return window
+}
 /** Máximo de entrevistas anteriores incluidas en el contexto histórico. */
 const MAX_PREVIOUS_INTERVIEWS = 5
 
@@ -201,7 +233,7 @@ function buildSystemPrompt(template: InterviewTemplate, hasCompany: boolean): st
     task,
     'Reglas:',
     '- Escribe TODO en español.',
-    `- \`scriptMarkdown\`: el guión completo en markdown, conservando la estructura de bloques del template (títulos, preguntas y guías adaptadas al caso concreto). Máximo ${SCRIPT_MAX_CHARS} caracteres de markdown: sé conciso, el asistente en vivo solo usa hasta ese límite.`,
+    `- \`scriptMarkdown\`: el guión completo en markdown, conservando la estructura de bloques del template (títulos, preguntas y guías adaptadas al caso concreto). Máximo ${SCRIPT_MAX_CHARS} caracteres de markdown y apunta a unos ${SCRIPT_TARGET_CHARS}: sé conciso, el asistente en vivo solo usa hasta ese límite y todo lo que exceda el máximo se recorta.`,
     '- `objectives`: entre 3 y 7 objetivos concretos y accionables para esta entrevista, uno por elemento.',
     '- Si hay entrevistas anteriores con la misma empresa, NO repitas lo ya validado: usa ese contexto para profundizar en lo pendiente y referencia lo aprendido.',
     '- Responde únicamente con el JSON pedido.'
@@ -500,9 +532,11 @@ async function doGenerate(interviewId: string): Promise<Interview> {
   // Persistir SOLO tras parseo válido (AC: ante error la entrevista no cambia)
   // El tope de longitud se pide por prompt Y se garantiza aquí: un guión que
   // exceda SCRIPT_MAX_CHARS jamás se persiste — el asistente en vivo incluye
-  // exactamente ese tamaño en su prompt (SCRIPT_EXCERPT_CHARS).
+  // exactamente ese tamaño en su prompt (SCRIPT_EXCERPT_CHARS). El recorte cae
+  // en un límite seguro (línea/frase completa) para no persistir jamás una
+  // frase amputada, que el editor mostraría tal cual.
   return repository.updateInterview(interview.id, {
-    scriptMarkdown: generated.scriptMarkdown.slice(0, SCRIPT_MAX_CHARS),
+    scriptMarkdown: truncateMarkdownAtBoundary(generated.scriptMarkdown, SCRIPT_MAX_CHARS),
     objectives: generated.objectives,
     status: 'prepared'
   })
