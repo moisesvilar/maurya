@@ -1,12 +1,23 @@
 import React, { useState } from 'react'
-import { ArrowLeft, FolderInput, Mic, MoreHorizontal, Pencil, Plus } from 'lucide-react'
+import { ArrowLeft, FolderInput, Mic, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -46,7 +57,8 @@ export function InterviewGroupDetailPage(): React.ReactElement {
   const {
     state: interviewsState,
     createInterview,
-    moveInterview
+    moveInterview,
+    removeInterview
   } = useGroupInterviews(groupId ?? '')
   // UNA sola carga de cada catálogo de templates (patrón SPEC-045): alimenta
   // los Selects del Dialog de edición del grupo y la línea de la cabecera; si
@@ -56,6 +68,7 @@ export function InterviewGroupDetailPage(): React.ReactElement {
   const [editGroupOpen, setEditGroupOpen] = useState(false)
   const [createInterviewOpen, setCreateInterviewOpen] = useState(false)
   const [pendingMoveInterview, setPendingMoveInterview] = useState<CaptureListItem | null>(null)
+  const [pendingDeleteInterview, setPendingDeleteInterview] = useState<CaptureListItem | null>(null)
 
   const group =
     groupsState.status === 'ready'
@@ -70,6 +83,17 @@ export function InterviewGroupDetailPage(): React.ReactElement {
 
   const openMoveInterview = (item: CaptureListItem): void => {
     setTimeout(() => setPendingMoveInterview(item), 0)
+  }
+
+  const openDeleteInterview = (item: CaptureListItem): void => {
+    setTimeout(() => setPendingDeleteInterview(item), 0)
+  }
+
+  const handleConfirmDelete = (): void => {
+    if (pendingDeleteInterview !== null) {
+      void removeInterview(pendingDeleteInterview.interview.id)
+    }
+    setPendingDeleteInterview(null)
   }
 
   const interviewTemplates =
@@ -236,6 +260,14 @@ export function InterviewGroupDetailPage(): React.ReactElement {
                           <FolderInput />
                           Mover a otro grupo
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onSelect={() => openDeleteInterview(item)}
+                        >
+                          <Trash2 />
+                          Eliminar
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </li>
@@ -277,6 +309,31 @@ export function InterviewGroupDetailPage(): React.ReactElement {
               return moveInterview(pendingMoveInterview.interview.id, targetGroupId)
             }}
           />
+
+          <AlertDialog
+            open={pendingDeleteInterview !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setPendingDeleteInterview(null)
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Eliminar entrevista</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Se eliminarán permanentemente «{pendingDeleteInterview?.interview.title ?? ''}» y
+                  sus notas.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction variant="destructive" onClick={handleConfirmDelete}>
+                  Eliminar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </>
       )}
     </div>
