@@ -150,7 +150,7 @@ export function NoteSection({
   const disabledReason = !hasTranscript
     ? 'Graba la entrevista para regenerar la nota'
     : !hasTemplates
-      ? 'Necesitas un note-template'
+      ? 'Necesitas una plantilla de notas'
       : keyStatus !== 'ok'
         ? 'Configura tu clave de Anthropic en Ajustes para generar la nota'
         : null
@@ -235,7 +235,7 @@ export function NoteSection({
   /** Select de note-template (preseleccionado el primero); solo con templates. */
   const templateSelect = hasTemplates ? (
     <Select value={effectiveTemplateId} onValueChange={setSelectedTemplateId}>
-      <SelectTrigger className="w-64" aria-label="Note-template">
+      <SelectTrigger className="w-64" aria-label="Plantilla de notas">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -309,12 +309,12 @@ export function NoteSection({
         <div className="flex flex-col gap-3">
           {templatesState.status === 'ready' && !hasTemplates && (
             <p className="text-sm text-muted-foreground">
-              Crea un note-template para generar la nota —{' '}
+              Crea una plantilla de notas para generar la nota —{' '}
               <Link
                 to="/settings?tab=note-templates"
                 className="font-medium underline underline-offset-4"
               >
-                Gestionar note-templates
+                Gestionar plantillas de notas
               </Link>
             </p>
           )}

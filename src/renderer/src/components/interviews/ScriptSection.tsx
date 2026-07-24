@@ -120,7 +120,7 @@ export function ScriptSection({
 
   /** Motivo de deshabilitado de la generación (Tooltip); null si está habilitada. */
   const disabledReason = !hasTemplate
-    ? 'Asigna un template para generar el guión'
+    ? 'Asigna una plantilla de preguntas para generar el guión'
     : keyStatus !== 'ok'
       ? 'Configura tu clave de Anthropic en Ajustes para generar el guión'
       : null

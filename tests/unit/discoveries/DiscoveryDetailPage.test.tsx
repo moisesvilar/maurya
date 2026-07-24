@@ -295,7 +295,7 @@ describe('DiscoveryDetailPage', () => {
       // Fila sin objetivo y sin templates → huecos muted "Sin template …"
       expect(within(list).getByText('Compradores B2B')).toBeInTheDocument()
       const noTemplates = within(list).getByText(
-        'Sin template de preguntas · Sin template de notas'
+        'Sin plantilla de preguntas · Sin plantilla de notas'
       )
       expect(noTemplates).toHaveClass('text-muted-foreground')
       expect(within(list).getAllByTestId('group-row-actions')).toHaveLength(2)
@@ -310,7 +310,7 @@ describe('DiscoveryDetailPage', () => {
       const list = await screen.findByTestId('interview-groups-list')
       expect(within(list).getByText('Grupo huérfano')).toBeInTheDocument()
       expect(
-        within(list).getByText('Sin template de preguntas · Notas de entrevista')
+        within(list).getByText('Sin plantilla de preguntas · Notas de entrevista')
       ).toBeInTheDocument()
     })
 
@@ -372,21 +372,21 @@ describe('DiscoveryDetailPage', () => {
 
       // Select de template de preguntas: default "Sin template" + opciones con fase
       const interviewSelect = within(dialog).getByRole('combobox', {
-        name: 'Template de preguntas'
+        name: 'Plantilla de preguntas'
       })
       expect(interviewSelect).toBe(within(dialog).getByTestId('group-interview-template-select'))
-      expect(interviewSelect).toHaveTextContent('Sin template')
+      expect(interviewSelect).toHaveTextContent('Sin plantilla')
       await user.click(interviewSelect)
       expect(await screen.findByRole('option', { name: 'Guía Problema (Problema)' })).toBeVisible()
-      await user.click(screen.getByRole('option', { name: 'Sin template' }))
+      await user.click(screen.getByRole('option', { name: 'Sin plantilla' }))
 
       // Select de template de notas: default "Sin template" + opciones por nombre
-      const noteSelect = within(dialog).getByRole('combobox', { name: 'Template de notas' })
+      const noteSelect = within(dialog).getByRole('combobox', { name: 'Plantilla de notas' })
       expect(noteSelect).toBe(within(dialog).getByTestId('group-note-template-select'))
-      expect(noteSelect).toHaveTextContent('Sin template')
+      expect(noteSelect).toHaveTextContent('Sin plantilla')
       await user.click(noteSelect)
       expect(await screen.findByRole('option', { name: 'Notas de entrevista' })).toBeVisible()
-      await user.click(screen.getByRole('option', { name: 'Sin template' }))
+      await user.click(screen.getByRole('option', { name: 'Sin plantilla' }))
     })
 
     // SPEC-045 · AC-10
@@ -423,9 +423,9 @@ describe('DiscoveryDetailPage', () => {
         within(dialog).getByLabelText('Objetivo'),
         'Detectar dolores reales en la validación'
       )
-      await user.click(within(dialog).getByRole('combobox', { name: 'Template de preguntas' }))
+      await user.click(within(dialog).getByRole('combobox', { name: 'Plantilla de preguntas' }))
       await user.click(await screen.findByRole('option', { name: 'Guía Problema (Problema)' }))
-      await user.click(within(dialog).getByRole('combobox', { name: 'Template de notas' }))
+      await user.click(within(dialog).getByRole('combobox', { name: 'Plantilla de notas' }))
       await user.click(await screen.findByRole('option', { name: 'Notas de entrevista' }))
       await user.click(within(dialog).getByRole('button', { name: 'Crear' }))
 
@@ -469,11 +469,11 @@ describe('DiscoveryDetailPage', () => {
         'Detectar dolores reales en la validación'
       )
       expect(
-        within(dialog).getByRole('combobox', { name: 'Template de preguntas' })
+        within(dialog).getByRole('combobox', { name: 'Plantilla de preguntas' })
       ).toHaveTextContent('Guía Problema (Problema)')
-      expect(within(dialog).getByRole('combobox', { name: 'Template de notas' })).toHaveTextContent(
-        'Notas de entrevista'
-      )
+      expect(
+        within(dialog).getByRole('combobox', { name: 'Plantilla de notas' })
+      ).toHaveTextContent('Notas de entrevista')
 
       await user.clear(nameInput)
       await user.type(nameInput, 'Founders serie A')

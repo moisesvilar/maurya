@@ -117,7 +117,7 @@ describe('SPEC-051 · rutas legadas', () => {
   it('redirects /templates to the interview-templates settings tab', async () => {
     renderApp('/templates')
 
-    expect(await screen.findByRole('tab', { name: 'Plantillas de entrevistas' })).toHaveAttribute(
+    expect(await screen.findByRole('tab', { name: 'Plantillas de preguntas' })).toHaveAttribute(
       'aria-selected',
       'true'
     )
@@ -130,7 +130,7 @@ describe('SPEC-051 · rutas legadas', () => {
   it('redirects /templates/interview to the interview-templates settings tab', async () => {
     renderApp('/templates/interview')
 
-    expect(await screen.findByRole('tab', { name: 'Plantillas de entrevistas' })).toHaveAttribute(
+    expect(await screen.findByRole('tab', { name: 'Plantillas de preguntas' })).toHaveAttribute(
       'aria-selected',
       'true'
     )

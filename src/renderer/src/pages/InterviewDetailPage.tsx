@@ -29,7 +29,7 @@ type InterviewDetailState =
  * entrevista tiene `interviewGroupId`, al detalle global de la empresa
  * `/companies/:companyId` en caso contrario), h1 con el título + Badge de
  * estado, fila muted de referencias (empresa · contacto · template, con
- * fallbacks "Sin contacto"/"Sin template"), la sección Objetivos destacada
+ * fallbacks "Sin contacto"/"Sin plantilla"), la sección Objetivos destacada
  * (ObjectivesSection, SPEC-025: indicador de progreso principal, inmediatamente
  * tras la cabecera), las secciones Nota y Guión compuestas por
  * NoteScriptSections (SPEC-027): apiladas mientras falte una de las dos y en
@@ -99,7 +99,7 @@ export function InterviewDetailPage(): React.ReactElement {
     return 'Sin contacto'
   }
 
-  /** Nombre del template asignado; "Sin template" si no hay o no se resuelve. */
+  /** Nombre del template asignado; "Sin plantilla" si no hay o no se resuelve. */
   const templateLabel = (interview: Interview): string => {
     if (interview.templateId !== null && templatesState.status === 'ready') {
       const template = templatesState.templates.find((item) => item.id === interview.templateId)
@@ -107,7 +107,7 @@ export function InterviewDetailPage(): React.ReactElement {
         return template.name
       }
     }
-    return 'Sin template'
+    return 'Sin plantilla'
   }
 
   return (

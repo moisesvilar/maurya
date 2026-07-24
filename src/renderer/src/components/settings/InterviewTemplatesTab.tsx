@@ -87,7 +87,7 @@ export function InterviewTemplatesTab(): React.ReactElement {
       {state.status === 'ready' && state.templates.length === 0 && (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
           <ClipboardList className="size-8 text-muted-foreground" aria-hidden="true" />
-          <p className="text-sm text-muted-foreground">Aún no hay plantillas de entrevista</p>
+          <p className="text-sm text-muted-foreground">Aún no hay plantillas de preguntas</p>
           <Button onClick={goToNew}>Crear primera plantilla</Button>
         </div>
       )}

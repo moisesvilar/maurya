@@ -62,7 +62,7 @@ export function InterviewGroupDetailPage(): React.ReactElement {
   } = useGroupInterviews(groupId ?? '')
   // UNA sola carga de cada catálogo de templates (patrón SPEC-045): alimenta
   // los Selects del Dialog de edición del grupo y la línea de la cabecera; si
-  // el fetch falla, degradan a "Sin template …".
+  // el fetch falla, degradan a "Sin plantilla …".
   const { state: interviewTemplatesState } = useInterviewTemplates()
   const { state: noteTemplatesState } = useNoteTemplates()
   const [editGroupOpen, setEditGroupOpen] = useState(false)
@@ -103,12 +103,12 @@ export function InterviewGroupDetailPage(): React.ReactElement {
   /** Nombre del template de preguntas del grupo; null u huérfano → hueco. */
   const interviewTemplateName =
     interviewTemplates.find((candidate) => candidate.id === group?.interviewTemplateId)?.name ??
-    'Sin template de preguntas'
+    'Sin plantilla de preguntas'
 
   /** Nombre del template de notas del grupo; null u huérfano → hueco. */
   const noteTemplateName =
     noteTemplates.find((candidate) => candidate.id === group?.noteTemplateId)?.name ??
-    'Sin template de notas'
+    'Sin plantilla de notas'
 
   /** Ruta del detalle de la entrevista: anidada con empresa; sin ella, captura. */
   const interviewLink = (item: CaptureListItem): string =>

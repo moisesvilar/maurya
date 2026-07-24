@@ -223,8 +223,8 @@ function buildSystemPrompt(template: InterviewTemplate, hasCompany: boolean): st
   // SPEC-020: sin empresa asignada, la adaptación se ancla al contexto del
   // discovery (no hay empresa/contacto concretos a los que adaptar).
   const task = hasCompany
-    ? 'Tu tarea: adaptar el template de entrevista proporcionado a la empresa y al contacto concretos, y definir los objetivos de la entrevista.'
-    : 'Tu tarea: adaptar el template de entrevista proporcionado al contexto del discovery, y definir los objetivos de la entrevista.'
+    ? 'Tu tarea: adaptar la plantilla de preguntas proporcionada a la empresa y al contacto concretos, y definir los objetivos de la entrevista.'
+    : 'Tu tarea: adaptar la plantilla de preguntas proporcionada al contexto del discovery, y definir los objetivos de la entrevista.'
   // SPEC-026: el bloque de persona/enfoque se resuelve en cada uso
   // (override de Ajustes → default); las reglas de abajo quedan bloqueadas.
   // SPEC-031: el bloque va delimitado y precedido de la salvaguarda anti-inyección.
@@ -234,7 +234,7 @@ function buildSystemPrompt(template: InterviewTemplate, hasCompany: boolean): st
     task,
     'Reglas:',
     '- Escribe TODO en español.',
-    `- \`scriptMarkdown\`: el guión completo en markdown, conservando la estructura de bloques del template (títulos, preguntas y guías adaptadas al caso concreto). Máximo ${SCRIPT_MAX_CHARS} caracteres de markdown y apunta a unos ${SCRIPT_TARGET_CHARS}: sé conciso, el asistente en vivo solo usa hasta ese límite y todo lo que exceda el máximo se recorta.`,
+    `- \`scriptMarkdown\`: el guión completo en markdown, conservando la estructura de bloques de la plantilla de preguntas (títulos, preguntas y guías adaptadas al caso concreto). Máximo ${SCRIPT_MAX_CHARS} caracteres de markdown y apunta a unos ${SCRIPT_TARGET_CHARS}: sé conciso, el asistente en vivo solo usa hasta ese límite y todo lo que exceda el máximo se recorta.`,
     '- `objectives`: entre 3 y 7 objetivos concretos y accionables para esta entrevista, uno por elemento.',
     '- Si hay entrevistas anteriores con la misma empresa, NO repitas lo ya validado: usa ese contexto para profundizar en lo pendiente y referencia lo aprendido.',
     '- Responde únicamente con el JSON pedido.'
@@ -318,7 +318,7 @@ function buildUserPrompt(
     }
   }
 
-  sections.push(`## Template de entrevista\n${serializeTemplate(template)}`)
+  sections.push(`## Plantilla de preguntas\n${serializeTemplate(template)}`)
 
   if (history.length > 0) {
     const historyBlocks = history.map((entry) => {
@@ -447,7 +447,10 @@ export function generateInterviewScript(interviewId: string): Promise<Interview>
 async function doGenerate(interviewId: string): Promise<Interview> {
   const interview = repository.getInterview(interviewId)
   if (interview.templateId === null) {
-    throw new LlmOperationError('no-template', 'Asigna un template para generar el guión')
+    throw new LlmOperationError(
+      'no-template',
+      'Asigna una plantilla de preguntas para generar el guión'
+    )
   }
   const apiKey = getAnthropicKey()
   if (apiKey === null) {

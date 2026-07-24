@@ -162,6 +162,34 @@ describe('repository (SPEC-043 grupos de entrevistas)', () => {
       expect(getInterviewGroup(group.id)).toEqual(group)
       expect(readDbFile().interviewGroups).toEqual([group])
     })
+
+    // SPEC-052 (unificación de terminología): el mensaje del error de referencia
+    // nombra la entidad «plantilla de preguntas» / «plantilla de notas».
+    it('names the referenced entity as «plantilla de preguntas» / «plantilla de notas» in reference errors', () => {
+      const discovery = createDiscovery({ name: 'Vertical Sanidad' })
+
+      const interviewError = expectDbError(
+        () =>
+          createInterviewGroup({
+            discoveryId: discovery.id,
+            name: 'General',
+            interviewTemplateId: 'tpl-fantasma'
+          }),
+        'reference'
+      )
+      expect(interviewError.message).toContain('plantilla de preguntas')
+
+      const noteError = expectDbError(
+        () =>
+          createInterviewGroup({
+            discoveryId: discovery.id,
+            name: 'General',
+            noteTemplateId: 'nt-fantasma'
+          }),
+        'reference'
+      )
+      expect(noteError.message).toContain('plantilla de notas')
+    })
   })
 
   describe('listing', () => {

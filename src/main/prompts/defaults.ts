@@ -9,9 +9,9 @@ import type { CustomPromptId } from '../../renderer/src/types/domain'
  * caracteres y partes dinámicas), que siguen viviendo en cada servicio.
  *
  * `lockedRules` es la representación en solo lectura de esas partes bloqueadas
- * para la pestaña "Prompts personalizados": las líneas dinámicas (fase del
- * template, contexto del note-template) se indican entre corchetes porque su
- * valor exacto solo se conoce en cada uso.
+ * para la pestaña "Prompts personalizados": las líneas dinámicas (fase de la
+ * plantilla de preguntas, contexto de la plantilla de notas) se indican entre
+ * corchetes porque su valor exacto solo se conoce en cada uso.
  */
 
 // Topes de longitud de la salida del asistente (SPEC-023): DEBEN ser los
@@ -29,22 +29,22 @@ export interface CustomPromptDefault {
 }
 
 const SCRIPT_LOCKED_RULES = [
-  '[Si el template tiene fase] La entrevista es de fase exploratoria / de problema / de solución.',
-  'Tu tarea: adaptar el template de entrevista proporcionado a la empresa y al contacto concretos (o al contexto del discovery, si la entrevista aún no tiene empresa), y definir los objetivos de la entrevista.',
+  '[Si la plantilla de preguntas tiene fase] La entrevista es de fase exploratoria / de problema / de solución.',
+  'Tu tarea: adaptar la plantilla de preguntas proporcionada a la empresa y al contacto concretos (o al contexto del discovery, si la entrevista aún no tiene empresa), y definir los objetivos de la entrevista.',
   'Reglas:',
   '- Escribe TODO en español.',
-  '- `scriptMarkdown`: el guión completo en markdown, conservando la estructura de bloques del template (títulos, preguntas y guías adaptadas al caso concreto).',
+  '- `scriptMarkdown`: el guión completo en markdown, conservando la estructura de bloques de la plantilla de preguntas (títulos, preguntas y guías adaptadas al caso concreto).',
   '- `objectives`: entre 3 y 7 objetivos concretos y accionables para esta entrevista, uno por elemento.',
   '- Si hay entrevistas anteriores con la misma empresa, NO repitas lo ya validado: usa ese contexto para profundizar en lo pendiente y referencia lo aprendido.',
   '- Responde únicamente con el JSON pedido.'
 ].join('\n')
 
 const NOTE_LOCKED_RULES = [
-  '[Si el note-template tiene contexto] Contexto del note-template (manda sobre el enfoque de la síntesis): …',
-  'Tu tarea: sintetizar la conversación proporcionada siguiendo las secciones del note-template, en su orden.',
+  '[Si la plantilla de notas tiene contexto] Contexto de la plantilla de notas (manda sobre el enfoque de la síntesis): …',
+  'Tu tarea: sintetizar la conversación proporcionada siguiendo las secciones de la plantilla de notas, en su orden.',
   'Reglas:',
   '- Escribe TODO en español.',
-  '- `sections`: exactamente una entrada por cada sección numerada del template, en el mismo orden, con su `title` y el `contentMarkdown` sintetizado de la conversación.',
+  '- `sections`: exactamente una entrada por cada sección numerada de la plantilla de notas, en el mismo orden, con su `title` y el `contentMarkdown` sintetizado de la conversación.',
   '- Aporta evidencia concreta: cita textualmente frases relevantes del interlocutor (entre comillas) y referencia hechos y ejemplos específicos de la conversación.',
   '- Distingue explícitamente los hechos relatados de tus inferencias o interpretaciones.',
   '- Si la conversación no aporta material para una sección, dilo honestamente en esa sección; no inventes contenido.',

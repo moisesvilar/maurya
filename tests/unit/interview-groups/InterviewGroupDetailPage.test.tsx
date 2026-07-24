@@ -244,7 +244,7 @@ describe('InterviewGroupDetailPage', () => {
       ).toBeInTheDocument()
       expect(screen.getByText('Sin objetivo')).toHaveClass('text-muted-foreground')
       expect(
-        screen.getByText('Sin template de preguntas · Sin template de notas')
+        screen.getByText('Sin plantilla de preguntas · Sin plantilla de notas')
       ).toBeInTheDocument()
     })
 
@@ -264,11 +264,11 @@ describe('InterviewGroupDetailPage', () => {
         'Detectar dolores reales\nen la validación'
       )
       expect(
-        within(dialog).getByRole('combobox', { name: 'Template de preguntas' })
+        within(dialog).getByRole('combobox', { name: 'Plantilla de preguntas' })
       ).toHaveTextContent('Guía Problema (Problema)')
-      expect(within(dialog).getByRole('combobox', { name: 'Template de notas' })).toHaveTextContent(
-        'Notas de entrevista'
-      )
+      expect(
+        within(dialog).getByRole('combobox', { name: 'Plantilla de notas' })
+      ).toHaveTextContent('Notas de entrevista')
     })
 
     // SPEC-046 · AC-03: groupId inexistente → error state con el enlace
