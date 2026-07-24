@@ -10,9 +10,9 @@ import { AiCostInline } from '@/components/interviews/AiCostInline'
 import { NoteScriptSections } from '@/components/interviews/NoteScriptSections'
 import { ObjectivesSection } from '@/components/interviews/ObjectivesSection'
 import { TopBarPortal } from '@/components/layout/TopBarSlot'
-import { CaptureTopBarControls } from '@/components/recording/CaptureTopBarControls'
+import { RecordingTopBarControls } from '@/components/recording/RecordingTopBarControls'
 import { PermissionErrorAlert } from '@/components/recording/PermissionErrorAlert'
-import { RecordingSection } from '@/components/recording/RecordingSection'
+import { RecordingSurface } from '@/components/recording/RecordingSurface'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
 import { useInterviewTemplates } from '@/hooks/useInterviewTemplates'
 import { useRecordingController } from '@/hooks/useRecordingController'
@@ -194,16 +194,13 @@ function CaptureDetailContent({
 
   return (
     <>
-      {/* La condición vive FUERA del portal: en Grabada los testids
-          desaparecen del DOM de la top bar (sin controles muertos). En
-          Preparación el portal lleva permisos + micrófono (SPEC-034) y en
-          Grabando la sesión en vivo (cronómetro, Detener, estado, medidores);
-          CaptureTopBarControls elige por estado del controller. */}
-      {!controller.recorded && (
-        <TopBarPortal>
-          <CaptureTopBarControls controller={controller} />
-        </TopBarPortal>
-      )}
+      {/* SPEC-055: los controles de grabación viven en la top bar en los tres
+          estados (Preparación: permisos + micrófono; Grabando: sesión en vivo;
+          Grabada: acciones «Mostrar en Finder»/«Nueva grabación»);
+          RecordingTopBarControls elige por estado del controller. */}
+      <TopBarPortal>
+        <RecordingTopBarControls controller={controller} />
+      </TopBarPortal>
 
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div className="flex flex-col gap-2">
@@ -240,9 +237,16 @@ function CaptureDetailContent({
       </div>
 
       {/* SPEC-049: el error de permiso al iniciar la grabación se pinta aquí,
-          bajo la cabecera y antes de Objetivos — visible sin scroll (la
-          sección Grabación del final ya no lo muestra) */}
+          bajo la cabecera y antes de Objetivos — visible sin scroll */}
       <PermissionErrorAlert error={controller.error} />
+
+      {/* SPEC-055: la superficie de grabación (avisos + detalle de Grabada) vive
+          bajo la cabecera, antes de Objetivos — ya no hay sección al final */}
+      <RecordingSurface
+        interview={interview}
+        onInterviewUpdated={onInterviewUpdated}
+        controller={controller}
+      />
 
       {/* Mismo orden que el detalle de entrevista: Objetivos (indicador de
           progreso principal, SPEC-025) → panel del asistente (SPEC-041, solo
@@ -252,14 +256,6 @@ function CaptureDetailContent({
       <AssistantLiveSection controller={controller} />
 
       <NoteScriptSections interview={interview} onInterviewUpdated={onInterviewUpdated} />
-
-      {/* SPEC-030: la Grabación cierra la página — tras el flujo end-to-end
-          es material de archivo (rutas WAV/transcript, latencia) */}
-      <RecordingSection
-        interview={interview}
-        onInterviewUpdated={onInterviewUpdated}
-        controller={controller}
-      />
 
       <AssignCompanySheet
         open={assignOpen}
