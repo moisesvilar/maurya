@@ -2323,5 +2323,32 @@
     "notes": "Cobertura 15/15 ACs, un test por AC (15 tests en 4 archivos). Adaptación documentada de un test existente: SPEC-034 AC-12 (CaptureDetailPage.recordingControls.test.tsx) asertaba el Alert de permiso DENTRO de la sección «Grabación»; SPEC-049 lo mueve arriba de la página, así que el test se renombra («…below the page header») y ahora asevera permission-error-alert conteniendo el Alert y la sección sin él (id actualizado en la entrada SPEC-034). El test de SPEC-015 AC-02 (RecordingSection.test.tsx) sigue en verde sin cambios: no asertaba la zona, solo la existencia del Alert, que ahora satisface la página. Los literales de los mensajes son los del spike (useAudioCapture: MIC_PERMISSION_ERROR / SYSTEM_PERMISSION_ERROR).",
     "created_at": "2026-07-23",
     "updated_at": "2026-07-23"
+  },
+  "SPEC-050": {
+    "spec_file": "specs/SPEC-050-eliminar-entrevistas-grupo.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición (9): Menú de acciones ×2 (AC-01 «Eliminar» destructive tras separador, AC-02 es la última opción); Eliminación happy path ×3 (AC-03 AlertDialog con título/descripción/botones, AC-04 confirmar → deleteInterview + fila fuera + Toast, AC-05 borra igual con/ sin empresa dejando el resto); Cancelación ×2 (AC-06 Cancelar no borra, AC-07 Escape = Cancelar); AC-08 error del bridge → Toast destructivo y fila permanece; AC-09 borrar la única entrevista deja el empty state. Añadidos al describe existente de InterviewGroupDetailPage (SPEC-046).",
+    "unit": [
+      {
+        "file": "tests/unit/interview-groups/InterviewGroupDetailPage.test.tsx",
+        "test_count": 9,
+        "description": "Describe \"deleting an interview\" dentro de la suite existente de InterviewGroupDetailPage (montada con MemoryRouter + installMockApi): apertura del menú ⋯, presencia y orden de «Eliminar» tras el separador, AlertDialog de confirmación con textos literales, borrado feliz con retirada optimista de la fila (sin recarga: 1 sola llamada a listAllInterviews) y Toast, borrado de una entrevista sin empresa dejando el resto, cancelación por botón y por Escape sin llamar al bridge, error de envelope con Toast destructivo y fila conservada, y empty state al vaciar el grupo. Mock del bridge: window.api.db.deleteInterview."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e no aplica: app Electron local sin public link (decisión humana 2026-07-03); verificación end-to-end manual",
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/interview-groups/InterviewGroupDetailPage.test.tsx::InterviewGroupDetailPage::deleting an interview::shows \"Eliminar\" as the last item after the separator in the row menu",
+      "AC-02": "tests/unit/interview-groups/InterviewGroupDetailPage.test.tsx::InterviewGroupDetailPage::deleting an interview::shows \"Eliminar\" as the last item after the separator in the row menu",
+      "AC-03": "tests/unit/interview-groups/InterviewGroupDetailPage.test.tsx::InterviewGroupDetailPage::deleting an interview::opens the confirmation AlertDialog naming the interview and its notes",
+      "AC-04": "tests/unit/interview-groups/InterviewGroupDetailPage.test.tsx::InterviewGroupDetailPage::deleting an interview::deletes the interview on confirm, removes the row and toasts",
+      "AC-05": "tests/unit/interview-groups/InterviewGroupDetailPage.test.tsx::InterviewGroupDetailPage::deleting an interview::deletes an interview without company and leaves the other rows intact",
+      "AC-06": "tests/unit/interview-groups/InterviewGroupDetailPage.test.tsx::InterviewGroupDetailPage::deleting an interview::does not delete when the confirmation is cancelled",
+      "AC-07": "tests/unit/interview-groups/InterviewGroupDetailPage.test.tsx::InterviewGroupDetailPage::deleting an interview::treats Escape as cancel and keeps the interview",
+      "AC-08": "tests/unit/interview-groups/InterviewGroupDetailPage.test.tsx::InterviewGroupDetailPage::deleting an interview::toasts the envelope error and keeps the row when deleting fails",
+      "AC-09": "tests/unit/interview-groups/InterviewGroupDetailPage.test.tsx::InterviewGroupDetailPage::deleting an interview::shows the empty state after deleting the only interview of the group"
+    },
+    "notes": "Sin adaptaciones en la suite existente: el bloque se añade al final del describe de InterviewGroupDetailPage (SPEC-046) reutilizando sus fixtures (WITH_COMPANY, ORPHANED) y helpers (setItems, renderAt). AC-01 y AC-02 comparten test (presencia + orden). db.deleteInterview ya estaba en el mock (installMockApi) por el borrado de Capturas.",
+    "created_at": "2026-07-24",
+    "updated_at": "2026-07-24T00:00:00Z"
   }
 }
