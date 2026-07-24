@@ -39,6 +39,12 @@ export interface UseGroupInterviewsResult {
    * los toasts viven en el hook y la lista se recarga (la fila desaparece).
    */
   moveInterview: (interviewId: string, targetGroupId: string) => Promise<boolean>
+  /**
+   * Elimina la entrevista (cascada a sus notas en main; mismo canal que el
+   * borrado de Capturas). La fila se quita del estado optimísticamente; los
+   * toasts viven en el hook (patrón `removeCapture`).
+   */
+  removeInterview: (interviewId: string) => Promise<void>
 }
 
 /**
@@ -119,5 +125,22 @@ export function useGroupInterviews(groupId: string): UseGroupInterviewsResult {
     [load]
   )
 
-  return { state, createInterview, moveInterview }
+  const removeInterview = useCallback(async (interviewId: string): Promise<void> => {
+    const result = await window.api.db.deleteInterview(interviewId)
+    if (!result.ok) {
+      toast.error(result.error.message)
+      return
+    }
+    setState((prev) =>
+      prev.status === 'ready'
+        ? {
+            status: 'ready',
+            items: prev.items.filter((item) => item.interview.id !== interviewId)
+          }
+        : prev
+    )
+    toast('Entrevista eliminada')
+  }, [])
+
+  return { state, createInterview, moveInterview, removeInterview }
 }
