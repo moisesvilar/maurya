@@ -426,8 +426,10 @@ describe('CaptureDetailPage (SPEC-034 recording controls)', () => {
   })
 
   describe('flow regressions', () => {
-    // SPEC-034 · AC-12
-    it('blocks the start from the header and shows the destructive permission Alert inside the Grabación section', async () => {
+    // SPEC-034 · AC-12 (adaptado por SPEC-049: el Alert de permiso ya no vive
+    // en la sección «Grabación» del final — se muestra arriba de la página,
+    // bajo la cabecera, dentro de permission-error-alert)
+    it('blocks the start from the header and shows the destructive permission Alert below the page header', async () => {
       const user = userEvent.setup()
       vi.mocked(getPermissionsStatus).mockResolvedValue({
         microphone: 'denied',
@@ -448,9 +450,11 @@ describe('CaptureDetailPage (SPEC-034 recording controls)', () => {
         throw new Error('El error de permiso debe mostrarse dentro de un Alert')
       }
       expect(alert).toHaveTextContent(/Ajustes del Sistema → Privacidad y seguridad → Micrófono/)
-      // El Alert vive en la sección «Grabación» del final, no en la top bar
+      // SPEC-049: el Alert vive arriba de la página (permission-error-alert),
+      // no en la sección «Grabación» del final ni en la top bar
+      expect(screen.getByTestId('permission-error-alert').contains(alert)).toBe(true)
       const section = await grabacionSection()
-      expect(section.contains(alert)).toBe(true)
+      expect(section.contains(alert)).toBe(false)
       // No arranca: sin Detener ni recorder ni bridge
       expect(screen.queryByRole('button', { name: 'Detener' })).not.toBeInTheDocument()
       expect(recorderMock.start).not.toHaveBeenCalled()

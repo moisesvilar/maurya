@@ -1605,14 +1605,14 @@
       "AC-07": "tests/unit/captures/CaptureDetailPage.recordingControls.test.tsx::CaptureDetailPage (SPEC-034 recording controls)::recording states::moves the live session to the top bar while recording and removes the Grabación section from the page (extensión posterior: la sesión en vivo de la captura vive en topbar-recording-controls) + co-cobertura del contenido completo de la sesión en curso (cronómetro, medidores, transcripción en vivo, asistente, selector deshabilitado con tooltip): tests/unit/recording/RecordingSection.test.tsx::RecordingSection::recording::starts the capture associated to the interview showing chronometer, both meters and a destructive Detener y suites SPEC-015/016/022 (vigentes, ahora sobre RecordingSectionView compartido por ambas variantes)",
       "AC-08": "tests/unit/captures/CaptureDetailPage.recordingControls.test.tsx::CaptureDetailPage (SPEC-034 recording controls)::recording states::hides all recording controls in Grabada, keeping the summary and \"Nueva grabación\" inside the section",
       "AC-09": "tests/unit/captures/CaptureDetailPage.recordingControls.test.tsx::CaptureDetailPage (SPEC-034 recording controls)::recording states::brings the controls back to the top bar and the header after confirming \"Nueva grabación\" + co-cobertura del diálogo «Sobrescribir grabación» en la variante entrevista: SPEC-015 AC-12 (vigente)",
-      "AC-10": "tests/unit/captures/CaptureDetailPage.recordingControls.test.tsx::CaptureDetailPage (SPEC-034 recording controls)::Grabación section without duplicates::renders the capture Grabación section without permission badges, mic select or start button in Preparación (ausencia de duplicados) + «los Alerts de error siguen en la sección» acreditado por el test de AC-12 (mismo archivo: el Alert destructive de permisos se renderiza DENTRO de la sección Grabación de la captura)",
+      "AC-10": "tests/unit/captures/CaptureDetailPage.recordingControls.test.tsx::CaptureDetailPage (SPEC-034 recording controls)::Grabación section without duplicates::renders the capture Grabación section without permission badges, mic select or start button in Preparación (ausencia de duplicados) + «los Alerts de error siguen en la sección» re-acreditado tras SPEC-049 por tests/unit/captures/CaptureDetailPage.permissionErrors.test.tsx (AC-13 de SPEC-049: los errores no-de-permiso siguen DENTRO de la sección Grabación; los de permiso se muestran arriba de la página por decisión de SPEC-049)",
       "AC-11": "tests/unit/captures/CaptureDetailPage.recordingControls.test.tsx::CaptureDetailPage (SPEC-034 recording controls)::Grabación section without duplicates::keeps the classic interview detail controls inside the Grabación section with no top bar controls + CO-COBERTURA del comportamiento intacto: la suite íntegra de SPEC-015 (tests/unit/recording/RecordingSection.test.tsx, 14 tests) sigue en verde SIN cambios de locators sobre el código refactorizado (SelfControlledRecordingSection crea su propio controller), igual que las suites de SPEC-016/019/022 montadas vía InterviewDetailPage",
-      "AC-12": "tests/unit/captures/CaptureDetailPage.recordingControls.test.tsx::CaptureDetailPage (SPEC-034 recording controls)::flow regressions::blocks the start from the header and shows the destructive permission Alert inside the Grabación section",
+      "AC-12": "tests/unit/captures/CaptureDetailPage.recordingControls.test.tsx::CaptureDetailPage (SPEC-034 recording controls)::flow regressions::blocks the start from the header and shows the destructive permission Alert below the page header",
       "AC-13": "tests/unit/captures/CaptureDetailPage.recordingControls.test.tsx::CaptureDetailPage (SPEC-034 recording controls)::flow regressions::auto-stops and saves when navigating away from the capture detail during a recording (variante captura: el cleanup vive en el controller creado por CaptureDetailContent) + co-cobertura variante entrevista: tests/unit/recording/RecordingSection.test.tsx::RecordingSection::recording::auto-stops and saves when navigating away from the detail during a recording (SPEC-015 AC-06, vigente)"
     },
-    "notes": "Sin tests previos retirados ni renombrados: cobertura solo NUEVA (la implementación e6bf325 dejó las 541 existentes en verde). Guardas del refactor useRecordingController/split de RecordingSection acreditadas por co-cobertura, no duplicadas: (a) RecordingSection SIN prop controller (detalle de entrevista) = suites existentes de recording/degradation/consent/assistant intactas; (b) TopBarPortal null-safe sin Layout = CaptureDetailPage.test.tsx (SPEC-020/030) monta la página sin Layout y sigue en verde. El arnés bajo Layout de este archivo es el primero que monta una página de detalle dentro del shell real: replica solo las rutas necesarias de App.tsx (captures, captures/:id, discoveries, detalle de entrevista).",
+    "notes": "Sin tests previos retirados ni renombrados: cobertura solo NUEVA (la implementación e6bf325 dejó las 541 existentes en verde). Guardas del refactor useRecordingController/split de RecordingSection acreditadas por co-cobertura, no duplicadas: (a) RecordingSection SIN prop controller (detalle de entrevista) = suites existentes de recording/degradation/consent/assistant intactas; (b) TopBarPortal null-safe sin Layout = CaptureDetailPage.test.tsx (SPEC-020/030) monta la página sin Layout y sigue en verde. El arnés bajo Layout de este archivo es el primero que monta una página de detalle dentro del shell real: replica solo las rutas necesarias de App.tsx (captures, captures/:id, discoveries, detalle de entrevista). · Adaptación SPEC-049 (2026-07-23): el test de AC-12 se renombra y reubica su aserción de zona — el Alert de permiso ya no vive en la sección «Grabación» sino arriba de la página (permission-error-alert, bajo la cabecera); el bloqueo del arranque y el literal del Alert se conservan intactos.",
     "created_at": "2026-07-12",
-    "updated_at": "2026-07-12"
+    "updated_at": "2026-07-23"
   },
   "SPEC-035": {
     "spec_file": "specs/SPEC-035-limpiar-ui-captura.md",
@@ -2244,5 +2244,84 @@
     "notes": "La spec tiene 12 ACs por orden de aparición (el encargo citaba 13; el conteo real de bullets GIVEN/WHEN/THEN es 12). Adaptación presupuestada de suites anteriores (spec §Derogaciones): SPEC-018 (AC-13/AC-14 renombrados a destinos globales /companies/:companyId; fixtures SearchResults ganan groups: []), SPEC-043/044 (ancla transicional de búsqueda y navegación de hits por rutas legadas derogadas — search.test.ts asserta los shapes nuevos { id, name } y contacto sin companyDiscoveryId), SPEC-013 (back del detalle de entrevista a la ruta anidada derogado: el arnés de InterviewDetailPage.test.tsx y de RecordingSection.test.tsx monta CompanyDetailPage en /companies/:companyId), SPEC-020 (fixtures de SearchResults con groups: []; comportamiento intacto). Infra: tests/helpers/mockApi.ts añade groups: [] al default de db.search (sin él, GlobalSearchDialog rompe leyendo results.groups.length). AC-09 no genera test nuevo: es la conservación explícita del comportamiento ya cubierto (no-duplicación).",
     "created_at": "2026-07-16",
     "updated_at": "2026-07-16T20:30:00Z"
+  },
+  "SPEC-049": {
+    "spec_file": "specs/SPEC-049-permisos-no-concedidos-visibles.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición (15) — Botón «Abrir Ajustes del Sistema» junto a los permisos ×8 (AC-01 top bar de la captura entre badges y selector, AC-02 detalle de entrevista misma fila que los badges a su derecha, AC-03 ambos concedidos → sin botón, AC-04 micrófono no concedido → pane de micrófono, AC-05 solo audio del sistema no concedido → pane de grabación de pantalla, AC-06 ambos no concedidos → pane de micrófono con prioridad, AC-07 snapshot null → botón visible con el mismo criterio que los badges, AC-08 permiso concedido tras refresco → botón desaparece); Aviso de permiso arriba de la página ×7 (AC-09 fallo por audio del sistema → Alert bajo la cabecera antes de Objetivos, AC-10 fallo por micrófono → ídem, AC-11 el Alert incluye mensaje y botón hacia el pane del permiso que falló, AC-12 sin duplicado en la sección Grabación, AC-13 errores no-de-permiso siguen en la sección Grabación y no arriba, AC-14 nueva grabación que arranca → el Alert desaparece, AC-15 detalle de entrevista → Alert bajo la cabecera antes de Objetivos).",
+    "unit": [
+      {
+        "file": "tests/unit/recording/OpenSettingsButton.test.tsx",
+        "test_count": 6,
+        "description": "Componente OpenSettingsButton aislado (frontera de mocking: permissionsService.openPrivacySettings): visibilidad — oculto con ambos permisos granted (AC-03), visible con snapshot null como los badges (AC-07) y desmontado al rerender con el snapshot refrescado a granted (AC-08) — y destino del click — microphone con mic denegado (AC-04), systemAudio con solo el audio del sistema denegado (AC-05) y microphone con prioridad cuando faltan ambos (AC-06)."
+      },
+      {
+        "file": "tests/unit/recording/PermissionErrorAlert.test.tsx",
+        "test_count": 1,
+        "description": "Wrapper PermissionErrorAlert (AC-11): dentro del contenedor permission-error-alert pinta título por kind, el mensaje literal del error y el botón «Abrir Ajustes del Sistema» cuyo click abre el pane del permiso que falló — verificado para microphone-permission → microphone y, vía rerender, system-audio-permission → systemAudio."
+      },
+      {
+        "file": "tests/unit/captures/CaptureDetailPage.permissionErrors.test.tsx",
+        "test_count": 6,
+        "description": "Página de captura BAJO <Layout/> (arnés de CaptureDetailPage.recordingControls.test.tsx, SPEC-034; mocking permissionsService/captureService/wavRecorderService + installMockApi; arranques a través del ConsentDialog de SPEC-019): botón en la top bar entre badges y selector con audio del sistema no concedido, orden por compareDocumentPosition (AC-01); Alert de permiso arriba — dentro de permission-error-alert, tras el h1 de la cabecera y antes del heading «Objetivos» — para audio del sistema (AC-09) y micrófono (AC-10); sin duplicado del error en la sección «Grabación» (un solo literal en la página y section sin role=alert, AC-12); error no-de-permiso (recording:start rechaza → «Error al iniciar la captura») anclado en la sección «Grabación» y sin permission-error-alert arriba (AC-13); y Alert retirado cuando el siguiente arranque (permisos ya concedidos) llega a Detener (AC-14)."
+      },
+      {
+        "file": "tests/unit/interviews/InterviewDetailPage.permissionErrors.test.tsx",
+        "test_count": 2,
+        "description": "Detalle de entrevista en su ruta anidada real (arnés de RecordingSection.test.tsx, SPEC-015): botón «Abrir Ajustes del Sistema» en la sección «Grabación», mismo contenedor de fila que PermissionBadges y a la derecha de los badges, con selector y CTA intactos (AC-02); y fallo por permiso de micrófono al iniciar → Alert en permission-error-alert bajo el h1 y antes de «Objetivos», sin duplicado en la sección y sin arrancar (AC-15)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e (Playwright) no aplica en este proyecto: app Electron local sin public link (decisión humana 2026-07-03). QA automatizado = Vitest unit.",
+    "manual_verification": "MANUAL (complementos visuales, no bloquean ACs — todos los ACs tienen test automatizado): (1) apertura REAL del pane de Ajustes del Sistema de macOS (x-apple.systempreferences) — el canal permissions:open-settings vive en main y en unit se asevera el target de openPrivacySettings, no el efecto en el SO; (2) layout visual de «misma fila» y del wrap responsive (< md) del botón en la top bar y en el bloque Preparación — jsdom no computa CSS/Tailwind (el orden DOM y el contenedor compartido sí quedan asertados); (3) que el Alert superior quede dentro del viewport sin scroll — requiere layout engine real; la posición DOM (tras la cabecera, antes de Objetivos) sí queda asertada.",
+    "acceptance_criteria_coverage": {
+      "AC-01": [
+        "tests/unit/captures/CaptureDetailPage.permissionErrors.test.tsx::CaptureDetailPage (SPEC-049 permission visibility)::top bar Open Settings button::renders \"Abrir Ajustes del Sistema\" between the permission badges and the mic select when system audio is not granted"
+      ],
+      "AC-02": [
+        "tests/unit/interviews/InterviewDetailPage.permissionErrors.test.tsx::InterviewDetailPage (SPEC-049 permission visibility)::renders \"Abrir Ajustes del Sistema\" on the same row as the permission badges, to their right, when a permission is not granted"
+      ],
+      "AC-03": [
+        "tests/unit/recording/OpenSettingsButton.test.tsx::OpenSettingsButton::hides the \"Abrir Ajustes del Sistema\" button when both permissions are granted"
+      ],
+      "AC-04": [
+        "tests/unit/recording/OpenSettingsButton.test.tsx::OpenSettingsButton::opens the microphone Settings pane when the microphone permission is not granted"
+      ],
+      "AC-05": [
+        "tests/unit/recording/OpenSettingsButton.test.tsx::OpenSettingsButton::opens the system audio Settings pane when only the system audio permission is not granted"
+      ],
+      "AC-06": [
+        "tests/unit/recording/OpenSettingsButton.test.tsx::OpenSettingsButton::opens the microphone Settings pane with priority when both permissions are not granted"
+      ],
+      "AC-07": [
+        "tests/unit/recording/OpenSettingsButton.test.tsx::OpenSettingsButton::shows the button while the permissions snapshot is still null, like the badges paint \"No concedido\""
+      ],
+      "AC-08": [
+        "tests/unit/recording/OpenSettingsButton.test.tsx::OpenSettingsButton::removes the button when the pending permission becomes granted after a snapshot refresh"
+      ],
+      "AC-09": [
+        "tests/unit/captures/CaptureDetailPage.permissionErrors.test.tsx::CaptureDetailPage (SPEC-049 permission visibility)::permission error Alert below the header::shows the system audio permission Alert right below the page header and before Objetivos when the capture fails"
+      ],
+      "AC-10": [
+        "tests/unit/captures/CaptureDetailPage.permissionErrors.test.tsx::CaptureDetailPage (SPEC-049 permission visibility)::permission error Alert below the header::shows the microphone permission Alert right below the page header when the capture fails by microphone"
+      ],
+      "AC-11": [
+        "tests/unit/recording/PermissionErrorAlert.test.tsx::PermissionErrorAlert::shows the error message and an \"Abrir Ajustes del Sistema\" button that opens the failed permission pane"
+      ],
+      "AC-12": [
+        "tests/unit/captures/CaptureDetailPage.permissionErrors.test.tsx::CaptureDetailPage (SPEC-049 permission visibility)::permission error Alert below the header::does not duplicate the permission error inside the Grabación section while the Alert is shown on top"
+      ],
+      "AC-13": [
+        "tests/unit/captures/CaptureDetailPage.permissionErrors.test.tsx::CaptureDetailPage (SPEC-049 permission visibility)::permission error Alert below the header::keeps non-permission capture errors inside the Grabación section and off the top of the page"
+      ],
+      "AC-14": [
+        "tests/unit/captures/CaptureDetailPage.permissionErrors.test.tsx::CaptureDetailPage (SPEC-049 permission visibility)::permission error Alert below the header::removes the permission Alert when a new recording starts correctly"
+      ],
+      "AC-15": [
+        "tests/unit/interviews/InterviewDetailPage.permissionErrors.test.tsx::InterviewDetailPage (SPEC-049 permission visibility)::shows the permission Alert below the interview header and before Objetivos when the recording fails by permission"
+      ]
+    },
+    "notes": "Cobertura 15/15 ACs, un test por AC (15 tests en 4 archivos). Adaptación documentada de un test existente: SPEC-034 AC-12 (CaptureDetailPage.recordingControls.test.tsx) asertaba el Alert de permiso DENTRO de la sección «Grabación»; SPEC-049 lo mueve arriba de la página, así que el test se renombra («…below the page header») y ahora asevera permission-error-alert conteniendo el Alert y la sección sin él (id actualizado en la entrada SPEC-034). El test de SPEC-015 AC-02 (RecordingSection.test.tsx) sigue en verde sin cambios: no asertaba la zona, solo la existencia del Alert, que ahora satisface la página. Los literales de los mensajes son los del spike (useAudioCapture: MIC_PERMISSION_ERROR / SYSTEM_PERMISSION_ERROR).",
+    "created_at": "2026-07-23",
+    "updated_at": "2026-07-23"
   }
 }

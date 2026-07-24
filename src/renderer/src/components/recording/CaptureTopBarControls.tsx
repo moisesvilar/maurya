@@ -2,6 +2,7 @@ import React from 'react'
 import { Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MicSelect } from '@/components/recording/MicSelect'
+import { OpenSettingsButton } from '@/components/recording/OpenSettingsButton'
 import { PermissionBadges } from '@/components/recording/PermissionBadges'
 import { TranscriptionStatusBadge } from '@/components/recording/transcriptionStatusBadge'
 import { LevelMeter } from '@/components/spike/LevelMeter'
@@ -63,6 +64,9 @@ export function CaptureTopBarControls({
       className="flex flex-wrap items-center gap-4 max-md:order-last max-md:basis-full"
     >
       <PermissionBadges permissions={controller.permissions} />
+      {/* SPEC-049: acción correctiva junto a los badges, solo con algún
+          permiso no concedido */}
+      <OpenSettingsButton permissions={controller.permissions} />
       <MicSelect
         compact
         devices={controller.devices}

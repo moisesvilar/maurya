@@ -11,6 +11,7 @@ import { NoteScriptSections } from '@/components/interviews/NoteScriptSections'
 import { ObjectivesSection } from '@/components/interviews/ObjectivesSection'
 import { TopBarPortal } from '@/components/layout/TopBarSlot'
 import { CaptureTopBarControls } from '@/components/recording/CaptureTopBarControls'
+import { PermissionErrorAlert } from '@/components/recording/PermissionErrorAlert'
 import { RecordingSection } from '@/components/recording/RecordingSection'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
 import { useInterviewTemplates } from '@/hooks/useInterviewTemplates'
@@ -237,6 +238,11 @@ function CaptureDetailContent({
           )}
         </div>
       </div>
+
+      {/* SPEC-049: el error de permiso al iniciar la grabación se pinta aquí,
+          bajo la cabecera y antes de Objetivos — visible sin scroll (la
+          sección Grabación del final ya no lo muestra) */}
+      <PermissionErrorAlert error={controller.error} />
 
       {/* Mismo orden que el detalle de entrevista: Objetivos (indicador de
           progreso principal, SPEC-025) → panel del asistente (SPEC-041, solo
