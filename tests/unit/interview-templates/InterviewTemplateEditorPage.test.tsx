@@ -1,6 +1,11 @@
 /**
- * Tests del editor de plantillas de entrevista (SPEC-012, AC-05..AC-17).
- * Frontera de mocking: api.db (getInterviewTemplate por test, sin default).
+ * Tests del editor de plantillas de entrevista. Cubre los ACs conservados de
+ * SPEC-012 (AC-05..AC-17: estructura, reordenación, guardado, validación,
+ * guard de descarte y edición) y el AC-12 de SPEC-051 (el editor cuelga de
+ * `/settings/interview-templates/*` y su salida regresa a la pestaña
+ * "Plantillas de entrevistas" de Ajustes).
+ * Frontera de mocking: api.db (getInterviewTemplate por test, sin default). El
+ * destino de salida es SettingsPage real, para asertar la pestaña activa.
  * Lecciones aplicadas: máximo 1 hover de tooltip por render (grace area de
  * Radix anclado en jsdom) → los ACs de tooltips se dividen en its.
  */
@@ -11,6 +16,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { InterviewTemplateEditorPage } from '@/pages/InterviewTemplateEditorPage'
+import { SettingsPage } from '@/pages/SettingsPage'
 import type { InterviewTemplate } from '@/types/domain'
 import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
 
@@ -38,13 +44,27 @@ function renderEditor(initialEntry: string): RenderResult {
     <TooltipProvider>
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
-          <Route path="/templates/interview" element={<div>LIST_PROBE</div>} />
-          <Route path="/templates/interview/new" element={<InterviewTemplateEditorPage />} />
-          <Route path="/templates/interview/:id" element={<InterviewTemplateEditorPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route
+            path="/settings/interview-templates/new"
+            element={<InterviewTemplateEditorPage />}
+          />
+          <Route
+            path="/settings/interview-templates/:id"
+            element={<InterviewTemplateEditorPage />}
+          />
         </Routes>
       </MemoryRouter>
       <Toaster />
     </TooltipProvider>
+  )
+}
+
+/** Aserta que la salida del editor aterrizó en la pestaña de plantillas de entrevistas. */
+async function expectBackOnInterviewTemplatesTab(): Promise<void> {
+  expect(await screen.findByRole('tab', { name: 'Plantillas de entrevistas' })).toHaveAttribute(
+    'aria-selected',
+    'true'
   )
 }
 
@@ -71,7 +91,7 @@ describe('InterviewTemplateEditorPage', () => {
   describe('new template', () => {
     // SPEC-012 · AC-05
     it('opens the empty editor with one initial block containing one blank question', () => {
-      renderEditor('/templates/interview/new')
+      renderEditor('/settings/interview-templates/new')
 
       expect(screen.getByRole('heading', { name: 'Nueva plantilla' })).toBeInTheDocument()
       const blockTitles = screen.getAllByLabelText('Título')
@@ -84,7 +104,7 @@ describe('InterviewTemplateEditorPage', () => {
 
     // SPEC-012 · AC-06
     it('presents the name field, the optional phase select and the blocks list', () => {
-      renderEditor('/templates/interview/new')
+      renderEditor('/settings/interview-templates/new')
 
       expect(screen.getByLabelText('Nombre')).toHaveAttribute(
         'placeholder',
@@ -101,7 +121,7 @@ describe('InterviewTemplateEditorPage', () => {
 
     // SPEC-012 · AC-07
     it('renders the block card with header, title, block guidance, questions section and actions', () => {
-      renderEditor('/templates/interview/new')
+      renderEditor('/settings/interview-templates/new')
 
       expect(screen.getByText('Bloque 1')).toBeInTheDocument()
       expect(screen.getByLabelText('Título')).toHaveAttribute(
@@ -121,7 +141,7 @@ describe('InterviewTemplateEditorPage', () => {
 
     // SPEC-012 · AC-08
     it('renders the question row with text, question guidance and its own actions', () => {
-      renderEditor('/templates/interview/new')
+      renderEditor('/settings/interview-templates/new')
 
       expect(screen.getByLabelText('Pregunta')).toHaveAttribute(
         'placeholder',
@@ -139,7 +159,7 @@ describe('InterviewTemplateEditorPage', () => {
     // SPEC-012 · AC-09
     it('adds an empty block at the end (with a blank question) and focuses its title', async () => {
       const user = userEvent.setup()
-      renderEditor('/templates/interview/new')
+      renderEditor('/settings/interview-templates/new')
 
       await user.click(screen.getByRole('button', { name: 'Añadir bloque' }))
 
@@ -153,7 +173,7 @@ describe('InterviewTemplateEditorPage', () => {
     // SPEC-012 · AC-10
     it('adds an empty question at the end of the block and focuses its text', async () => {
       const user = userEvent.setup()
-      renderEditor('/templates/interview/new')
+      renderEditor('/settings/interview-templates/new')
 
       await user.click(screen.getByRole('button', { name: 'Añadir pregunta' }))
 
@@ -168,7 +188,7 @@ describe('InterviewTemplateEditorPage', () => {
     // SPEC-012 · AC-11 (bloques; 1 solo hover de tooltip por render)
     it('swaps blocks with their questions when moved up, disabling the first-block-up with tooltip', async () => {
       const user = userEvent.setup()
-      renderEditor('/templates/interview/tpl-1')
+      renderEditor('/settings/interview-templates/tpl-1')
       await screen.findAllByLabelText('Título')
 
       await user.click(screen.getAllByRole('button', { name: 'Subir bloque' })[1])
@@ -193,7 +213,7 @@ describe('InterviewTemplateEditorPage', () => {
     // SPEC-012 · AC-11 (preguntas acotadas por nivel; 1 solo hover por render)
     it('moves a question within its block without crossing block boundaries, with per-block disabled extremes', async () => {
       const user = userEvent.setup()
-      renderEditor('/templates/interview/tpl-1')
+      renderEditor('/settings/interview-templates/tpl-1')
       await screen.findAllByLabelText('Pregunta')
 
       // Bajar A1: intercambia con A2 dentro del bloque A; el bloque B no cambia
@@ -221,7 +241,7 @@ describe('InterviewTemplateEditorPage', () => {
     // SPEC-012 · AC-12 (único bloque; 1 solo hover por render)
     it('disables removing the only block with its literal tooltip', async () => {
       const user = userEvent.setup()
-      renderEditor('/templates/interview/new')
+      renderEditor('/settings/interview-templates/new')
 
       const removeBlock = screen.getByRole('button', { name: 'Eliminar bloque' })
       expect(removeBlock).toBeDisabled()
@@ -234,7 +254,7 @@ describe('InterviewTemplateEditorPage', () => {
     // SPEC-012 · AC-12 (única pregunta; 1 solo hover por render)
     it('disables removing the only question of a block with its literal tooltip', async () => {
       const user = userEvent.setup()
-      renderEditor('/templates/interview/new')
+      renderEditor('/settings/interview-templates/new')
 
       const removeQuestion = screen.getByRole('button', { name: 'Eliminar pregunta' })
       expect(removeQuestion).toBeDisabled()
@@ -246,14 +266,14 @@ describe('InterviewTemplateEditorPage', () => {
   })
 
   describe('saving', () => {
-    // SPEC-012 · AC-13
-    it('persists the exact visual order omitting empty guidance keys, shows the toast and returns to the list', async () => {
+    // SPEC-012 · AC-13 + SPEC-051 · AC-12 (salida por guardado → pestaña de Ajustes)
+    it('persists the exact visual order omitting empty guidance keys, shows the toast and returns to the interview-templates tab', async () => {
       const user = userEvent.setup()
       vi.mocked(mockApi.api.db.createInterviewTemplate).mockResolvedValue({
         ok: true,
         data: { ...EXISTING, id: 'tpl-new' }
       })
-      renderEditor('/templates/interview/new')
+      renderEditor('/settings/interview-templates/new')
 
       await user.type(screen.getByLabelText('Nombre'), 'Entrevista de problema')
       // Fase vía Select: "Problema"
@@ -285,13 +305,13 @@ describe('InterviewTemplateEditorPage', () => {
 
       const toasts = await screen.findAllByText('Plantilla creada')
       expect(toasts.length).toBeGreaterThanOrEqual(1)
-      expect(await screen.findByText('LIST_PROBE')).toBeInTheDocument()
+      await expectBackOnInterviewTemplatesTab()
     })
 
     // SPEC-012 · AC-14
     it('shows nested "Campo requerido" errors for name, block title and question text without persisting', async () => {
       const user = userEvent.setup()
-      renderEditor('/templates/interview/new')
+      renderEditor('/settings/interview-templates/new')
 
       await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
@@ -309,7 +329,7 @@ describe('InterviewTemplateEditorPage', () => {
         ok: true,
         data: { ...EXISTING, id: 'tpl-new', phase: null }
       })
-      renderEditor('/templates/interview/new')
+      renderEditor('/settings/interview-templates/new')
 
       expect(screen.getByRole('combobox', { name: 'Fase' })).toHaveTextContent('Sin fase')
       await user.type(screen.getByLabelText('Nombre'), 'Sin fase asignada')
@@ -319,38 +339,50 @@ describe('InterviewTemplateEditorPage', () => {
 
       const payload = vi.mocked(mockApi.api.db.createInterviewTemplate).mock.calls[0][0]
       expect(payload.phase).toBeNull()
-      // La ausencia de Badge en la fila del listado se cubre en AC-02 (fixture sin fase)
+      // La ausencia de Badge en la fila del listado se cubre en el test del listado
     })
 
-    // SPEC-012 · AC-16
-    it('guards leaving with unsaved changes via "Descartar cambios" and returns directly when clean', async () => {
+    // SPEC-012 · AC-16 + SPEC-051 · AC-12 (salida por Volver → pestaña de Ajustes)
+    it('guards leaving with unsaved changes via "Descartar cambios" and returns directly to the interview-templates tab when clean', async () => {
       const user = userEvent.setup()
 
-      // Con cambios: AlertDialog y Descartar navega
-      const { unmount } = renderEditor('/templates/interview/new')
+      // Con cambios: AlertDialog y Descartar navega a la pestaña de Ajustes
+      const { unmount } = renderEditor('/settings/interview-templates/new')
       await user.type(screen.getByLabelText('Nombre'), 'Cambio sin guardar')
       await user.click(screen.getByRole('button', { name: 'Volver' }))
       const dialog = await screen.findByRole('alertdialog')
       expect(within(dialog).getByRole('heading', { name: 'Descartar cambios' })).toBeInTheDocument()
       await user.click(within(dialog).getByRole('button', { name: 'Descartar' }))
-      expect(await screen.findByText('LIST_PROBE')).toBeInTheDocument()
+      await expectBackOnInterviewTemplatesTab()
       expect(vi.mocked(mockApi.api.db.createInterviewTemplate)).not.toHaveBeenCalled()
       unmount()
 
       // Sin cambios: vuelta directa sin diálogo
-      renderEditor('/templates/interview/new')
+      renderEditor('/settings/interview-templates/new')
       await user.click(screen.getByRole('button', { name: 'Volver' }))
-      expect(await screen.findByText('LIST_PROBE')).toBeInTheDocument()
+      await expectBackOnInterviewTemplatesTab()
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    })
+
+    // SPEC-051 · AC-12 (salida por Cancelar del bottom bar → pestaña de Ajustes)
+    it('returns to the interview-templates tab when leaving via the "Cancelar" button with no changes', async () => {
+      const user = userEvent.setup()
+      renderEditor('/settings/interview-templates/new')
+
+      await user.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+      await expectBackOnInterviewTemplatesTab()
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     })
   })
 
   describe('editing', () => {
-    // SPEC-012 · AC-17
+    // SPEC-012 · AC-17 (+ SPEC-051 · AC-11: el editor carga la plantilla del :id)
     it('loads name, phase, blocks, guidances and questions in their exact stored order', async () => {
-      renderEditor('/templates/interview/tpl-1')
+      renderEditor('/settings/interview-templates/tpl-1')
 
       expect(await screen.findByRole('heading', { name: 'Editar plantilla' })).toBeInTheDocument()
+      expect(vi.mocked(mockApi.api.db.getInterviewTemplate)).toHaveBeenCalledWith('tpl-1')
       expect(await screen.findByLabelText('Nombre')).toHaveValue('Plantilla base')
       expect(screen.getByRole('combobox', { name: 'Fase' })).toHaveTextContent('Problema')
       expect(inputValues('Título')).toEqual(['Bloque A', 'Bloque B'])

@@ -26,8 +26,8 @@ import { PHASE_LABELS } from '@/components/templates/phaseLabels'
 import { useInterviewTemplateEditor } from '@/hooks/useInterviewTemplateEditor'
 import type { InterviewPhase } from '@/types/domain'
 
-/** El listado es sub-página del hub de Plantillas (SPEC-012). */
-const LIST_URL = '/templates/interview'
+/** SPEC-051: el listado vive en la pestaña de Ajustes (deroga el hub de SPEC-012). */
+const LIST_URL = '/settings?tab=interview-templates'
 
 /**
  * Sentinel del Select de fase: Radix Select no admite '' como value de item,
@@ -37,8 +37,10 @@ const NO_PHASE = 'none'
 
 /**
  * Editor de una plantilla de entrevista (SPEC-012) — Layout 3 (formulario
- * centrado, max-w 768px). Cubre `/templates/interview/new` (modo nuevo) y
- * `/templates/interview/:id` (edición). Volver/Cancelar comparten el guard de
+ * centrado, max-w 768px). SPEC-051: cuelga de Ajustes en
+ * `/settings/interview-templates/new` (modo nuevo) y
+ * `/settings/interview-templates/:id` (edición); Volver/Cancelar/salida
+ * regresan a la pestaña "Plantillas de entrevistas". Comparten el guard de
  * cambios sin guardar (AlertDialog "Descartar cambios"); el guard compara el
  * formulario contra el snapshot cargado, sin bloquear el router.
  */

@@ -88,14 +88,15 @@ describe('Empresas (navegación, SPEC-044)', () => {
       const empresas = within(sidebar).getByRole('link', { name: 'Empresas' })
       expect(empresas).toHaveAttribute('href', '/companies')
 
-      // Posición: después de «Discoveries» y antes del resto («Plantillas»)
+      // Posición: después de «Discoveries» y antes del resto («Capturas»;
+      // SPEC-051 retiró «Plantillas», así que el siguiente ítem es «Capturas»)
       const discoveries = within(sidebar).getByRole('link', { name: 'Discoveries' })
-      const plantillas = within(sidebar).getByRole('link', { name: 'Plantillas' })
+      const capturas = within(sidebar).getByRole('link', { name: 'Capturas' })
       expect(
         discoveries.compareDocumentPosition(empresas) & Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy()
       expect(
-        empresas.compareDocumentPosition(plantillas) & Node.DOCUMENT_POSITION_FOLLOWING
+        empresas.compareDocumentPosition(capturas) & Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy()
 
       // El click navega al listado global

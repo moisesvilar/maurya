@@ -6,6 +6,9 @@
  * index y la ruta legado /capture redirigen a /captures y el harness de spike
  * (SpikeAudioCapturePage) deja de estar enrutado — la réplica de rutas y las
  * aserciones se actualizan a ese contrato.
+ * SPEC-051: la sección "Plantillas" desaparece del sidebar (su gestión se muda
+ * a Ajustes); la réplica de rutas pierde /templates y las aserciones del
+ * sidebar/tooltip dejan de referenciar "Plantillas".
  * Lección vigente: máximo 1 hover de tooltip por render (grace area de Radix
  * anclado en jsdom tras el primer unhover).
  */
@@ -21,7 +24,6 @@ import { DiscoveriesPage } from '@/pages/DiscoveriesPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { NoteTemplateEditorPage } from '@/pages/NoteTemplateEditorPage'
 import { SettingsPage } from '@/pages/SettingsPage'
-import { TemplatesHubPage } from '@/pages/TemplatesHubPage'
 import { installMockApi } from '../../helpers/mockApi'
 
 const STORAGE_KEY = 'maurya:sidebar-collapsed'
@@ -37,7 +39,6 @@ function renderApp(initialEntry: string): RenderResult {
             <Route path="capture" element={<Navigate to="/captures" replace />} />
             <Route path="captures" element={<CapturesPage />} />
             <Route path="discoveries" element={<DiscoveriesPage />} />
-            <Route path="templates" element={<TemplatesHubPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="settings/note-templates/new" element={<NoteTemplateEditorPage />} />
             <Route path="settings/note-templates/:id" element={<NoteTemplateEditorPage />} />
@@ -61,14 +62,18 @@ beforeEach(() => {
 
 describe('Layout (shell de navegación)', () => {
   describe('sidebar', () => {
-    // SPEC-009 · AC-01 (ítem renombrado a "Capturas" por SPEC-020 AC-01)
+    // SPEC-009 · AC-01 (ítem renombrado a "Capturas" por SPEC-020 AC-01;
+    // "Plantillas" retirado por SPEC-051 AC-17 → quedan Discoveries/Empresas/
+    // Capturas/Ajustes)
     it('shows the sidebar with the four section items — "Capturas" among them — and the "Navegación principal" landmark', () => {
       renderApp('/discoveries')
 
       const sidebar = getSidebar()
       expect(within(sidebar).getByRole('link', { name: 'Discoveries' })).toBeInTheDocument()
-      expect(within(sidebar).getByRole('link', { name: 'Plantillas' })).toBeInTheDocument()
-      // SPEC-020 AC-01: mismo ítem (3ª posición, icono Mic) ahora "Capturas" → /captures
+      expect(within(sidebar).getByRole('link', { name: 'Empresas' })).toBeInTheDocument()
+      // SPEC-051: la sección "Plantillas" ya no aparece en el sidebar
+      expect(within(sidebar).queryByRole('link', { name: 'Plantillas' })).not.toBeInTheDocument()
+      // SPEC-020 AC-01: mismo ítem (icono Mic) ahora "Capturas" → /captures
       const captures = within(sidebar).getByRole('link', { name: 'Capturas' })
       expect(captures).toHaveAttribute('href', '/captures')
       expect(within(sidebar).getByRole('link', { name: 'Ajustes' })).toBeInTheDocument()
@@ -142,17 +147,18 @@ describe('Layout (shell de navegación)', () => {
       expect(window.localStorage.getItem(STORAGE_KEY)).toBe('false')
     })
 
-    // SPEC-009 · AC-05 (máx 1 hover de tooltip por render: lección Radix+jsdom)
+    // SPEC-009 · AC-05 (máx 1 hover de tooltip por render: lección Radix+jsdom;
+    // SPEC-051 retiró "Plantillas" → se hace hover sobre "Discoveries")
     it('shows a tooltip with the section name when hovering an item of the collapsed sidebar', async () => {
       const user = userEvent.setup()
       window.localStorage.setItem(STORAGE_KEY, 'true')
       renderApp('/captures')
 
       const sidebar = getSidebar()
-      await user.hover(within(sidebar).getByRole('link', { name: 'Plantillas' }))
+      await user.hover(within(sidebar).getByRole('link', { name: 'Discoveries' }))
 
       // El nombre aparece en el label sr-only + el contenido del tooltip
-      const matches = await screen.findAllByText('Plantillas')
+      const matches = await screen.findAllByText('Discoveries')
       expect(matches.length).toBeGreaterThanOrEqual(2)
     })
   })
