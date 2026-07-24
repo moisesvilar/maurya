@@ -14,6 +14,7 @@ import { render, screen, within, type RenderResult } from '@testing-library/reac
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Layout } from '@/components/layout/Layout'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { InterviewDetailPage } from '@/pages/InterviewDetailPage'
@@ -86,15 +87,22 @@ const INTERVIEW: Interview = {
   updatedAt: '2026-07-04T10:00:00.000Z'
 }
 
+/**
+ * SPEC-055: los controles de preparación (badges + OpenSettingsButton + micro)
+ * viven en la top bar, así que el arnés monta la ruta BAJO <Layout/> para que el
+ * portal del slot exista.
+ */
 function renderDetail(): RenderResult {
   return render(
     <TooltipProvider>
       <MemoryRouter initialEntries={['/discoveries/d-1/companies/c-1/interviews/i-1']}>
         <Routes>
-          <Route
-            path="/discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
-            element={<InterviewDetailPage />}
-          />
+          <Route path="/" element={<Layout />}>
+            <Route
+              path="discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
+              element={<InterviewDetailPage />}
+            />
+          </Route>
         </Routes>
       </MemoryRouter>
       <Toaster />
@@ -102,14 +110,9 @@ function renderDetail(): RenderResult {
   )
 }
 
-/** La sección «Grabación» (el <section> que envuelve su heading). */
-async function grabacionSection(): Promise<HTMLElement> {
-  const heading = await screen.findByRole('heading', { name: 'Grabación' })
-  const section = heading.closest('section')
-  if (section === null) {
-    throw new Error('El heading «Grabación» debe vivir dentro de un <section>')
-  }
-  return section
+/** El banner de la top bar (donde viven los controles de preparación). */
+function topBar(): HTMLElement {
+  return screen.getByRole('banner')
 }
 
 beforeEach(() => {
@@ -135,33 +138,28 @@ beforeEach(() => {
 })
 
 describe('InterviewDetailPage (SPEC-049 permission visibility)', () => {
-  // SPEC-049 · AC-02
-  it('renders "Abrir Ajustes del Sistema" on the same row as the permission badges, to their right, when a permission is not granted', async () => {
+  // SPEC-049 · AC-02 (SPEC-055: badges + OpenSettingsButton + micro viven en la
+  // top bar; «Iniciar grabación» en la cabecera)
+  it('renders "Abrir Ajustes del Sistema" to the right of the permission badges in the top bar when a permission is not granted', async () => {
     vi.mocked(getPermissionsStatus).mockResolvedValue({
       microphone: 'granted',
       systemAudio: 'denied'
     })
     renderDetail()
 
-    const section = await grabacionSection()
+    const controls = await within(topBar()).findByTestId('topbar-capture-controls')
     // El badge destructive ya cargó (el snapshot resolvió)
-    expect(await within(section).findByText('No concedido')).toBeInTheDocument()
-    const button = within(section).getByTestId('open-settings-button')
+    expect(await within(controls).findByText('No concedido')).toBeInTheDocument()
+    const button = within(controls).getByTestId('open-settings-button')
     expect(button).toHaveTextContent('Abrir Ajustes del Sistema')
-    // Misma fila: el contenedor flex del botón envuelve también a los badges…
-    const row = button.parentElement
-    if (row === null) {
-      throw new Error('El botón debe compartir contenedor de fila con los badges')
-    }
-    expect(row.contains(within(section).getByText('Audio del sistema'))).toBe(true)
-    // …con el botón a la derecha de los badges
-    const systemBadgeLabel = within(section).getByText('Audio del sistema')
+    // El botón va a la derecha de los badges, dentro del contenedor de la top bar
+    const systemBadgeLabel = within(controls).getByText('Audio del sistema')
     expect(
       systemBadgeLabel.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy()
-    // El selector y el CTA quedan como están
-    expect(within(section).getByRole('combobox', { name: 'Micrófono' })).toBeEnabled()
-    expect(within(section).getByRole('button', { name: 'Iniciar grabación' })).toBeInTheDocument()
+    // El selector queda en la top bar; el CTA «Iniciar grabación» en la cabecera
+    expect(within(controls).getByRole('combobox', { name: 'Micrófono' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Iniciar grabación' })).toBeInTheDocument()
   })
 
   // SPEC-049 · AC-15
@@ -184,17 +182,13 @@ describe('InterviewDetailPage (SPEC-049 permission visibility)', () => {
     // Posición: tras la cabecera (h1 de la entrevista) y antes de Objetivos
     const title = screen.getByRole('heading', { name: 'Discovery con Acme', level: 1 })
     const objectives = screen.getByRole('heading', { name: 'Objetivos', level: 3 })
-    expect(
-      title.compareDocumentPosition(container) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy()
+    expect(title.compareDocumentPosition(container) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(
       container.compareDocumentPosition(objectives) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy()
-    // Sin duplicado en la sección Grabación (consistencia con la captura)
-    const section = await grabacionSection()
-    expect(
-      within(section).queryByText('Permiso de micrófono no concedido')
-    ).not.toBeInTheDocument()
+    // SPEC-055: el error de permiso aparece UNA sola vez (solo arriba, en
+    // permission-error-alert; ya no hay sección «Grabación» que lo duplique)
+    expect(screen.getAllByText('Permiso de micrófono no concedido')).toHaveLength(1)
     // No arranca: sin Detener ni recorder
     expect(screen.queryByRole('button', { name: 'Detener' })).not.toBeInTheDocument()
     expect(recorderMock.start).not.toHaveBeenCalled()

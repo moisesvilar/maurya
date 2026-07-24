@@ -14,6 +14,7 @@ import { act, render, screen, waitFor, within, type RenderResult } from '@testin
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Layout } from '@/components/layout/Layout'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { InterviewDetailPage } from '@/pages/InterviewDetailPage'
@@ -106,10 +107,12 @@ function renderDetail(): RenderResult {
     <TooltipProvider>
       <MemoryRouter initialEntries={['/discoveries/d-1/companies/c-1/interviews/i-1']}>
         <Routes>
-          <Route
-            path="/discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
-            element={<InterviewDetailPage />}
-          />
+          <Route path="/" element={<Layout />}>
+            <Route
+              path="discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
+              element={<InterviewDetailPage />}
+            />
+          </Route>
         </Routes>
       </MemoryRouter>
       <Toaster />

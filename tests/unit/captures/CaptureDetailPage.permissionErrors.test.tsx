@@ -138,16 +138,6 @@ function renderCapture(): RenderResult {
   )
 }
 
-/** La sección «Grabación» (el <section> que envuelve su heading). */
-async function grabacionSection(): Promise<HTMLElement> {
-  const heading = await screen.findByRole('heading', { name: 'Grabación' })
-  const section = heading.closest('section')
-  if (section === null) {
-    throw new Error('El heading «Grabación» debe vivir dentro de un <section>')
-  }
-  return section
-}
-
 /**
  * Arranca desde el botón de la cabecera atravesando el aviso de consentimiento
  * (SPEC-019) sin esperar resultado: el desenlace (Detener o Alert de permiso)
@@ -255,9 +245,7 @@ describe('CaptureDetailPage (SPEC-049 permission visibility)', () => {
       await startFromHeader(user)
 
       const container = await screen.findByTestId('permission-error-alert')
-      expect(
-        within(container).getByText('Permiso de micrófono no concedido')
-      ).toBeInTheDocument()
+      expect(within(container).getByText('Permiso de micrófono no concedido')).toBeInTheDocument()
       const objectives = screen.getByRole('heading', { name: 'Objetivos', level: 3 })
       expect(
         container.compareDocumentPosition(objectives) & Node.DOCUMENT_POSITION_FOLLOWING
@@ -279,12 +267,11 @@ describe('CaptureDetailPage (SPEC-049 permission visibility)', () => {
 
       // Un único Alert de permiso en toda la página…
       expect(screen.getAllByText('Permiso de audio del sistema no concedido')).toHaveLength(1)
-      // …y la sección Grabación del final ya no lo contiene
-      const section = await grabacionSection()
+      // …y vive en el contenedor de arriba (permission-error-alert), SPEC-055
+      const container = screen.getByTestId('permission-error-alert')
       expect(
-        within(section).queryByText('Permiso de audio del sistema no concedido')
-      ).not.toBeInTheDocument()
-      expect(section.querySelector('[role="alert"]')).toBeNull()
+        within(container).getByText('Permiso de audio del sistema no concedido')
+      ).toBeInTheDocument()
     })
 
     // SPEC-049 · AC-13
@@ -302,10 +289,8 @@ describe('CaptureDetailPage (SPEC-049 permission visibility)', () => {
       if (alert === null) {
         throw new Error('El error de captura debe mostrarse dentro de un Alert')
       }
-      // Sigue en la sección Grabación del final…
-      const section = await grabacionSection()
-      expect(section.contains(alert)).toBe(true)
-      // …y no arriba de la página
+      // SPEC-055: los errores no-de-permiso viven en la superficie de grabación
+      // (bajo la cabecera), NO en el contenedor de permisos de arriba
       expect(screen.queryByTestId('permission-error-alert')).not.toBeInTheDocument()
     })
 
@@ -327,9 +312,7 @@ describe('CaptureDetailPage (SPEC-049 permission visibility)', () => {
       await screen.findByRole('button', { name: 'Detener' })
 
       expect(screen.queryByTestId('permission-error-alert')).not.toBeInTheDocument()
-      expect(
-        screen.queryByText('Permiso de micrófono no concedido')
-      ).not.toBeInTheDocument()
+      expect(screen.queryByText('Permiso de micrófono no concedido')).not.toBeInTheDocument()
     })
   })
 })

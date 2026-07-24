@@ -14,6 +14,7 @@ import { act, render, screen, waitFor, within, type RenderResult } from '@testin
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Layout } from '@/components/layout/Layout'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { CompanyDetailPage } from '@/pages/CompanyDetailPage'
@@ -135,23 +136,42 @@ function setupGrantedCapture(): { micTrack: FakeMediaStreamTrack } {
   return { micTrack: mic.track }
 }
 
+/**
+ * Extensión de SPEC-034 a la entrevista clásica: la sesión en vivo sube a la
+ * top bar mientras se graba (portal al slot del Layout). Por eso el arnés monta
+ * las rutas BAJO <Layout/> — sin él, TopBarSlotContext es null y el portal es
+ * no-op, y estos ACs viven precisamente en la top bar (patrón
+ * CaptureDetailPage.recordingControls.test.tsx).
+ */
 function renderDetail(): RenderResult {
   return render(
     <TooltipProvider>
       <MemoryRouter initialEntries={['/discoveries/d-1/companies/c-1/interviews/i-1']}>
         <Routes>
-          {/* SPEC-048: el back «Volver» de una entrevista sin grupo navega al
-              detalle GLOBAL de la empresa (deroga la ruta anidada de SPEC-013) */}
-          <Route path="/companies/:companyId" element={<CompanyDetailPage />} />
-          <Route
-            path="/discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
-            element={<InterviewDetailPage />}
-          />
+          <Route path="/" element={<Layout />}>
+            {/* SPEC-048: el back «Volver» de una entrevista sin grupo navega al
+                detalle GLOBAL de la empresa (deroga la ruta anidada de SPEC-013) */}
+            <Route path="companies/:companyId" element={<CompanyDetailPage />} />
+            <Route
+              path="discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
+              element={<InterviewDetailPage />}
+            />
+          </Route>
         </Routes>
       </MemoryRouter>
       <Toaster />
     </TooltipProvider>
   )
+}
+
+/** El banner de la top bar (donde vive la sesión en vivo mientras se graba). */
+function topBar(): HTMLElement {
+  return screen.getByRole('banner')
+}
+
+/** Los controles compactos de la sesión en vivo dentro de la top bar. */
+function topBarRecordingControls(): HTMLElement {
+  return within(topBar()).getByTestId('topbar-recording-controls')
 }
 
 /**
@@ -200,15 +220,18 @@ beforeEach(() => {
 
 describe('RecordingSection', () => {
   describe('preparation', () => {
-    // SPEC-015 · AC-01
-    it('shows the permission badges, the microphone select and the "Iniciar grabación" button', async () => {
+    // SPEC-015 · AC-01 (SPEC-055: badges y micro en la top bar; «Iniciar
+    // grabación» en la cabecera; sin sección «Grabación» en el cuerpo)
+    it('shows the permission badges and mic select in the top bar and the "Iniciar grabación" button in the header', async () => {
       renderDetail()
 
-      expect(await screen.findByRole('heading', { name: 'Grabación' })).toBeInTheDocument()
-      expect(await screen.findAllByText('Concedido')).toHaveLength(2)
-      expect(screen.getByText('Audio del sistema')).toBeInTheDocument()
-      expect(screen.getByRole('combobox', { name: 'Micrófono' })).toBeEnabled()
+      const controls = await within(topBar()).findByTestId('topbar-capture-controls')
+      expect(await within(controls).findAllByText('Concedido')).toHaveLength(2)
+      expect(within(controls).getByText('Audio del sistema')).toBeInTheDocument()
+      expect(within(controls).getByRole('combobox', { name: 'Micrófono' })).toBeEnabled()
       expect(screen.getByRole('button', { name: 'Iniciar grabación' })).toBeInTheDocument()
+      // SPEC-055: no hay heading ni sección «Grabación» en el cuerpo
+      expect(screen.queryByRole('heading', { name: 'Grabación' })).not.toBeInTheDocument()
     })
 
     // SPEC-015 · AC-02
@@ -240,29 +263,30 @@ describe('RecordingSection', () => {
       expect(vi.mocked(mockApi.api.recording.start)).not.toHaveBeenCalled()
     })
 
-    // SPEC-015 · AC-03
-    it('disables the microphone select with a tooltip while recording', async () => {
+    // SPEC-015 · AC-03 (derogado por la extensión de SPEC-034: la sesión en
+    // vivo sube a la top bar y la sección «Grabación» desaparece del cuerpo
+    // mientras se graba — el dispositivo ya no se cambia y no hay selector de
+    // micrófono en ninguna zona, paridad total con la captura AC-07)
+    it('removes the microphone select while recording (the device can no longer change)', async () => {
       const user = userEvent.setup()
       setupGrantedCapture()
       renderDetail()
       await startRecording(user)
 
-      const select = screen.getByRole('combobox', { name: 'Micrófono' })
-      expect(select).toBeDisabled()
-      const wrapper = select.parentElement
-      if (wrapper === null) {
-        throw new Error('El Select deshabilitado debe estar envuelto por el TooltipTrigger')
-      }
-      await user.hover(wrapper)
+      // La sesión en vivo vive en la top bar; sin selector de micrófono ni
+      // sección «Grabación» en el cuerpo
       expect(
-        (await screen.findAllByText('No se puede cambiar de dispositivo durante la captura')).length
-      ).toBeGreaterThanOrEqual(1)
+        within(topBarRecordingControls()).getByRole('button', { name: 'Detener' })
+      ).toBeInTheDocument()
+      expect(screen.queryByRole('combobox', { name: 'Micrófono' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Grabación' })).not.toBeInTheDocument()
     })
   })
 
   describe('recording', () => {
-    // SPEC-015 · AC-04
-    it('starts the capture associated to the interview showing chronometer, both meters and a destructive Detener', async () => {
+    // SPEC-015 · AC-04 (extensión de SPEC-034: cronómetro, medidores y Detener
+    // viven en la top bar, no en el cuerpo)
+    it('starts the capture associated to the interview showing chronometer, both meters and a destructive Detener in the top bar', async () => {
       const user = userEvent.setup()
       setupGrantedCapture()
       renderDetail()
@@ -282,14 +306,18 @@ describe('RecordingSection', () => {
       // ISO 8601 real (round-trip exacto), no solo con forma de fecha
       expect(new Date(consentAcknowledgedAt).toISOString()).toBe(consentAcknowledgedAt)
       expect(recorderMock.start).toHaveBeenCalledTimes(1)
-      expect(screen.getByText('00:00')).toBeInTheDocument()
-      expect(screen.getAllByRole('progressbar')).toHaveLength(2)
-      expect(screen.getByLabelText('Nivel de Micrófono')).toBeInTheDocument()
-      expect(screen.getByLabelText('Nivel de Sistema')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Detener' })).toHaveAttribute(
+      // La sesión en vivo compacta vive en la top bar (topbar-recording-controls)
+      const controls = topBarRecordingControls()
+      expect(within(controls).getByText('00:00')).toBeInTheDocument()
+      expect(within(controls).getAllByRole('progressbar')).toHaveLength(2)
+      expect(within(controls).getByLabelText('Nivel de Micrófono')).toBeInTheDocument()
+      expect(within(controls).getByLabelText('Nivel de Sistema')).toBeInTheDocument()
+      expect(within(controls).getByRole('button', { name: 'Detener' })).toHaveAttribute(
         'data-variant',
         'destructive'
       )
+      // Y ya no hay sección «Grabación» en el cuerpo mientras se graba
+      expect(screen.queryByRole('heading', { name: 'Grabación' })).not.toBeInTheDocument()
     })
 
     // SPEC-015 · AC-05
@@ -306,12 +334,17 @@ describe('RecordingSection', () => {
       expect(toasts.length).toBeGreaterThanOrEqual(1)
       // La Interview asociada por main actualiza el Badge de la cabecera
       expect(await screen.findByText('Grabada')).toBeInTheDocument()
-      // Estado 3: resumen con duración (recién grabado) y rutas
+      // SPEC-055: las rutas viven en la superficie bajo la cabecera…
       expect(await screen.findByText(WAV_PATH)).toBeInTheDocument()
       expect(screen.getByText(TRANSCRIPT_PATH)).toBeInTheDocument()
-      expect(screen.getByText('Duración')).toBeInTheDocument()
-      expect(screen.getByText('01:35')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Nueva grabación' })).toBeInTheDocument()
+      // …y la etiqueta «Grabada · mm:ss» + «Nueva grabación» en la top bar (ya
+      // no hay línea «Duración» ni botón en el cuerpo)
+      const recordedControls = within(topBar()).getByTestId('topbar-recorded-controls')
+      expect(within(recordedControls).getByText(/01:35/)).toBeInTheDocument()
+      expect(
+        within(recordedControls).getByRole('button', { name: 'Nueva grabación' })
+      ).toBeInTheDocument()
+      expect(screen.queryByText('Duración')).not.toBeInTheDocument()
     })
 
     // SPEC-015 · AC-06
@@ -369,8 +402,11 @@ describe('RecordingSection', () => {
   })
 
   describe('live transcription', () => {
-    // SPEC-015 · AC-09
-    it('shows live lines with source badge and speaker label plus the "Transcribiendo" status badge', async () => {
+    // SPEC-015 · AC-09 (derogado por la extensión de SPEC-034: la transcripción
+    // en vivo del detalle clásico se retira con la sección «Grabación» —
+    // paridad total con la captura, SPEC-035. El badge de estado sobrevive en
+    // la top bar; las líneas ya no se pintan en el cuerpo)
+    it('moves the "Transcribiendo" status badge to the top bar and no longer renders live transcript lines', async () => {
       const user = userEvent.setup()
       setupGrantedCapture()
       renderDetail()
@@ -390,13 +426,19 @@ describe('RecordingSection', () => {
         })
       })
 
-      expect(await screen.findByText('Transcribiendo')).toBeInTheDocument()
-      expect(screen.getByText('Ya validamos el problema del registro manual')).toBeInTheDocument()
-      expect(screen.getByText('Hablante 1')).toBeInTheDocument()
+      // El estado de la transcripción vive en la top bar…
+      expect(
+        await within(topBarRecordingControls()).findByText('Transcribiendo')
+      ).toBeInTheDocument()
+      // …y la línea en vivo ya no se pinta en ninguna parte del cuerpo
+      expect(
+        screen.queryByText('Ya validamos el problema del registro manual')
+      ).not.toBeInTheDocument()
+      expect(screen.queryByText('Hablante 1')).not.toBeInTheDocument()
     })
 
     // SPEC-015 · AC-10
-    it('keeps recording without transcription showing the no-key informative alert', async () => {
+    it('keeps recording without transcription showing the no-key informative alert (badge and session in the top bar)', async () => {
       const user = userEvent.setup()
       setupGrantedCapture()
       renderDetail()
@@ -406,11 +448,13 @@ describe('RecordingSection', () => {
         mockApi.emitTranscriptionStatus({ status: 'no-key' })
       })
 
+      // El aviso informativo sigue anclado bajo la (ausente) sección «Grabación»
       expect(await screen.findByText('Falta la key de Deepgram')).toBeInTheDocument()
-      expect(screen.getByText('Sin key')).toBeInTheDocument()
-      // La grabación sigue operativa: cronómetro y Detener presentes
-      expect(screen.getByText('00:00')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Detener' })).toBeInTheDocument()
+      // La sesión sigue operativa en la top bar: badge «Sin key», cronómetro y Detener
+      const controls = topBarRecordingControls()
+      expect(within(controls).getByText('Sin key')).toBeInTheDocument()
+      expect(within(controls).getByText('00:00')).toBeInTheDocument()
+      expect(within(controls).getByRole('button', { name: 'Detener' })).toBeInTheDocument()
     })
   })
 
@@ -488,11 +532,11 @@ describe('RecordingSection', () => {
       renderDetail()
       await startRecording(user)
 
-      // Coexistencia: cronómetro de grabación + guión legible en la misma página.
-      // SPEC-025: los objetivos viven en la sección superior única (h3).
-      // SPEC-042 (adaptación): el bloque de EDICIÓN de objetivos (h4) dentro
-      // del Guión queda derogado — la sección fusionada es la superficie única.
-      expect(screen.getByText('00:00')).toBeInTheDocument()
+      // Coexistencia: cronómetro de grabación (en la top bar) + guión legible en
+      // la misma página. SPEC-025: los objetivos viven en la sección superior
+      // única (h3). SPEC-042 (adaptación): el bloque de EDICIÓN de objetivos (h4)
+      // dentro del Guión queda derogado — la sección fusionada es la superficie única.
+      expect(within(topBarRecordingControls()).getByText('00:00')).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: 'Guión' })).toBeInTheDocument()
       expect(screen.getByText(/Pregunta clave para la llamada/)).toBeInTheDocument()
       expect(screen.getByRole('heading', { name: 'Objetivos', level: 3 })).toBeInTheDocument()

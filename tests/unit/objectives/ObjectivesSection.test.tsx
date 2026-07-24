@@ -113,19 +113,16 @@ beforeEach(() => {
 describe('ObjectivesSection', () => {
   describe('placement and base states', () => {
     // SPEC-025 · AC-01
-    it('renders the Objetivos section between the header and the Grabación section with pending Target items', async () => {
+    it('renders the Objetivos section after the header with pending Target items', async () => {
       const section = await findSection()
 
       expect(
         within(section).getByRole('heading', { name: 'Objetivos', level: 3 })
       ).toBeInTheDocument()
-      // Posición: después del título de la cabecera y antes de "Grabación"
+      // SPEC-055: ya no hay heading «Grabación» (la superficie de grabación vive
+      // bajo la cabecera, sin heading). Posición: Objetivos tras el título.
       const title = screen.getByRole('heading', { name: 'Discovery con Acme' })
-      const recordingHeading = screen.getByRole('heading', { name: 'Grabación' })
       expect(title.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-      expect(
-        section.compareDocumentPosition(recordingHeading) & Node.DOCUMENT_POSITION_FOLLOWING
-      ).toBeTruthy()
       // Un objetivo por línea, todos pendientes (icono Target muted = data-state pending).
       // SPEC-042 (adaptación): el texto del objetivo ya no es un span — es el
       // value del Input editable de la sección fusionada

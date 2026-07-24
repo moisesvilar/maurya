@@ -146,20 +146,32 @@ function stopResult(overrides: Partial<StopResult> = {}): StopResult {
   }
 }
 
+/**
+ * Extensión de SPEC-034: la sesión en vivo de la entrevista sube a la top bar
+ * mientras se graba, así que el detalle clásico también se monta BAJO <Layout/>
+ * (portal al slot) — igual que la captura.
+ */
 function renderInterviewDetail(): RenderResult {
   return render(
     <TooltipProvider>
       <MemoryRouter initialEntries={['/discoveries/d-1/companies/c-1/interviews/i-1']}>
         <Routes>
-          <Route
-            path="/discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
-            element={<InterviewDetailPage />}
-          />
+          <Route path="/" element={<Layout />}>
+            <Route
+              path="discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
+              element={<InterviewDetailPage />}
+            />
+          </Route>
         </Routes>
       </MemoryRouter>
       <Toaster />
     </TooltipProvider>
   )
+}
+
+/** Los controles compactos de la sesión en vivo dentro de la top bar. */
+function topBarRecordingControls(): HTMLElement {
+  return within(screen.getByRole('banner')).getByTestId('topbar-recording-controls')
 }
 
 /** El detalle de captura se monta BAJO <Layout/> (top bar portal, SPEC-034). */
@@ -196,16 +208,6 @@ async function startFromHeader(user: ReturnType<typeof userEvent.setup>): Promis
   await screen.findByRole('button', { name: 'Detener' })
 }
 
-/** La sección «Grabación» (el <section> que envuelve su heading). */
-async function grabacionSection(): Promise<HTMLElement> {
-  const heading = await screen.findByRole('heading', { name: 'Grabación' })
-  const section = heading.closest('section')
-  if (section === null) {
-    throw new Error('El heading «Grabación» debe vivir dentro de un <section>')
-  }
-  return section
-}
-
 /** a precede a b en el orden del documento (patrón SPEC-030). */
 function expectBefore(a: HTMLElement, b: HTMLElement): void {
   expect(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -234,7 +236,9 @@ beforeEach(() => {
 
 describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
   describe('interview detail', () => {
-    // SPEC-041 · AC-01 (orden DOM: Objetivos → panel → Nota/Guión → Grabación)
+    // SPEC-041 · AC-01 (orden DOM: Objetivos → panel → Nota/Guión; la sección
+    // «Grabación» ya no cierra la página mientras se graba —extensión de
+    // SPEC-034: la sesión en vivo vive en la top bar y el heading desaparece)
     it('renders the assistant panel after the Objetivos section and before the Nota/Guión sections while recording', async () => {
       const user = userEvent.setup()
       renderInterviewDetail()
@@ -245,39 +249,38 @@ describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
       // Asíncrono (lección SPEC-029/030): el heading «Guión» solo renderiza
       // cuando NoteScriptSections resuelve getNoteByInterview
       const guion = await screen.findByRole('heading', { name: 'Guión' })
-      const grabacion = await screen.findByRole('heading', { name: 'Grabación' })
 
       expectBefore(objetivos, panel)
       expectBefore(panel, guion)
-      expectBefore(guion, grabacion)
+      // Mientras se graba no hay heading «Grabación» (sesión en la top bar)
+      expect(screen.queryByRole('heading', { name: 'Grabación' })).not.toBeInTheDocument()
     })
 
-    // SPEC-041 · AC-02 (la Grabación ya no contiene el panel; lo demás permanece)
-    it('keeps the Grabación section without the assistant panel while chronometer, Detener, meters and live transcript remain', async () => {
+    // SPEC-041 · AC-02 (la Grabación ya no contiene el panel; además, con la
+    // extensión de SPEC-034, la sesión en vivo sube a la top bar y la
+    // transcripción en vivo se retira con la sección mientras se graba)
+    it('keeps the assistant panel out of the body while the live session lives in the top bar', async () => {
       const user = userEvent.setup()
       renderInterviewDetail()
       await startRecording(user)
       emitQueueItem()
-      // El empty state del área en vivo solo se pinta con la transcripción activa
       act(() => {
         mockApi.emitTranscriptionStatus({ status: 'active' })
       })
-      await screen.findByTestId('assistant-live-section')
 
-      const section = await grabacionSection()
-      // El panel y su cola ya NO viven dentro de la sección Grabación
-      expect(within(section).queryByTestId('assistant-queue-item')).not.toBeInTheDocument()
-      expect(within(section).queryByText(QUESTION)).not.toBeInTheDocument()
-      // …sino en el contenedor de página de SPEC-041
-      const panel = screen.getByTestId('assistant-live-section')
+      // El panel y su cola viven en el contenedor de página de SPEC-041
+      const panel = await screen.findByTestId('assistant-live-section')
       expect(within(panel).getByText(QUESTION)).toBeInTheDocument()
-      // Cronómetro, Detener, medidores y transcripción en vivo permanecen
-      expect(within(section).getByText('00:00')).toBeInTheDocument()
-      expect(within(section).getByRole('button', { name: 'Detener' })).toBeInTheDocument()
-      expect(within(section).getAllByRole('progressbar')).toHaveLength(2)
-      expect(within(section).getByLabelText('Nivel de Micrófono')).toBeInTheDocument()
-      expect(within(section).getByLabelText('Nivel de Sistema')).toBeInTheDocument()
-      expect(within(section).getByText('Esperando audio…')).toBeInTheDocument()
+      // No hay sección «Grabación» ni área de transcripción en vivo en el cuerpo
+      expect(screen.queryByRole('heading', { name: 'Grabación' })).not.toBeInTheDocument()
+      expect(screen.queryByText('Esperando audio…')).not.toBeInTheDocument()
+      // La sesión en vivo (cronómetro, Detener, medidores) vive en la top bar
+      const controls = topBarRecordingControls()
+      expect(within(controls).getByText('00:00')).toBeInTheDocument()
+      expect(within(controls).getByRole('button', { name: 'Detener' })).toBeInTheDocument()
+      expect(within(controls).getAllByRole('progressbar')).toHaveLength(2)
+      expect(within(controls).getByLabelText('Nivel de Micrófono')).toBeInTheDocument()
+      expect(within(controls).getByLabelText('Nivel de Sistema')).toBeInTheDocument()
     })
 
     // SPEC-041 · AC-03 (preparación: el panel no existe en ninguna parte)
@@ -360,10 +363,11 @@ describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
       expect(within(dialog).getAllByTestId('discard-reason-input')).toHaveLength(1)
     })
 
-    // SPEC-041 · AC-10 (regresión SPEC-035: la transcripción en vivo sigue SOLO
-    // en la Grabación de la entrevista; el lado captura lo cubre la suite de
-    // SPEC-035, verde tras la adaptación posicional)
-    it('keeps the live transcript area rendering inside the interview Grabación section only', async () => {
+    // SPEC-041 · AC-10 (derogado por la extensión de SPEC-034: con paridad total
+    // con la captura, la transcripción en vivo de la entrevista se retira junto
+    // con la sección «Grabación» mientras se graba — ya no se pinta en ninguna
+    // parte del cuerpo, tampoco en el panel del asistente)
+    it('no longer renders the live transcript anywhere in the interview while recording', async () => {
       const user = userEvent.setup()
       renderInterviewDetail()
       await startRecording(user)
@@ -382,9 +386,12 @@ describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
         })
       })
 
-      const section = await grabacionSection()
-      expect(await within(section).findByText(LIVE_LINE_TEXT)).toBeInTheDocument()
-      // La línea en vivo no se cuela en el panel de arriba
+      // Ancla de sincronización: el estado «Transcribiendo» llega a la top bar
+      expect(
+        await within(topBarRecordingControls()).findByText('Transcribiendo')
+      ).toBeInTheDocument()
+      // La línea en vivo no se pinta en ninguna parte (ni cuerpo ni panel)
+      expect(screen.queryByText(LIVE_LINE_TEXT)).not.toBeInTheDocument()
       const panel = screen.getByTestId('assistant-live-section')
       expect(within(panel).queryByText(LIVE_LINE_TEXT)).not.toBeInTheDocument()
     })

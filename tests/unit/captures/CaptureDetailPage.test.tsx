@@ -159,7 +159,7 @@ describe('CaptureDetailPage', () => {
     // "Grabación primero" queda derogado — ahora es cabecera → Nota/Guión →
     // Grabación al final. La disposición completa Nota/Guión la cubre
     // tests/unit/markdown/NoteScriptSections.test.tsx
-    it('mounts the Nota/Guión disposition after the header and Grabación last for a capture with transcript', async () => {
+    it('mounts the Nota/Guión disposition after the header for a recorded capture with transcript', async () => {
       setInterview(
         capture({
           wavPath: '/tmp/maurya-recordings/captura.wav',
@@ -174,7 +174,6 @@ describe('CaptureDetailPage', () => {
       // NoteScriptSections resuelve getNoteByInterview — findByRole siempre
       const guion = await screen.findByRole('heading', { name: 'Guión' })
       const nota = await screen.findByRole('heading', { name: 'Nota' })
-      const grabacion = await screen.findByRole('heading', { name: 'Grabación' })
 
       /** a precede a b en el orden del documento. */
       const expectBefore = (a: HTMLElement, b: HTMLElement): void => {
@@ -182,10 +181,8 @@ describe('CaptureDetailPage', () => {
       }
       expectBefore(title, guion)
       expectBefore(guion, nota)
-      expectBefore(nota, grabacion)
-      // Las secciones reciben la captura real: la Grabación está en estado
-      // "Grabada" y muestra la ruta del WAV del fixture (con wavPath ya no
-      // ofrece el CTA "Iniciar grabación")
+      // SPEC-055: ya no hay heading «Grabación» al final. El detalle de la
+      // captura grabada (ruta del WAV) vive en la superficie bajo la cabecera.
       expect(await screen.findByText('/tmp/maurya-recordings/captura.wav')).toBeInTheDocument()
     })
   })
