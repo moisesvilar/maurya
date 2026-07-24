@@ -7,8 +7,11 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle'
 
 /**
  * Mapa prefijo de ruta → título de sección (SPEC-009). `/settings` va primero
- * y captura también `/settings/note-templates/*` ("Ajustes", nota técnica).
- * El orden importa solo conceptualmente aquí (no hay prefijos solapados).
+ * y captura también `/settings/note-templates/*` y, tras SPEC-051,
+ * `/settings/interview-templates/*` ("Ajustes", nota técnica). El orden importa
+ * solo conceptualmente aquí (no hay prefijos solapados).
+ * SPEC-051: desaparece el prefijo `/templates` (la gestión de plantillas se
+ * unifica en Ajustes; las rutas legadas redirigen a /settings).
  */
 const SECTION_TITLES: ReadonlyArray<{ prefix: string; title: string }> = [
   { prefix: '/settings', title: 'Ajustes' },
@@ -16,8 +19,7 @@ const SECTION_TITLES: ReadonlyArray<{ prefix: string; title: string }> = [
   { prefix: '/captures', title: 'Capturas' },
   { prefix: '/discoveries', title: 'Discoveries' },
   // SPEC-044: sección global de empresas (/companies, cubre /companies/:id).
-  { prefix: '/companies', title: 'Empresas' },
-  { prefix: '/templates', title: 'Plantillas' }
+  { prefix: '/companies', title: 'Empresas' }
 ]
 
 /** Título de la sección activa; fallback para rutas desconocidas (404). */

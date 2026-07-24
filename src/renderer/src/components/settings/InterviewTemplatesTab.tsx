@@ -1,14 +1,5 @@
 import React, { useState } from 'react'
-import {
-  AlertTriangle,
-  ArrowLeft,
-  ClipboardList,
-  Copy,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  Trash2
-} from 'lucide-react'
+import { AlertTriangle, ClipboardList, Copy, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
   AlertDialog,
@@ -22,13 +13,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PHASE_LABELS } from '@/components/templates/phaseLabels'
 import { useInterviewTemplates } from '@/hooks/useInterviewTemplates'
@@ -44,27 +28,23 @@ function formatSummary(template: InterviewTemplate): string {
 }
 
 /**
- * Listado de plantillas de entrevista (SPEC-012) — sub-página del hub de
- * Plantillas (back button "Volver" → /templates, regla 2.3). List (no Table)
- * con nombre + Badge de fase + resumen + menú ⋯ Editar/Duplicar/Eliminar.
- * El AlertDialog de eliminación vive a nivel de página, FUERA del
- * DropdownMenu, gobernado por pendingDelete; la apertura desde onSelect se
- * difiere con setTimeout(0) para que el cierre del menú no deje el body con
- * pointer-events:none (mitigador SPEC-010, incidente conocido de Radix
- * dropdown → dialog). "Duplicar" es inmediato, sin diálogo (Toast como
- * feedback).
+ * Pestaña "Plantillas de entrevistas" de Ajustes (SPEC-051): unifica la gestión
+ * de plantillas en Ajustes, derogando el hub de Plantillas (SPEC-009) y el
+ * listado como página (SPEC-012). Reutiliza el patrón de NoteTemplatesTab: List
+ * (no Table) con acciones inline Editar/Duplicar/Eliminar, empty state,
+ * skeletons de carga y error state con Reintentar. Conserva de SPEC-012 el Badge
+ * de fase, el resumen "N bloques · M preguntas" y el "Duplicar" inmediato (Toast
+ * como feedback, sin diálogo). Al no haber ya DropdownMenu, la apertura del
+ * AlertDialog de eliminación es directa (desaparece el mitigador setTimeout(0)
+ * que exigía el incidente Radix dropdown → dialog de SPEC-010).
  */
-export function InterviewTemplatesPage(): React.ReactElement {
+export function InterviewTemplatesTab(): React.ReactElement {
   const navigate = useNavigate()
   const { state, reload, removeTemplate, duplicateTemplate } = useInterviewTemplates()
   const [pendingDelete, setPendingDelete] = useState<InterviewTemplate | null>(null)
 
   const goToNew = (): void => {
-    void navigate('/templates/interview/new')
-  }
-
-  const openDelete = (template: InterviewTemplate): void => {
-    setTimeout(() => setPendingDelete(template), 0)
+    void navigate('/settings/interview-templates/new')
   }
 
   const handleConfirmDelete = (): void => {
@@ -75,14 +55,7 @@ export function InterviewTemplatesPage(): React.ReactElement {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <div>
-        <Button variant="ghost" onClick={() => void navigate('/templates')}>
-          <ArrowLeft />
-          Volver
-        </Button>
-      </div>
-
+    <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-muted-foreground">
           Cuestionarios base para tus entrevistas: bloques ordenados de preguntas con notas de guía
@@ -132,30 +105,33 @@ export function InterviewTemplatesPage(): React.ReactElement {
                 </div>
                 <span className="text-sm text-muted-foreground">{formatSummary(template)}</span>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label="Acciones">
-                    <MoreHorizontal />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onSelect={() => void navigate(`/templates/interview/${template.id}`)}
-                  >
-                    <Pencil />
-                    Editar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => void duplicateTemplate(template)}>
-                    <Copy />
-                    Duplicar
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem variant="destructive" onSelect={() => openDelete(template)}>
-                    <Trash2 />
-                    Eliminar
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Editar plantilla"
+                  onClick={() => void navigate(`/settings/interview-templates/${template.id}`)}
+                >
+                  <Pencil />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Duplicar plantilla"
+                  onClick={() => void duplicateTemplate(template)}
+                >
+                  <Copy />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive hover:text-destructive"
+                  aria-label="Eliminar plantilla"
+                  onClick={() => setPendingDelete(template)}
+                >
+                  <Trash2 />
+                </Button>
+              </div>
             </li>
           ))}
         </ul>

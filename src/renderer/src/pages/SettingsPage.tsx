@@ -7,19 +7,21 @@ import { ApiKeyRow } from '@/components/settings/ApiKeyRow'
 import { AiModelsCard } from '@/components/settings/AiModelsCard'
 import { AssistantSettingsCard } from '@/components/settings/AssistantSettingsCard'
 import { CustomPromptsTab } from '@/components/settings/CustomPromptsTab'
+import { InterviewTemplatesTab } from '@/components/settings/InterviewTemplatesTab'
 import { LinkedinMcpCard } from '@/components/settings/LinkedinMcpCard'
 import { NoteTemplatesTab } from '@/components/settings/NoteTemplatesTab'
 import { useSecrets } from '@/hooks/useSecrets'
 
-type SettingsTab = 'api-keys' | 'note-templates' | 'custom-prompts'
+type SettingsTab = 'api-keys' | 'note-templates' | 'interview-templates' | 'custom-prompts'
 
 /**
  * Página de Ajustes (SPEC-007 + SPEC-008) — Layout 4 (Settings) con Tabs:
- * "Claves de IA" (SPEC-007, guardado cifrado write-only) y "Plantillas de
- * notas" (SPEC-008). La pestaña activa se refleja en `?tab=` (default
- * api-keys si falta o es inválido) para que "Volver" del editor de plantillas
- * regrese a la pestaña correcta. Sin forceMount: la pestaña inactiva se
- * desmonta y no dispara sus cargas.
+ * "Claves de IA" (SPEC-007, guardado cifrado write-only), "Plantillas de
+ * notas" (SPEC-008) y "Plantillas de entrevistas" (SPEC-051, que unifica aquí
+ * la gestión de plantillas derogando el hub de SPEC-009/012). La pestaña activa
+ * se refleja en `?tab=` (default api-keys si falta o es inválido) para que
+ * "Volver" de los editores de plantillas regrese a la pestaña correcta. Sin
+ * forceMount: la pestaña inactiva se desmonta y no dispara sus cargas.
  *
  * SPEC-009: la página vive bajo el Layout — sin back button "Volver" (la
  * navegación la da el sidebar, regla 2.3) y sin h1 propio (el título "Ajustes"
@@ -31,7 +33,11 @@ export function SettingsPage(): React.ReactElement {
 
   const tabParam = searchParams.get('tab')
   const tab: SettingsTab =
-    tabParam === 'note-templates' || tabParam === 'custom-prompts' ? tabParam : 'api-keys'
+    tabParam === 'note-templates' ||
+    tabParam === 'interview-templates' ||
+    tabParam === 'custom-prompts'
+      ? tabParam
+      : 'api-keys'
 
   const handleTabChange = (value: string): void => {
     setSearchParams({ tab: value }, { replace: true })
@@ -46,6 +52,7 @@ export function SettingsPage(): React.ReactElement {
         <TabsList>
           <TabsTrigger value="api-keys">Claves de IA</TabsTrigger>
           <TabsTrigger value="note-templates">Plantillas de notas</TabsTrigger>
+          <TabsTrigger value="interview-templates">Plantillas de entrevistas</TabsTrigger>
           <TabsTrigger value="custom-prompts">Prompts personalizados</TabsTrigger>
         </TabsList>
         <TabsContent value="api-keys" className="pt-4">
@@ -98,6 +105,9 @@ export function SettingsPage(): React.ReactElement {
         </TabsContent>
         <TabsContent value="note-templates" className="pt-4">
           <NoteTemplatesTab />
+        </TabsContent>
+        <TabsContent value="interview-templates" className="pt-4">
+          <InterviewTemplatesTab />
         </TabsContent>
         <TabsContent value="custom-prompts" className="pt-4">
           <CustomPromptsTab />

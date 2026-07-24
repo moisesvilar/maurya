@@ -1,13 +1,5 @@
 import React from 'react'
-import {
-  Building2,
-  FileText,
-  FolderSearch,
-  Mic,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Settings
-} from 'lucide-react'
+import { Building2, FolderSearch, Mic, PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -24,11 +16,13 @@ interface NavItem {
  * SPEC-020: "Captura" pasa a "Capturas" (→ /captures), mismo icono y posición.
  * SPEC-044: "Empresas" (→ /companies) entra tras "Discoveries"; el estado
  * activo por prefijo cubre también /companies/:companyId.
+ * SPEC-051: desaparece "Plantillas" — su gestión se muda a Ajustes (quedan 4
+ * items); el estado activo por prefijo de "Ajustes" cubre los editores de
+ * plantillas bajo /settings/*.
  */
 const NAV_ITEMS: NavItem[] = [
   { to: '/discoveries', label: 'Discoveries', icon: FolderSearch },
   { to: '/companies', label: 'Empresas', icon: Building2 },
-  { to: '/templates', label: 'Plantillas', icon: FileText },
   { to: '/captures', label: 'Capturas', icon: Mic },
   { to: '/settings', label: 'Ajustes', icon: Settings }
 ]
@@ -84,7 +78,7 @@ interface SidebarProps {
 /**
  * Sidebar de navegación principal (SPEC-009), construido a mano con
  * primitivas + Tailwind (decisión documentada: no usar el componente sidebar
- * de shadcn, sobredimensionado para 5 items fijos). Ancho 240px expandido /
+ * de shadcn, sobredimensionado para 4 items fijos). Ancho 240px expandido /
  * 64px colapsado; el colapso lo gobierna el Layout vía useSidebarCollapsed.
  */
 export function Sidebar({ collapsed, onToggle }: SidebarProps): React.ReactElement {
