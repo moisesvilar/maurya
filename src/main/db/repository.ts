@@ -582,6 +582,11 @@ export function updateInterview(id: string, patch: UpdateInterviewPatch): Interv
     if (patch.templateId !== undefined && patch.templateId !== null) {
       assertReference(draft.interviewTemplates, patch.templateId, 'template de entrevista')
     }
+    if (patch.interviewGroupId !== undefined && patch.interviewGroupId !== null) {
+      // Misma invariante que en create: el grupo destino existe y pertenece
+      // al discovery de la entrevista.
+      assertInterviewGroup(draft, interview.discoveryId, patch.interviewGroupId)
+    }
     if (patch.title !== undefined) {
       interview.title = patch.title
     }
@@ -590,6 +595,9 @@ export function updateInterview(id: string, patch: UpdateInterviewPatch): Interv
     }
     if (patch.contactIds !== undefined) {
       interview.contactIds = patch.contactIds
+    }
+    if (patch.interviewGroupId !== undefined) {
+      interview.interviewGroupId = patch.interviewGroupId
     }
     if (patch.templateId !== undefined) {
       interview.templateId = patch.templateId
