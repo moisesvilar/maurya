@@ -15,6 +15,7 @@
     "cli:build": "esbuild src/cli/index.ts --bundle --platform=node --format=cjs --outfile=out/cli/index.cjs --alias:electron=./src/cli/electron-stub.ts --log-level=warning",
     "cli": "node ./bin/maurya-cli",
     "lint": "eslint --cache .",
+    "lint:md": "node scripts/check-md-linebreaks.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
