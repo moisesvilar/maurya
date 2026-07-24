@@ -88,7 +88,7 @@ describe('InterviewDetailPage', () => {
       ).toBeInTheDocument()
       expect(screen.getByText('Borrador')).toBeInTheDocument()
       // Referencias con fallbacks (fixture con contactId/templateId null)
-      expect(screen.getByText(/Acme Corp · Sin contacto · Sin template/)).toBeInTheDocument()
+      expect(screen.getByText(/Acme Corp · Sin contacto · Sin plantilla/)).toBeInTheDocument()
 
       // Volver regresa al detalle GLOBAL de la empresa (SPEC-048)
       await user.click(screen.getByRole('button', { name: 'Volver' }))

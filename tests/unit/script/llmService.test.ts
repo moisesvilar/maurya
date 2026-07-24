@@ -213,7 +213,7 @@ describe('llmService', () => {
       const error = await captureLlmError(generateInterviewScript(interview.id))
 
       expect(error.kind).toBe('no-template')
-      expect(error.message).toBe('Asigna un template para generar el guión')
+      expect(error.message).toBe('Asigna una plantilla de preguntas para generar el guión')
       expect(harness.create).not.toHaveBeenCalled()
     })
 

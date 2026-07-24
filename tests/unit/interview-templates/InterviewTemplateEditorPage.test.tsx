@@ -62,7 +62,7 @@ function renderEditor(initialEntry: string): RenderResult {
 
 /** Aserta que la salida del editor aterrizó en la pestaña de plantillas de entrevistas. */
 async function expectBackOnInterviewTemplatesTab(): Promise<void> {
-  expect(await screen.findByRole('tab', { name: 'Plantillas de entrevistas' })).toHaveAttribute(
+  expect(await screen.findByRole('tab', { name: 'Plantillas de preguntas' })).toHaveAttribute(
     'aria-selected',
     'true'
   )

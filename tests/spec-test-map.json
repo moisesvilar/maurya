@@ -2403,5 +2403,133 @@
     },
     "notes": "Reorg 100% renderer sin cambios de infra: los defaults de installMockApi (listInterviewTemplates → ok []) bastan; getInterviewTemplate/create/delete se configuran por test. Reubicación de SPEC-012: el hub y la página desaparecen; el listado se reescribe contra SettingsPage con acciones inline (menú «⋯» → 3 botones por aria-label) y el editor pasa a colgar de /settings/interview-templates/*. Breakage presupuestado repuesto: Layout.test.tsx y sections.test.tsx pierden el hub y el link 'Plantillas'; companiesNavigation.test.tsx (SPEC-044) aserta la posición de 'Empresas' respecto a 'Capturas' en vez de 'Plantillas'. La cobertura de SPEC-012/SPEC-009 se remapea (ver esas entradas).",
     "created_at": "2026-07-24"
+  },
+  "SPEC-052": {
+    "spec_file": "specs/SPEC-052-unificar-terminos-para-plantillas.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición en la spec (20): AC-01 orden de las 4 pestañas de Ajustes, AC-02 ?tab=interview-templates activa «Plantillas de preguntas»+listado, AC-03 empty state «Aún no hay plantillas de preguntas»+CTA, AC-04 empty state «Aún no hay plantillas de notas»+CTA, AC-05 InterviewFormDialog select «Plantilla de preguntas»/«Sin plantilla», AC-06 New/EditCaptureDialog select «Plantilla de preguntas»/«Sin plantilla», AC-07 InterviewGroupFormDialog dos selects «Plantilla de preguntas»/«Plantilla de notas»/«Sin plantilla», AC-08 NoteSection select aria «Plantilla de notas», AC-09 fallbacks «Sin plantilla de preguntas/notas» (grupo y fila discovery), AC-10 fila detalle «Sin plantilla» (entrevista/captura), AC-11 tooltip guión «Asigna una plantilla de preguntas …», AC-12 error no-template de main mismo texto, AC-13 aviso «Crea una plantilla de notas …»+link «Gestionar plantillas de notas», AC-14 tooltip «Necesitas una plantilla de notas», AC-15 error «La plantilla de notas no tiene secciones …», AC-16 entidad de error del repo «plantilla de preguntas»/«plantilla de notas», AC-17 prompt de guión «plantilla de preguntas»/«## Plantilla de preguntas» (llmService+default), AC-18 prompt de nota «plantilla de notas»/«## Secciones de la plantilla de notas (en este orden)» (noteService+default), AC-19 títulos de editor «Nueva plantilla»/«Editar plantilla» conservados, AC-20 aria-labels de fila + AlertDialog «Eliminar plantilla» + Toasts «Plantilla eliminada»/«Plantilla duplicada» conservados.",
+    "unit": [
+      {
+        "file": "tests/unit/interview-templates/InterviewTemplatesTab.test.tsx",
+        "test_count": 4,
+        "description": "Pestaña de Ajustes renombrada a «Plantillas de preguntas»: orden de las 4 pestañas (AC-01), activación con ?tab=interview-templates (AC-02), empty state «Aún no hay plantillas de preguntas» + CTA (AC-03) y conservación de AlertDialog «Eliminar plantilla» y Toasts «Plantilla eliminada»/«Plantilla duplicada» (AC-20). Locators getByRole('tab'/'combobox') y textos actualizados a los términos nuevos."
+      },
+      {
+        "file": "tests/unit/note-templates/NoteTemplatesTab.test.tsx",
+        "test_count": 2,
+        "description": "Empty state «Aún no hay plantillas de notas» sin cambios (AC-04) y Toast/AlertDialog «Eliminar plantilla» conservados (AC-20)."
+      },
+      {
+        "file": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx",
+        "test_count": 1,
+        "description": "InterviewFormDialog dentro de CompanyDetailPage: label + aria-label del select «Plantilla de preguntas» y opción «Sin plantilla» (AC-05)."
+      },
+      {
+        "file": "tests/unit/captures/NewCaptureDialog.test.tsx",
+        "test_count": 1,
+        "description": "NewCaptureDialog: label + aria-label «Plantilla de preguntas» y opción vacía «Sin plantilla» (AC-06)."
+      },
+      {
+        "file": "tests/unit/captures/CapturesPage.test.tsx",
+        "test_count": 1,
+        "description": "EditCaptureDialog vía CapturesPage: aria-label del select «Plantilla de preguntas» (AC-06)."
+      },
+      {
+        "file": "tests/unit/discoveries/DiscoveryDetailPage.test.tsx",
+        "test_count": 2,
+        "description": "InterviewGroupFormDialog: selects «Plantilla de preguntas»/«Plantilla de notas» con opción «Sin plantilla» (AC-07); fila del grupo con fallback «Sin plantilla de preguntas …» (AC-09)."
+      },
+      {
+        "file": "tests/unit/interview-groups/InterviewGroupDetailPage.test.tsx",
+        "test_count": 1,
+        "description": "Página del grupo: fallbacks «Sin plantilla de preguntas · Sin plantilla de notas» y select «Plantilla de preguntas»/«Plantilla de notas» del diálogo (AC-09)."
+      },
+      {
+        "file": "tests/unit/notes/NoteSection.test.tsx",
+        "test_count": 2,
+        "description": "NoteSection: aria-label del select «Plantilla de notas» (AC-08), aviso «Crea una plantilla de notas …» + link «Gestionar plantillas de notas» (AC-13) y tooltip «Necesitas una plantilla de notas» (AC-14)."
+      },
+      {
+        "file": "tests/unit/markdown/NoteScriptSections.test.tsx",
+        "test_count": 1,
+        "description": "Disposición apilada: el select de nota expone el nombre accesible «Plantilla de notas» (AC-08)."
+      },
+      {
+        "file": "tests/unit/script/ScriptSection.test.tsx",
+        "test_count": 1,
+        "description": "ScriptSection: tooltip «Asigna una plantilla de preguntas para generar el guión» en el botón deshabilitado (AC-11)."
+      },
+      {
+        "file": "tests/unit/interviews/InterviewDetailPage.test.tsx",
+        "test_count": 1,
+        "description": "InterviewDetailPage: fila de metadatos con fallback «Sin plantilla» (AC-10)."
+      },
+      {
+        "file": "tests/unit/captures/CaptureDetailPage.test.tsx",
+        "test_count": 1,
+        "description": "CaptureDetailPage: fila de metadatos con fallback «Sin plantilla» (AC-10)."
+      },
+      {
+        "file": "tests/unit/script/llmService.test.ts",
+        "test_count": 1,
+        "description": "llmService: el error no-template lleva el mensaje «Asigna una plantilla de preguntas para generar el guión» (AC-12)."
+      },
+      {
+        "file": "tests/unit/script/llmService.captures.test.ts",
+        "test_count": 1,
+        "description": "llmService (capturas): la cabecera del prompt es «## Plantilla de preguntas» (AC-17)."
+      },
+      {
+        "file": "tests/unit/custom-prompts/customPromptsResolution.test.ts",
+        "test_count": 2,
+        "description": "Resolución de prompts personalizados: system del guión con «Tu tarea: adaptar la plantilla de preguntas» (AC-17) y contexto de nota «Contexto de la plantilla de notas» (AC-18)."
+      },
+      {
+        "file": "tests/unit/notes/noteService.test.ts",
+        "test_count": 2,
+        "description": "noteService (SPEC-052): nuevo test del error «La plantilla de notas no tiene secciones …» (AC-15) y del prompt de nota con «## Secciones de la plantilla de notas (en este orden)» + tarea «siguiendo las secciones de la plantilla de notas» (AC-18)."
+      },
+      {
+        "file": "tests/unit/persistence/repository.groups.test.ts",
+        "test_count": 1,
+        "description": "repository (SPEC-052): nuevo test que aserta que el mensaje del error de referencia nombra «plantilla de preguntas»/«plantilla de notas» (AC-16)."
+      },
+      {
+        "file": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx",
+        "test_count": 1,
+        "description": "Editor de plantilla de preguntas: título «Nueva plantilla» conservado (AC-19)."
+      },
+      {
+        "file": "tests/unit/note-templates/NoteTemplateEditorPage.test.tsx",
+        "test_count": 1,
+        "description": "Editor de plantilla de notas: título «Editar plantilla» conservado (AC-19)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "Sin e2e: Playwright no aplica en este proyecto (app Electron local, decisión humana 2026-07-03). La verificación end-to-end es manual; QA automatizado = Vitest unit.",
+    "manual_verification": [],
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/interview-templates/InterviewTemplatesTab.test.tsx::SettingsPage (pestaña de plantillas de entrevistas)::shows the four settings tabs in order: Claves de IA, Plantillas de notas, Plantillas de entrevistas, Prompts personalizados",
+      "AC-02": "tests/unit/interview-templates/InterviewTemplatesTab.test.tsx::SettingsPage (pestaña de plantillas de entrevistas)::activates the \"Plantillas de entrevistas\" tab and shows its list when loaded with ?tab=interview-templates",
+      "AC-03": "tests/unit/interview-templates/InterviewTemplatesTab.test.tsx::InterviewTemplatesTab (listado)::listing templates::shows the empty state with its text and the \"Crear primera plantilla\" CTA when there are none",
+      "AC-04": "tests/unit/note-templates/NoteTemplatesTab.test.tsx::NoteTemplatesTab (listado)::listing templates::shows the empty state with its text and the \"Crear primera plantilla\" CTA when there are no templates",
+      "AC-05": "tests/unit/interviews/CompanyDetailPage.interviews.test.tsx::CompanyDetailPage (entrevistas)::creating an interview::opens the \"Nueva entrevista\" dialog with focused title, the Participantes checklist and the optional template select",
+      "AC-06": "tests/unit/captures/NewCaptureDialog.test.tsx::NewCaptureDialog::renders Título (optional, with the default-name placeholder), Discovery (required) and Plantilla defaulting to \"Sin template\" with name+phase labels + tests/unit/captures/CapturesPage.test.tsx::CapturesPage::row actions menu::includes \"Editar\" and \"Eliminar\" in the menu and opens the edit dialog without a Participantes field for unassigned captures",
+      "AC-07": "tests/unit/discoveries/DiscoveryDetailPage.test.tsx::DiscoveryDetailPage::group creation (SPEC-045)::opens the \"Nuevo grupo\" dialog with Nombre, Objetivo and both optional template selects defaulting to \"Sin template\"",
+      "AC-08": "tests/unit/notes/NoteSection.test.tsx::NoteSection::base states::shows the template selector and the \"Generar nota\" button for a recorded interview without note + tests/unit/markdown/NoteScriptSections.test.tsx::NoteScriptSections::stacked layouts::shows the Guión section plus the note generation controls when there is a transcript but no script and no note",
+      "AC-09": "tests/unit/interview-groups/InterviewGroupDetailPage.test.tsx::InterviewGroupDetailPage::header::shows the muted \"Sin objetivo\" and the \"Sin template …\" fallbacks for a bare group + tests/unit/discoveries/DiscoveryDetailPage.test.tsx::DiscoveryDetailPage::interview groups listing (SPEC-045)::shows \"Sin template de preguntas\" for a group whose template no longer exists without crashing",
+      "AC-10": "tests/unit/interviews/InterviewDetailPage.test.tsx::InterviewDetailPage::header and references::shows title, \"Borrador\" badge and refs with the null fallbacks, and \"Volver\" returns to the company + tests/unit/captures/CaptureDetailPage.test.tsx::CaptureDetailPage::header::shows the \"Volver\" back button to /captures, the h1 title, the status badge and the muted refs row with fallbacks",
+      "AC-11": "tests/unit/script/ScriptSection.test.tsx::ScriptSection::generation::disables the generate button with the template tooltip when the interview has no template",
+      "AC-12": "tests/unit/script/llmService.test.ts::llmService::prerequisites::fails with no-template without calling the SDK when the interview has no template",
+      "AC-13": "tests/unit/notes/NoteSection.test.tsx::NoteSection::base states::shows the create-template hint with a link and disables generation with its tooltip when there are no note-templates",
+      "AC-14": "tests/unit/notes/NoteSection.test.tsx::NoteSection::base states::shows the create-template hint with a link and disables generation with its tooltip when there are no note-templates (mismo test: verifica también el tooltip «Necesitas una plantilla de notas»)",
+      "AC-15": "tests/unit/notes/noteService.test.ts::noteService::generation::fails with the «La plantilla de notas no tiene secciones» message when the template has no sections",
+      "AC-16": "tests/unit/persistence/repository.groups.test.ts::repository (SPEC-043 grupos de entrevistas)::creation::names the referenced entity as «plantilla de preguntas» / «plantilla de notas» in reference errors",
+      "AC-17": "tests/unit/script/llmService.captures.test.ts::llmService (SPEC-020 capturas)::generation without a company::generates from the template and the discovery name only, omitting the company/contact/history sections, and sets status prepared + tests/unit/custom-prompts/customPromptsResolution.test.ts::customPromptsResolution::script generation (llmService)::uses the saved script override as persona block keeping the locked rules intact in the system prompt",
+      "AC-18": "tests/unit/notes/noteService.test.ts::noteService::generation::builds the note prompt using «plantilla de notas» in the sections header and the task line + tests/unit/custom-prompts/customPromptsResolution.test.ts::customPromptsResolution::note generation (noteService)::uses the saved note override as persona block keeping the locked rules intact in the system prompt",
+      "AC-19": "tests/unit/interview-templates/InterviewTemplateEditorPage.test.tsx::InterviewTemplateEditorPage::new template::opens the empty editor with one initial block containing one blank question + tests/unit/note-templates/NoteTemplateEditorPage.test.tsx::NoteTemplateEditorPage::editing a template::opens preloaded with the name, context and sections in their stored order",
+      "AC-20": "tests/unit/interview-templates/InterviewTemplatesTab.test.tsx::InterviewTemplatesTab (listado)::deleting::opens the \"Eliminar plantilla\" AlertDialog naming the template, with Cancelar and Eliminar + tests/unit/interview-templates/InterviewTemplatesTab.test.tsx::InterviewTemplatesTab (listado)::duplicating::duplicates immediately without a dialog, shows the toast and adds the copy to the list"
+    },
+    "notes": "SPEC-052 es una unificación de terminología (rename de cadenas visibles y nombres accesibles), sin cambios funcionales. La mayoría de los ACs se cubren actualizando los locators/aserciones de tests existentes de otras specs a los textos nuevos (según la nota «data-testid» de la spec), sin renombrar los títulos it/describe para preservar la trazabilidad del map. Se añaden 3 tests focalizados para los ACs sin aserción de string previa: AC-15 (noteService, error de secciones vacías), AC-16 (repository, etiqueta de entidad en el mensaje) y AC-18 (noteService, cabecera/tarea del prompt de nota). Cero gaps.",
+    "created_at": "2026-07-24T12:14:06.470Z"
   }
 }

@@ -278,7 +278,7 @@ describe('customPromptsResolution', () => {
       expect(system).not.toContain('Eres un preparador experto')
       // Partes bloqueadas intactas: fase dinámica + tarea + reglas del JSON
       expect(system).toContain('La entrevista es de fase de problema.')
-      expect(system).toContain('Tu tarea: adaptar el template de entrevista')
+      expect(system).toContain('Tu tarea: adaptar la plantilla de preguntas')
       expect(system).toContain('`scriptMarkdown`: el guión completo en markdown')
       expect(system).toContain('`objectives`: entre 3 y 7 objetivos')
       expect(system).toContain('Responde únicamente con el JSON pedido.')
@@ -333,7 +333,7 @@ describe('customPromptsResolution', () => {
       expect(personaBlockContent(system)).toBe('Persona personalizada de la nota.')
       expect(system).not.toContain('Eres un sintetizador experto')
       // Partes bloqueadas intactas: contexto dinámico del template + reglas
-      expect(system).toContain('Contexto del note-template')
+      expect(system).toContain('Contexto de la plantilla de notas')
       expect(system).toContain('Céntrate en dolores.')
       expect(system).toContain('Tu tarea: sintetizar la conversación')
       expect(system).toContain('`sections`: exactamente una entrada')
@@ -437,7 +437,9 @@ describe('customPromptsResolution', () => {
       expect(personaBlockContent(system)).toBe(CUSTOM_PROMPT_DEFAULTS.note.persona)
       // El contexto del note-template (parte dinámica) queda FUERA del bloque
       const { lines, end } = personaBlockBounds(system)
-      const contextLine = lines.findIndex((line) => line.startsWith('Contexto del note-template'))
+      const contextLine = lines.findIndex((line) =>
+        line.startsWith('Contexto de la plantilla de notas')
+      )
       expect(contextLine).toBeGreaterThan(end)
       expect(lines.indexOf('Céntrate en dolores.')).toBeGreaterThan(end)
     })

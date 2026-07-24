@@ -164,7 +164,8 @@ describe('ScriptSection', () => {
       }
       await user.hover(wrapper)
       expect(
-        (await screen.findAllByText('Asigna un template para generar el guión')).length
+        (await screen.findAllByText('Asigna una plantilla de preguntas para generar el guión'))
+          .length
       ).toBeGreaterThanOrEqual(1)
     })
 
@@ -476,7 +477,8 @@ describe('ScriptSection', () => {
       }
       await user.hover(wrapper)
       expect(
-        (await screen.findAllByText('Asigna un template para generar el guión')).length
+        (await screen.findAllByText('Asigna una plantilla de preguntas para generar el guión'))
+          .length
       ).toBeGreaterThanOrEqual(1)
     })
 

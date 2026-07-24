@@ -97,10 +97,10 @@ describe('NewCaptureDialog', () => {
       'Selecciona un discovery'
     )
     // Plantilla opcional: default "Sin template" + etiqueta nombre (fase)
-    const templateSelect = screen.getByRole('combobox', { name: 'Plantilla' })
-    expect(templateSelect).toHaveTextContent('Sin template')
+    const templateSelect = screen.getByRole('combobox', { name: 'Plantilla de preguntas' })
+    expect(templateSelect).toHaveTextContent('Sin plantilla')
     await user.click(templateSelect)
-    expect(await screen.findByRole('option', { name: 'Sin template' })).toBeInTheDocument()
+    expect(await screen.findByRole('option', { name: 'Sin plantilla' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Entrevista MDR (Problema)' })).toBeInTheDocument()
   })
 

@@ -255,9 +255,11 @@ describe('CompanyDetailPage (entrevistas)', () => {
       expect(within(dialog).queryByRole('combobox', { name: 'Contacto' })).toBeNull()
 
       // Select de template: "Sin template" + templates con su fase entre paréntesis
-      expect(screen.getByRole('combobox', { name: 'Template' })).toHaveTextContent('Sin template')
-      await user.click(screen.getByRole('combobox', { name: 'Template' }))
-      expect(await screen.findByRole('option', { name: 'Sin template' })).toBeInTheDocument()
+      expect(screen.getByRole('combobox', { name: 'Plantilla de preguntas' })).toHaveTextContent(
+        'Sin plantilla'
+      )
+      await user.click(screen.getByRole('combobox', { name: 'Plantilla de preguntas' }))
+      expect(await screen.findByRole('option', { name: 'Sin plantilla' })).toBeInTheDocument()
       expect(screen.getByRole('option', { name: 'Entrevista MDR (Problema)' })).toBeInTheDocument()
     })
 
@@ -283,7 +285,7 @@ describe('CompanyDetailPage (entrevistas)', () => {
       // SPEC-046: el participante se marca en la lista de Checkbox
       const participants = screen.getByTestId('interview-participants')
       await user.click(within(participants).getByRole('checkbox', { name: /Jane Doe/ }))
-      await user.click(screen.getByRole('combobox', { name: 'Template' }))
+      await user.click(screen.getByRole('combobox', { name: 'Plantilla de preguntas' }))
       await user.click(await screen.findByRole('option', { name: 'Entrevista MDR (Problema)' }))
       await user.click(screen.getByRole('button', { name: 'Crear' }))
 
@@ -346,7 +348,7 @@ describe('CompanyDetailPage (entrevistas)', () => {
       const titleInput = await openCreateDialog(user)
       await user.type(titleInput, 'Entrevista con Jane')
       await selectDiscovery(user)
-      await user.click(screen.getByRole('combobox', { name: 'Template' }))
+      await user.click(screen.getByRole('combobox', { name: 'Plantilla de preguntas' }))
       await user.click(await screen.findByRole('option', { name: 'Entrevista MDR (Problema)' }))
       await user.click(screen.getByRole('button', { name: 'Crear' }))
 
@@ -390,9 +392,9 @@ describe('CompanyDetailPage (entrevistas)', () => {
       expect(within(participants).getByText('Esta empresa no tiene contactos')).toBeInTheDocument()
       expect(within(participants).queryAllByRole('checkbox')).toHaveLength(0)
 
-      await user.click(screen.getByRole('combobox', { name: 'Template' }))
+      await user.click(screen.getByRole('combobox', { name: 'Plantilla de preguntas' }))
       expect(await screen.findAllByRole('option')).toHaveLength(1)
-      expect(screen.getByRole('option', { name: 'Sin template' })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'Sin plantilla' })).toBeInTheDocument()
       await user.keyboard('{Escape}')
 
       await user.type(titleInput, 'Solo título')
@@ -433,7 +435,7 @@ describe('CompanyDetailPage (entrevistas)', () => {
       // Participantes precargados: el contacto actual llega marcado
       const participants = within(dialog).getByTestId('interview-participants')
       expect(within(participants).getByRole('checkbox', { name: /Jane Doe/ })).toBeChecked()
-      expect(screen.getByRole('combobox', { name: 'Template' })).toHaveTextContent(
+      expect(screen.getByRole('combobox', { name: 'Plantilla de preguntas' })).toHaveTextContent(
         'Entrevista MDR (Problema)'
       )
 
@@ -609,7 +611,7 @@ describe('CompanyDetailPage (entrevistas)', () => {
       // SPEC-046: el participante se marca en la lista de Checkbox
       const participants = screen.getByTestId('interview-participants')
       await user.click(within(participants).getByRole('checkbox', { name: /Jane Doe/ }))
-      await user.click(screen.getByRole('combobox', { name: 'Template' }))
+      await user.click(screen.getByRole('combobox', { name: 'Plantilla de preguntas' }))
       await user.click(await screen.findByRole('option', { name: 'Entrevista MDR (Problema)' }))
       await user.click(screen.getByRole('button', { name: 'Crear' }))
 

@@ -132,7 +132,7 @@ describe('llmService (SPEC-020 capturas)', () => {
       // El discovery viaja como único contexto...
       const userPrompt = sentUserPrompt()
       expect(userPrompt).toContain('## Discovery\nNombre: Vertical Sanidad')
-      expect(userPrompt).toContain('## Template de entrevista')
+      expect(userPrompt).toContain('## Plantilla de preguntas')
       // ...y las secciones de empresa/contacto/histórico se omiten
       expect(userPrompt).not.toContain('## Empresa')
       expect(userPrompt).not.toContain('## Contacto')

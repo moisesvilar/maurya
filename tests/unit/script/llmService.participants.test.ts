@@ -257,7 +257,7 @@ describe('llmService (SPEC-046 participantes)', () => {
         '## Discovery\nNombre: Discovery Maurya\n\n' +
           '## Empresa\nNombre: Acme Corp\nWeb: https://acme.example\n\n' +
           '## Contactos\nNombre: Jane Doe\nCargo: CTO\n\n' +
-          '## Template de entrevista\nTemplate: Entrevista de problema\n\n' +
+          '## Plantilla de preguntas\nTemplate: Entrevista de problema\n\n' +
           'Bloque 1: Contexto\n  1.1 ¿Quién lleva el regulatorio?\n\n' +
           '## Tarea\nGenera el guión personalizado y los objetivos para la entrevista ' +
           '"Discovery con Acme".'

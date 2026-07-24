@@ -264,7 +264,7 @@ describe('noteService', () => {
       const formatError = await captureLlmError(generateInterviewNote(interview.id, template.id))
       expect(formatError.kind).toBe('format')
       expect(formatError.message).toBe(
-        'La respuesta de la IA no cubre todas las secciones del note-template. Vuelve a intentarlo.'
+        'La respuesta de la IA no cubre todas las secciones de la plantilla de notas. Vuelve a intentarlo.'
       )
 
       // La nota previa y el estado quedan intactos
@@ -272,6 +272,39 @@ describe('noteService', () => {
         first.note.contentMarkdown
       )
       expect(repository.getInterview(interview.id).status).toBe('summarized')
+    })
+
+    // SPEC-052 (unificación de terminología): el error de plantilla sin
+    // secciones nombra «plantilla de notas» y no llama al SDK.
+    it('fails with the «La plantilla de notas no tiene secciones» message when the template has no sections', async () => {
+      const { interview } = seedBase()
+      const emptyTemplate = repository.createNoteTemplate({ name: 'Sin secciones' })
+
+      const error = await captureLlmError(generateInterviewNote(interview.id, emptyTemplate.id))
+
+      expect(error.kind).toBe('format')
+      expect(error.message).toBe(
+        'La plantilla de notas no tiene secciones. Añádelas para generar la nota.'
+      )
+      expect(harness.create).not.toHaveBeenCalled()
+    })
+
+    // SPEC-052 (unificación de terminología): el prompt de nota usa «plantilla
+    // de notas» en la cabecera de secciones (user) y en la tarea (system).
+    it('builds the note prompt using «plantilla de notas» in the sections header and the task line', async () => {
+      const { interview, template } = seedBase()
+      harness.create.mockResolvedValue(sdkResponse(GENERATED_SECTIONS))
+
+      await generateInterviewNote(interview.id, template.id)
+
+      const params = harness.create.mock.calls[0][0] as {
+        messages: Array<{ content: string }>
+        system: string
+      }
+      expect(params.messages[0].content).toContain(
+        '## Secciones de la plantilla de notas (en este orden)'
+      )
+      expect(params.system).toContain('siguiendo las secciones de la plantilla de notas')
     })
   })
 

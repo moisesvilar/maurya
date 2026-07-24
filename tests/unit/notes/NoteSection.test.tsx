@@ -233,9 +233,9 @@ describe('NoteSection', () => {
       await waitFor(() =>
         expect(within(section).getByRole('button', { name: 'Generar nota' })).toBeEnabled()
       )
-      expect(within(section).getByRole('combobox', { name: 'Note-template' })).toHaveTextContent(
-        'Notas discovery'
-      )
+      expect(
+        within(section).getByRole('combobox', { name: 'Plantilla de notas' })
+      ).toHaveTextContent('Notas discovery')
       expect(within(section).getByRole('button', { name: 'Ver transcripción' })).toBeInTheDocument()
     })
 
@@ -261,7 +261,7 @@ describe('NoteSection', () => {
       expect(
         screen.queryByText('Graba la entrevista para poder generar la nota.')
       ).not.toBeInTheDocument()
-      expect(screen.queryByRole('combobox', { name: 'Note-template' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('combobox', { name: 'Plantilla de notas' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Generar nota' })).not.toBeInTheDocument()
     })
 
@@ -273,10 +273,10 @@ describe('NoteSection', () => {
       const section = await noteSection()
 
       expect(
-        await within(section).findByText(/Crea un note-template para generar la nota/)
+        await within(section).findByText(/Crea una plantilla de notas para generar la nota/)
       ).toBeInTheDocument()
       expect(
-        within(section).getByRole('link', { name: 'Gestionar note-templates' })
+        within(section).getByRole('link', { name: 'Gestionar plantillas de notas' })
       ).toHaveAttribute('href', '/settings?tab=note-templates')
 
       const generateButton = within(section).getByRole('button', { name: 'Generar nota' })
@@ -287,7 +287,7 @@ describe('NoteSection', () => {
       }
       await user.hover(wrapper)
       expect(
-        (await screen.findAllByText('Necesitas un note-template')).length
+        (await screen.findAllByText('Necesitas una plantilla de notas')).length
       ).toBeGreaterThanOrEqual(1)
     })
 
@@ -934,7 +934,7 @@ describe('NoteSection', () => {
       renderDetail()
       const section = await noteSection()
 
-      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      const combobox = await within(section).findByRole('combobox', { name: 'Plantilla de notas' })
       await waitFor(() => expect(combobox).toHaveTextContent('Notas grupo CTOs'))
       expect(combobox).not.toHaveTextContent('Notas discovery')
       expect(vi.mocked(mockApi.api.db.getInterviewGroup)).toHaveBeenCalledWith('g-1')
@@ -954,7 +954,7 @@ describe('NoteSection', () => {
       const section = await noteSection()
 
       // Esperar la preselección resuelta ANTES de generar (sin tocar el Select)
-      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      const combobox = await within(section).findByRole('combobox', { name: 'Plantilla de notas' })
       await waitFor(() => expect(combobox).toHaveTextContent('Notas grupo CTOs'))
       await waitFor(() =>
         expect(within(section).getByRole('button', { name: 'Generar nota' })).toBeEnabled()
@@ -984,16 +984,16 @@ describe('NoteSection', () => {
       const section = await noteSection()
 
       // El flujo de regeneración vuelve a ofrecer por defecto el template del grupo
-      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      const combobox = await within(section).findByRole('combobox', { name: 'Plantilla de notas' })
       await waitFor(() => expect(combobox).toHaveTextContent('Notas grupo CTOs'))
 
       // Elegir otro template manualmente…
       await user.click(combobox)
       await user.click(await screen.findByRole('option', { name: 'Notas discovery' }))
       await waitFor(() =>
-        expect(within(section).getByRole('combobox', { name: 'Note-template' })).toHaveTextContent(
-          'Notas discovery'
-        )
+        expect(
+          within(section).getByRole('combobox', { name: 'Plantilla de notas' })
+        ).toHaveTextContent('Notas discovery')
       )
 
       // …y regenerar: la nota se regenera con el elegido SOLO para esta
@@ -1018,7 +1018,7 @@ describe('NoteSection', () => {
       renderDetail()
       const section = await noteSection()
 
-      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      const combobox = await within(section).findByRole('combobox', { name: 'Plantilla de notas' })
       await waitFor(() =>
         expect(within(section).getByRole('button', { name: 'Generar nota' })).toBeEnabled()
       )
@@ -1034,7 +1034,7 @@ describe('NoteSection', () => {
       renderDetail()
       const section = await noteSection()
 
-      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      const combobox = await within(section).findByRole('combobox', { name: 'Plantilla de notas' })
       await waitFor(() =>
         expect(vi.mocked(mockApi.api.db.getInterviewGroup)).toHaveBeenCalledWith('g-1')
       )
@@ -1054,7 +1054,7 @@ describe('NoteSection', () => {
       renderDetail()
       const section = await noteSection()
 
-      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      const combobox = await within(section).findByRole('combobox', { name: 'Plantilla de notas' })
       await waitFor(() =>
         expect(vi.mocked(mockApi.api.db.getInterviewGroup)).toHaveBeenCalledWith('g-1')
       )
@@ -1075,7 +1075,7 @@ describe('NoteSection', () => {
       renderDetail()
       const section = await noteSection()
 
-      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      const combobox = await within(section).findByRole('combobox', { name: 'Plantilla de notas' })
       await waitFor(() =>
         expect(vi.mocked(mockApi.api.db.getInterviewGroup)).toHaveBeenCalledWith('g-1')
       )
@@ -1103,22 +1103,22 @@ describe('NoteSection', () => {
       const section = await noteSection()
 
       // Con el grupo aún sin resolver, elegir manualmente el tercer template
-      const combobox = await within(section).findByRole('combobox', { name: 'Note-template' })
+      const combobox = await within(section).findByRole('combobox', { name: 'Plantilla de notas' })
       await user.click(combobox)
       await user.click(await screen.findByRole('option', { name: 'Notas ventas' }))
       await waitFor(() =>
-        expect(within(section).getByRole('combobox', { name: 'Note-template' })).toHaveTextContent(
-          'Notas ventas'
-        )
+        expect(
+          within(section).getByRole('combobox', { name: 'Plantilla de notas' })
+        ).toHaveTextContent('Notas ventas')
       )
 
       // La preselección del grupo resuelve después y NO pisa la elección manual
       await act(async () => {
         resolveGroup({ ok: true, data: interviewGroup() })
       })
-      expect(within(section).getByRole('combobox', { name: 'Note-template' })).toHaveTextContent(
-        'Notas ventas'
-      )
+      expect(
+        within(section).getByRole('combobox', { name: 'Plantilla de notas' })
+      ).toHaveTextContent('Notas ventas')
 
       await waitFor(() =>
         expect(within(section).getByRole('button', { name: 'Generar nota' })).toBeEnabled()

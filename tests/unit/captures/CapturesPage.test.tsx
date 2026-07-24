@@ -384,7 +384,7 @@ describe('CapturesPage', () => {
 
       expect(await screen.findByRole('heading', { name: 'Editar captura' })).toBeInTheDocument()
       expect(screen.getByLabelText('Título')).toHaveValue('Captura sin empresa')
-      expect(screen.getByRole('combobox', { name: 'Plantilla' })).toBeInTheDocument()
+      expect(screen.getByRole('combobox', { name: 'Plantilla de preguntas' })).toBeInTheDocument()
       // Sin empresa no hay participantes que asignar desde la edición
       expect(screen.queryByTestId('interview-participants')).not.toBeInTheDocument()
       expect(screen.queryByText('Participantes')).not.toBeInTheDocument()

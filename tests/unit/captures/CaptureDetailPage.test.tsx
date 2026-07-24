@@ -143,7 +143,7 @@ describe('CaptureDetailPage', () => {
       // "{discovery} · {empresa | Sin empresa} · {contacto | Sin contacto} · {template | Sin template}"
       // (regex: SPEC-021 añadió el segmento de coste de IA al final de la fila)
       expect(
-        screen.getByText(/Vertical Sanidad · Sin empresa · Sin contacto · Sin template/)
+        screen.getByText(/Vertical Sanidad · Sin empresa · Sin contacto · Sin plantilla/)
       ).toBeInTheDocument()
       // SPEC-021: captura sin aiUsage → "Sin datos de coste" sin errores
       expect(screen.getByText('Sin datos de coste')).toBeInTheDocument()
@@ -225,7 +225,7 @@ describe('CaptureDetailPage', () => {
       await screen.findByRole('heading', { level: 1, name: 'Captura sin empresa' })
       expect(screen.queryByTestId('assign-company-button')).not.toBeInTheDocument()
       expect(
-        screen.getByText(/Vertical Sanidad · Acme Corp · Jane Doe · Sin template/)
+        screen.getByText(/Vertical Sanidad · Acme Corp · Jane Doe · Sin plantilla/)
       ).toBeInTheDocument()
     })
 
@@ -262,7 +262,7 @@ describe('CaptureDetailPage', () => {
         expect(screen.queryByTestId('assign-company-sheet')).not.toBeInTheDocument()
       )
       expect(
-        screen.getByText(/Vertical Sanidad · Acme Corp · Sin contacto · Sin template/)
+        screen.getByText(/Vertical Sanidad · Acme Corp · Sin contacto · Sin plantilla/)
       ).toBeInTheDocument()
       expect(screen.queryByTestId('assign-company-button')).not.toBeInTheDocument()
       // getInterview solo se llamó en la carga inicial: el refresco es local
@@ -317,7 +317,7 @@ describe('CaptureDetailPage', () => {
         expect(screen.queryByTestId('assign-company-sheet')).not.toBeInTheDocument()
       )
       expect(
-        screen.getByText(/Vertical Sanidad · Acme Corp · Jane Doe, John Smith · Sin template/)
+        screen.getByText(/Vertical Sanidad · Acme Corp · Jane Doe, John Smith · Sin plantilla/)
       ).toBeInTheDocument()
       expect(vi.mocked(mockApi.api.db.getInterview)).toHaveBeenCalledTimes(1)
     })

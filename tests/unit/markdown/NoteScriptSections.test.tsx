@@ -139,7 +139,7 @@ describe('NoteScriptSections', () => {
       expect(await screen.findByRole('heading', { name: 'Guión', level: 3 })).toBeInTheDocument()
       expect(await screen.findByRole('heading', { name: 'Nota', level: 3 })).toBeInTheDocument()
       expect(await screen.findByRole('button', { name: 'Generar nota' })).toBeInTheDocument()
-      expect(screen.getByRole('combobox', { name: 'Note-template' })).toBeInTheDocument()
+      expect(screen.getByRole('combobox', { name: 'Plantilla de notas' })).toBeInTheDocument()
       expect(screen.queryByRole('tablist')).not.toBeInTheDocument()
     })
 

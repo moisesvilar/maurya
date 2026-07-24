@@ -95,7 +95,7 @@ describe('SettingsPage (pestaña de plantillas de entrevistas)', () => {
     expect(tabs.map((tab) => tab.textContent)).toEqual([
       'Claves de IA',
       'Plantillas de notas',
-      'Plantillas de entrevistas',
+      'Plantillas de preguntas',
       'Prompts personalizados'
     ])
   })
@@ -105,7 +105,7 @@ describe('SettingsPage (pestaña de plantillas de entrevistas)', () => {
     setTemplates([MDR_TEMPLATE])
     renderSettings('/settings?tab=interview-templates')
 
-    expect(await screen.findByRole('tab', { name: 'Plantillas de entrevistas' })).toHaveAttribute(
+    expect(await screen.findByRole('tab', { name: 'Plantillas de preguntas' })).toHaveAttribute(
       'aria-selected',
       'true'
     )
@@ -117,7 +117,7 @@ describe('SettingsPage (pestaña de plantillas de entrevistas)', () => {
     const user = userEvent.setup()
     renderSettings('/settings?tab=interview-templates')
 
-    await screen.findByRole('tab', { name: 'Plantillas de entrevistas' })
+    await screen.findByRole('tab', { name: 'Plantillas de preguntas' })
     await user.click(screen.getByRole('tab', { name: 'Plantillas de notas' }))
 
     expect(screen.getByTestId('location-search')).toHaveTextContent('tab=note-templates')
@@ -164,7 +164,7 @@ describe('InterviewTemplatesTab (listado)', () => {
 
       await screen.findByRole('button', { name: 'Nueva plantilla' })
       expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThanOrEqual(3)
-      expect(screen.queryByText('Aún no hay plantillas de entrevista')).not.toBeInTheDocument()
+      expect(screen.queryByText('Aún no hay plantillas de preguntas')).not.toBeInTheDocument()
     })
 
     // SPEC-051 · AC-07
@@ -182,14 +182,14 @@ describe('InterviewTemplatesTab (listado)', () => {
       await user.click(screen.getByRole('button', { name: 'Reintentar' }))
 
       expect(vi.mocked(mockApi.api.db.listInterviewTemplates)).toHaveBeenCalledTimes(2)
-      expect(await screen.findByText('Aún no hay plantillas de entrevista')).toBeInTheDocument()
+      expect(await screen.findByText('Aún no hay plantillas de preguntas')).toBeInTheDocument()
     })
 
     // SPEC-051 · AC-08
     it('shows the empty state with its text and the "Crear primera plantilla" CTA when there are none', async () => {
       renderSettings('/settings?tab=interview-templates')
 
-      expect(await screen.findByText('Aún no hay plantillas de entrevista')).toBeInTheDocument()
+      expect(await screen.findByText('Aún no hay plantillas de preguntas')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Crear primera plantilla' })).toBeInTheDocument()
     })
   })
