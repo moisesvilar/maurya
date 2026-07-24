@@ -131,7 +131,7 @@ function buildSystemPrompt(template: NoteTemplate): string {
   // elemento propio FUERA de los delimitadores del bloque de persona.
   const context =
     template.context.trim() !== ''
-      ? `Contexto del note-template (manda sobre el enfoque de la síntesis):\n${template.context.trim()}`
+      ? `Contexto de la plantilla de notas (manda sobre el enfoque de la síntesis):\n${template.context.trim()}`
       : null
   // SPEC-026: el bloque de persona/enfoque se resuelve en cada uso
   // (override de Ajustes → default); las reglas de abajo quedan bloqueadas.
@@ -139,10 +139,10 @@ function buildSystemPrompt(template: NoteTemplate): string {
   return [
     buildPersonaBlock('note'),
     ...(context !== null ? [context] : []),
-    'Tu tarea: sintetizar la conversación proporcionada siguiendo las secciones del note-template, en su orden.',
+    'Tu tarea: sintetizar la conversación proporcionada siguiendo las secciones de la plantilla de notas, en su orden.',
     'Reglas:',
     '- Escribe TODO en español.',
-    '- `sections`: exactamente una entrada por cada sección numerada del template, en el mismo orden, con su `title` y el `contentMarkdown` sintetizado de la conversación.',
+    '- `sections`: exactamente una entrada por cada sección numerada de la plantilla de notas, en el mismo orden, con su `title` y el `contentMarkdown` sintetizado de la conversación.',
     '- Aporta evidencia concreta: cita textualmente frases relevantes del interlocutor (entre comillas) y referencia hechos y ejemplos específicos de la conversación.',
     '- Distingue explícitamente los hechos relatados de tus inferencias o interpretaciones.',
     '- Si la conversación no aporta material para una sección, dilo honestamente en esa sección; no inventes contenido.',
@@ -202,7 +202,9 @@ function buildUserPrompt(
   const templateLines = template.sections.map(
     (section, index) => `${index + 1}. ${section.title} — ${section.description}`
   )
-  sections.push(`## Secciones del note-template (en este orden)\n${templateLines.join('\n')}`)
+  sections.push(
+    `## Secciones de la plantilla de notas (en este orden)\n${templateLines.join('\n')}`
+  )
 
   // Conversación etiquetada por hablante, truncada a los últimos
   // TRANSCRIPT_PROMPT_CHARS caracteres (límite constante y documentado)
@@ -238,7 +240,7 @@ function buildUserPrompt(
   }
 
   sections.push(
-    `## Tarea\nGenera la nota de resumen de la entrevista "${interview.title}" siguiendo las secciones del note-template.`
+    `## Tarea\nGenera la nota de resumen de la entrevista "${interview.title}" siguiendo las secciones de la plantilla de notas.`
   )
 
   return sections.join('\n\n')
@@ -327,7 +329,7 @@ async function doGenerate(
   if (template.sections.length === 0) {
     throw new LlmOperationError(
       'format',
-      'El note-template no tiene secciones. Añádelas para generar la nota.'
+      'La plantilla de notas no tiene secciones. Añádelas para generar la nota.'
     )
   }
   const transcript = readTranscriptLines(interview.transcriptPath)
@@ -383,7 +385,7 @@ async function doGenerate(
   if (generated.length !== template.sections.length) {
     throw new LlmOperationError(
       'format',
-      'La respuesta de la IA no cubre todas las secciones del note-template. Vuelve a intentarlo.'
+      'La respuesta de la IA no cubre todas las secciones de la plantilla de notas. Vuelve a intentarlo.'
     )
   }
 

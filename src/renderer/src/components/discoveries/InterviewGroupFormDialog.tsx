@@ -22,7 +22,7 @@ import type { InterviewGroup, InterviewTemplate, NoteTemplate } from '@/types/do
 
 /**
  * Sentinel de los Selects opcionales: Radix Select no admite value vacío,
- * así que "Sin template" viaja como 'none' y se mapea a null al enviar
+ * así que "Sin plantilla" viaja como 'none' y se mapea a null al enviar
  * (patrón InterviewFormDialog de SPEC-013).
  */
 const NONE = 'none'
@@ -34,9 +34,9 @@ export interface InterviewGroupFormDialogProps {
   title: string
   /** Texto del botón de envío ("Crear" / "Guardar"). */
   submitLabel: string
-  /** Templates de entrevista para el Select (vacío → solo "Sin template"). */
+  /** Templates de entrevista para el Select (vacío → solo "Sin plantilla"). */
   interviewTemplates: InterviewTemplate[]
-  /** Templates de notas para el Select (vacío → solo "Sin template"). */
+  /** Templates de notas para el Select (vacío → solo "Sin plantilla"). */
   noteTemplates: NoteTemplate[]
   /** Grupo precargado (edición); null/undefined para creación. */
   group?: InterviewGroup | null
@@ -131,19 +131,19 @@ function InterviewGroupForm({
       </div>
       <div className="flex flex-col gap-2">
         <label htmlFor="group-interview-template" className="text-sm font-medium">
-          Template de preguntas
+          Plantilla de preguntas
         </label>
         <Select value={interviewTemplateId} onValueChange={setInterviewTemplateId}>
           <SelectTrigger
             id="group-interview-template"
             data-testid="group-interview-template-select"
             className="w-full"
-            aria-label="Template de preguntas"
+            aria-label="Plantilla de preguntas"
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NONE}>Sin template</SelectItem>
+            <SelectItem value={NONE}>Sin plantilla</SelectItem>
             {interviewTemplates.map((template) => (
               <SelectItem key={template.id} value={template.id}>
                 {templateLabel(template)}
@@ -154,19 +154,19 @@ function InterviewGroupForm({
       </div>
       <div className="flex flex-col gap-2">
         <label htmlFor="group-note-template" className="text-sm font-medium">
-          Template de notas
+          Plantilla de notas
         </label>
         <Select value={noteTemplateId} onValueChange={setNoteTemplateId}>
           <SelectTrigger
             id="group-note-template"
             data-testid="group-note-template-select"
             className="w-full"
-            aria-label="Template de notas"
+            aria-label="Plantilla de notas"
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NONE}>Sin template</SelectItem>
+            <SelectItem value={NONE}>Sin plantilla</SelectItem>
             {noteTemplates.map((template) => (
               <SelectItem key={template.id} value={template.id}>
                 {template.name}
@@ -192,7 +192,7 @@ function InterviewGroupForm({
  * InterviewFormDialog (SPEC-013): form real (Enter = submit nativo), error
  * inline "Campo requerido" sin pasar por el bridge, foco al Nombre al abrir
  * vía onOpenAutoFocus SIN select. Los dos templates son Selects opcionales
- * con sentinel 'none' ("Sin template"); el de preguntas etiqueta con
+ * con sentinel 'none' ("Sin plantilla"); el de preguntas etiqueta con
  * templateLabel (nombre + fase) y el de notas con el nombre a secas.
  */
 export function InterviewGroupFormDialog({

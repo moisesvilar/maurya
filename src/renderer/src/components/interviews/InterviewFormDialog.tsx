@@ -23,7 +23,7 @@ import type { Contact, Discovery, Interview, InterviewTemplate } from '@/types/d
 
 /**
  * Sentinel del Select opcional de template: Radix Select no admite value
- * vacío, así que "Sin template" viaja como 'none' y se mapea a null al
+ * vacío, así que "Sin plantilla" viaja como 'none' y se mapea a null al
  * enviar (patrón NO_PHASE de SPEC-012).
  */
 const NONE = 'none'
@@ -45,7 +45,7 @@ export interface InterviewFormDialogProps {
   discoveries: Discovery[]
   /** Contactos de la empresa para la lista de Checkbox de participantes (SPEC-046). */
   contacts: Contact[]
-  /** Templates de entrevista para el Select (vacío → solo "Sin template"). */
+  /** Templates de entrevista para el Select (vacío → solo "Sin plantilla"). */
   templates: InterviewTemplate[]
   /** Entrevista precargada (edición); null/undefined para creación. */
   interview?: Interview | null
@@ -197,14 +197,18 @@ function InterviewForm({
       </div>
       <div className="flex flex-col gap-2">
         <label htmlFor="interview-template" className="text-sm font-medium">
-          Template
+          Plantilla de preguntas
         </label>
         <Select value={templateId} onValueChange={setTemplateId}>
-          <SelectTrigger id="interview-template" className="w-full" aria-label="Template">
+          <SelectTrigger
+            id="interview-template"
+            className="w-full"
+            aria-label="Plantilla de preguntas"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NONE}>Sin template</SelectItem>
+            <SelectItem value={NONE}>Sin plantilla</SelectItem>
             {templates.map((template) => (
               <SelectItem key={template.id} value={template.id}>
                 {templateLabel(template)}
@@ -232,7 +236,7 @@ function InterviewForm({
  * vía onOpenAutoFocus SIN select. SPEC-046: el Select de contacto único se
  * sustituye por la lista de Checkbox "Participantes" (ParticipantsChecklist,
  * N contactos de la empresa); Template sigue siendo Select opcional con
- * sentinel 'none' ("Sin template"). SPEC-044: en creación el form abre con
+ * sentinel 'none' ("Sin plantilla"). SPEC-044: en creación el form abre con
  * el Select requerido "Discovery" (sentinel '', patrón NewCaptureDialog); en
  * edición el campo no se renderiza.
  */

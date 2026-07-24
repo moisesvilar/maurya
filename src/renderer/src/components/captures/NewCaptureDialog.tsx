@@ -23,7 +23,7 @@ import type { Discovery, InterviewTemplate } from '@/types/domain'
 
 /**
  * Sentinel del Select opcional de plantilla: Radix Select no admite value
- * vacío, así que "Sin template" viaja como 'none' y se mapea a null al enviar
+ * vacío, así que "Sin plantilla" viaja como 'none' y se mapea a null al enviar
  * (patrón InterviewFormDialog).
  */
 const NONE = 'none'
@@ -47,7 +47,7 @@ export interface NewCaptureDialogProps {
   onOpenChange: (open: boolean) => void
   /** Discoveries para el Select (vacío → aviso con link "Crear discovery"). */
   discoveries: Discovery[]
-  /** Templates de entrevista para el Select (vacío → solo "Sin template"). */
+  /** Templates de entrevista para el Select (vacío → solo "Sin plantilla"). */
   templates: InterviewTemplate[]
   /** Devuelve true si la creación fue bien (cierra el Dialog); false lo mantiene abierto. */
   onSubmit: (values: NewCaptureValues) => Promise<boolean>
@@ -161,14 +161,18 @@ function NewCaptureForm({
       </div>
       <div className="flex flex-col gap-2">
         <label htmlFor="capture-template" className="text-sm font-medium">
-          Plantilla
+          Plantilla de preguntas
         </label>
         <Select value={templateId} onValueChange={setTemplateId}>
-          <SelectTrigger id="capture-template" className="w-full" aria-label="Plantilla">
+          <SelectTrigger
+            id="capture-template"
+            className="w-full"
+            aria-label="Plantilla de preguntas"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NONE}>Sin template</SelectItem>
+            <SelectItem value={NONE}>Sin plantilla</SelectItem>
             {templates.map((template) => (
               <SelectItem key={template.id} value={template.id}>
                 {templateLabel(template)}

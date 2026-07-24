@@ -30,7 +30,7 @@ export interface EditCaptureDialogProps {
   onOpenChange: (open: boolean) => void
   /** Captura a editar; null cierra sin form (el Dialog gobernado por pending). */
   interview: Interview | null
-  /** Templates de entrevista para el Select (vacío → solo "Sin template"). */
+  /** Templates de entrevista para el Select (vacío → solo "Sin plantilla"). */
   templates: InterviewTemplate[]
   /** Devuelve true si la mutación fue bien (cierra el Dialog); false lo mantiene abierto. */
   onSubmit: (values: EditCaptureValues) => Promise<boolean>
@@ -125,14 +125,18 @@ function EditCaptureForm({
       </div>
       <div className="flex flex-col gap-2">
         <label htmlFor="edit-capture-template" className="text-sm font-medium">
-          Plantilla
+          Plantilla de preguntas
         </label>
         <Select value={templateId} onValueChange={setTemplateId}>
-          <SelectTrigger id="edit-capture-template" className="w-full" aria-label="Plantilla">
+          <SelectTrigger
+            id="edit-capture-template"
+            className="w-full"
+            aria-label="Plantilla de preguntas"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NONE}>Sin template</SelectItem>
+            <SelectItem value={NONE}>Sin plantilla</SelectItem>
             {templates.map((template) => (
               <SelectItem key={template.id} value={template.id}>
                 {templateLabel(template)}

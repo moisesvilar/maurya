@@ -111,7 +111,7 @@ export function CaptureDetailPage(): React.ReactElement {
     )
   }, [])
 
-  /** Nombre del template asignado; "Sin template" si no hay o no se resuelve. */
+  /** Nombre del template asignado; "Sin plantilla" si no hay o no se resuelve. */
   const templateLabel = (interview: Interview): string => {
     if (interview.templateId !== null && templatesState.status === 'ready') {
       const template = templatesState.templates.find((item) => item.id === interview.templateId)
@@ -119,7 +119,7 @@ export function CaptureDetailPage(): React.ReactElement {
         return template.name
       }
     }
-    return 'Sin template'
+    return 'Sin plantilla'
   }
 
   return (

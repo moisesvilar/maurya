@@ -95,7 +95,7 @@ export function CompanyDetailPage(): React.ReactElement {
   } = useInterviews(companyId ?? '')
   // UNA sola carga de templates a nivel de página (SPEC-013): alimenta el
   // Select del Dialog y la resolución de nombres de las filas; si el fetch
-  // falla, el Select degrada a solo "Sin template" y las filas omiten el
+  // falla, el Select degrada a solo "Sin plantilla" y las filas omiten el
   // nombre del template.
   const { state: templatesState } = useInterviewTemplates()
   // UNA sola carga de discoveries a nivel de página (SPEC-044): alimenta el

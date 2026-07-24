@@ -52,7 +52,7 @@ export function SettingsPage(): React.ReactElement {
         <TabsList>
           <TabsTrigger value="api-keys">Claves de IA</TabsTrigger>
           <TabsTrigger value="note-templates">Plantillas de notas</TabsTrigger>
-          <TabsTrigger value="interview-templates">Plantillas de entrevistas</TabsTrigger>
+          <TabsTrigger value="interview-templates">Plantillas de preguntas</TabsTrigger>
           <TabsTrigger value="custom-prompts">Prompts personalizados</TabsTrigger>
         </TabsList>
         <TabsContent value="api-keys" className="pt-4">

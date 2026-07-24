@@ -42,7 +42,7 @@ import type { InterviewGroup } from '@/types/domain'
  * del bridge muestran el error state con enlace "Volver a Discoveries". Los
  * templates se cargan UNA vez a nivel de página: alimentan los Selects del
  * Dialog de grupo y la resolución de nombres de las filas (un template
- * borrado deja "Sin template …" sin crash). Los Dialogs viven a nivel de
+ * borrado deja "Sin plantilla …" sin crash). Los Dialogs viven a nivel de
  * página, FUERA del DropdownMenu, gobernados por pendingEditGroup/
  * pendingDeleteGroup; la apertura desde onSelect se difiere con setTimeout(0)
  * (mitigador del incidente conocido de Radix dropdown → dialog).
@@ -54,8 +54,8 @@ export function DiscoveryDetailPage(): React.ReactElement {
   const { state: groupsState, createGroup, updateGroup, removeGroup } = useInterviewGroups(id ?? '')
   // UNA sola carga de cada catálogo de templates (patrón SPEC-013): alimenta
   // los Selects del Dialog de grupo y los nombres de las filas; si el fetch
-  // falla, los Selects degradan a solo "Sin template" y las filas muestran
-  // "Sin template …".
+  // falla, los Selects degradan a solo "Sin plantilla" y las filas muestran
+  // "Sin plantilla …".
   const { state: interviewTemplatesState } = useInterviewTemplates()
   const { state: noteTemplatesState } = useNoteTemplates()
   const [editDiscoveryOpen, setEditDiscoveryOpen] = useState(false)
@@ -92,13 +92,13 @@ export function DiscoveryDetailPage(): React.ReactElement {
     const template = interviewTemplates.find(
       (candidate) => candidate.id === group.interviewTemplateId
     )
-    return template?.name ?? 'Sin template de preguntas'
+    return template?.name ?? 'Sin plantilla de preguntas'
   }
 
   /** Nombre del template de notas de la fila; null u huérfano (SET NULL) → hueco. */
   const noteTemplateName = (group: InterviewGroup): string => {
     const template = noteTemplates.find((candidate) => candidate.id === group.noteTemplateId)
-    return template?.name ?? 'Sin template de notas'
+    return template?.name ?? 'Sin plantilla de notas'
   }
 
   return (

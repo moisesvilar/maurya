@@ -142,10 +142,10 @@ function assertGroupTemplateRefs(
   noteTemplateId: string | null | undefined
 ): void {
   if (interviewTemplateId !== undefined && interviewTemplateId !== null) {
-    assertReference(draft.interviewTemplates, interviewTemplateId, 'template de entrevista')
+    assertReference(draft.interviewTemplates, interviewTemplateId, 'plantilla de preguntas')
   }
   if (noteTemplateId !== undefined && noteTemplateId !== null) {
-    assertReference(draft.noteTemplates, noteTemplateId, 'note-template')
+    assertReference(draft.noteTemplates, noteTemplateId, 'plantilla de notas')
   }
 }
 
@@ -374,7 +374,7 @@ export function deleteContact(id: string): null {
 // ---------------------------------------------------------------------------
 
 export function createInterviewTemplate(input: CreateInterviewTemplateInput): InterviewTemplate {
-  assertName(input.name, 'template de entrevista')
+  assertName(input.name, 'plantilla de preguntas')
   return mutate((draft) => {
     const now = nowIso()
     const template: InterviewTemplate = {
@@ -395,7 +395,7 @@ export function listInterviewTemplates(): InterviewTemplate[] {
 }
 
 export function getInterviewTemplate(id: string): InterviewTemplate {
-  return read((store) => findOrThrow(store.interviewTemplates, id, 'template de entrevista'))
+  return read((store) => findOrThrow(store.interviewTemplates, id, 'plantilla de preguntas'))
 }
 
 export function updateInterviewTemplate(
@@ -403,10 +403,10 @@ export function updateInterviewTemplate(
   patch: UpdateInterviewTemplatePatch
 ): InterviewTemplate {
   if (patch.name !== undefined) {
-    assertName(patch.name, 'template de entrevista')
+    assertName(patch.name, 'plantilla de preguntas')
   }
   return mutate((draft) => {
-    const template = findOrThrow(draft.interviewTemplates, id, 'template de entrevista')
+    const template = findOrThrow(draft.interviewTemplates, id, 'plantilla de preguntas')
     if (patch.name !== undefined) {
       template.name = patch.name
     }
@@ -428,7 +428,7 @@ export function updateInterviewTemplate(
  */
 export function deleteInterviewTemplate(id: string): null {
   return mutate((draft) => {
-    findOrThrow(draft.interviewTemplates, id, 'template de entrevista')
+    findOrThrow(draft.interviewTemplates, id, 'plantilla de preguntas')
     for (const interview of draft.interviews) {
       if (interview.templateId === id) {
         interview.templateId = null
@@ -536,7 +536,7 @@ export function createInterview(input: CreateInterviewInput): Interview {
       assertInterviewGroup(draft, input.discoveryId, interviewGroupId)
     }
     if (input.templateId !== undefined && input.templateId !== null) {
-      assertReference(draft.interviewTemplates, input.templateId, 'template de entrevista')
+      assertReference(draft.interviewTemplates, input.templateId, 'plantilla de preguntas')
     }
     const now = nowIso()
     const interview: Interview = {
@@ -580,7 +580,7 @@ export function updateInterview(id: string, patch: UpdateInterviewPatch): Interv
       assertInterviewContacts(draft, interview.companyId, patch.contactIds)
     }
     if (patch.templateId !== undefined && patch.templateId !== null) {
-      assertReference(draft.interviewTemplates, patch.templateId, 'template de entrevista')
+      assertReference(draft.interviewTemplates, patch.templateId, 'plantilla de preguntas')
     }
     if (patch.interviewGroupId !== undefined && patch.interviewGroupId !== null) {
       // Misma invariante que en create: el grupo destino existe y pertenece
@@ -759,7 +759,7 @@ export function deleteInterview(id: string): null {
 // ---------------------------------------------------------------------------
 
 export function createNoteTemplate(input: CreateNoteTemplateInput): NoteTemplate {
-  assertName(input.name, 'note-template')
+  assertName(input.name, 'plantilla de notas')
   return mutate((draft) => {
     const now = nowIso()
     const template: NoteTemplate = {
@@ -780,15 +780,15 @@ export function listNoteTemplates(): NoteTemplate[] {
 }
 
 export function getNoteTemplate(id: string): NoteTemplate {
-  return read((store) => findOrThrow(store.noteTemplates, id, 'note-template'))
+  return read((store) => findOrThrow(store.noteTemplates, id, 'plantilla de notas'))
 }
 
 export function updateNoteTemplate(id: string, patch: UpdateNoteTemplatePatch): NoteTemplate {
   if (patch.name !== undefined) {
-    assertName(patch.name, 'note-template')
+    assertName(patch.name, 'plantilla de notas')
   }
   return mutate((draft) => {
-    const template = findOrThrow(draft.noteTemplates, id, 'note-template')
+    const template = findOrThrow(draft.noteTemplates, id, 'plantilla de notas')
     if (patch.name !== undefined) {
       template.name = patch.name
     }
@@ -806,7 +806,7 @@ export function updateNoteTemplate(id: string, patch: UpdateNoteTemplatePatch): 
 /** Borra el note-template; los grupos que lo referencian sobreviven con noteTemplateId a null (SPEC-043). */
 export function deleteNoteTemplate(id: string): null {
   return mutate((draft) => {
-    findOrThrow(draft.noteTemplates, id, 'note-template')
+    findOrThrow(draft.noteTemplates, id, 'plantilla de notas')
     for (const group of draft.interviewGroups) {
       if (group.noteTemplateId === id) {
         group.noteTemplateId = null
