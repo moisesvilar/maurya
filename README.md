@@ -33,6 +33,8 @@ documentado en comentarios dentro de `electron-builder.yml`.
 3. Configura las claves de Deepgram y Anthropic en **Ajustes** (se guardan cifradas en el keychain del sistema).
 4. macOS pedirá los permisos de **Micrófono** y de **Grabación de pantalla y audio del sistema** la primera vez que inicies una grabación.
 
+¿Dudas al instalar, conceder permisos o configurar las claves? Consulta las [preguntas frecuentes (FAQ)](FAQ.md).
+
 ## Comandos de desarrollo
 
 ```bash

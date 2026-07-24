@@ -9,6 +9,21 @@ vivo con Deepgram y asiste/resume con Claude.
 
 ---
 
+## Markdown: sin saltos de línea espurios (JAMÁS)
+
+Al crear o editar **cualquier** archivo Markdown (`.md`) —FAQ, READMEs, release notes, specs, docs— **nunca** partas un párrafo o un ítem de lista en varias líneas para respetar un ancho de columna. **Una línea por bloque**: cada párrafo va en una sola línea, y cada ítem de lista en una sola línea. El ajuste de ancho lo hace el editor con soft-wrap; los saltos de línea manuales dentro de un mismo bloque de prosa son un defecto ("saltos de línea espurios") y no deben introducirse.
+
+Verificación determinista (obligatoria antes de cerrar cualquier cambio que toque Markdown):
+
+```bash
+npm run lint:md              # revisa los .md nuevos (sin trackear / añadidos) vía git
+npm run lint:md -- FAQ.md    # o revisa archivos concretos
+```
+
+El script vive en `scripts/check-md-linebreaks.cjs`, sale con código 1 si detecta saltos espurios (apto para CI / pre-commit) e imprime `archivo:línea` de cada infracción. Por defecto solo mira archivos **nuevos** para no arrastrar el hard-wrapping heredado de docs antiguos; pásale rutas explícitas para revisar cualquier archivo.
+
+---
+
 ## Flujo de desarrollo (orquestador del loop)
 
 Eres el agente de soporte de desarrollo. El desarrollo es un bucle sobre las

@@ -20,6 +20,8 @@ Los `.blockmap` y `latest-mac.yml` acompañan a los binarios para las actualizac
 
 La app va firmada **ad-hoc**, sin Developer ID ni notarización, así que Gatekeeper la bloquea la primera vez. Para abrirla: clic derecho sobre Maurya.app → *Abrir* → *Abrir* en el diálogo. Ver el README para el detalle y para colocar la API key en el userData de la app empaquetada.
 
+¿Dudas al instalar, conceder permisos o configurar las claves? Consulta las [preguntas frecuentes (FAQ)](FAQ.md).
+
 ---
 
 ## Novedades desde 0.4.0
