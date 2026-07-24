@@ -1,11 +1,18 @@
 import React, { useState } from 'react'
-import { ArrowLeft, Mic, Pencil, Plus } from 'lucide-react'
+import { ArrowLeft, FolderInput, Mic, MoreHorizontal, Pencil, Plus } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { GroupInterviewFormDialog } from '@/components/interviews/GroupInterviewFormDialog'
 import { InterviewGroupFormDialog } from '@/components/discoveries/InterviewGroupFormDialog'
+import { MoveInterviewDialog } from '@/components/interviews/MoveInterviewDialog'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
 import { useGroupInterviews, type GroupInterviewFormValues } from '@/hooks/useGroupInterviews'
 import { useInterviewGroups } from '@/hooks/useInterviewGroups'
@@ -26,12 +33,21 @@ import type { CaptureListItem } from '@/types/captures'
  * error state con enlace "Volver al discovery". El título de cada fila
  * navega a la ruta anidada de detalle de entrevista; si su empresa fue
  * borrada (companyId null), a /captures/:id (detalle universal, SPEC-020).
+ * Cada fila lleva un menú ⋯ con "Mover a otro grupo" (Select con los grupos
+ * del discovery sin el actual); el Dialog vive a nivel de página, FUERA del
+ * DropdownMenu, gobernado por pendingMoveInterview, y la apertura desde
+ * onSelect se difiere con setTimeout(0) (mitigador del incidente conocido de
+ * Radix dropdown → dialog, patrón DiscoveryDetailPage).
  */
 export function InterviewGroupDetailPage(): React.ReactElement {
   const { discoveryId, groupId } = useParams<{ discoveryId: string; groupId: string }>()
   const navigate = useNavigate()
   const { state: groupsState, updateGroup } = useInterviewGroups(discoveryId ?? '')
-  const { state: interviewsState, createInterview } = useGroupInterviews(groupId ?? '')
+  const {
+    state: interviewsState,
+    createInterview,
+    moveInterview
+  } = useGroupInterviews(groupId ?? '')
   // UNA sola carga de cada catálogo de templates (patrón SPEC-045): alimenta
   // los Selects del Dialog de edición del grupo y la línea de la cabecera; si
   // el fetch falla, degradan a "Sin template …".
@@ -39,11 +55,22 @@ export function InterviewGroupDetailPage(): React.ReactElement {
   const { state: noteTemplatesState } = useNoteTemplates()
   const [editGroupOpen, setEditGroupOpen] = useState(false)
   const [createInterviewOpen, setCreateInterviewOpen] = useState(false)
+  const [pendingMoveInterview, setPendingMoveInterview] = useState<CaptureListItem | null>(null)
 
   const group =
     groupsState.status === 'ready'
       ? groupsState.groups.find((candidate) => candidate.id === groupId)
       : undefined
+
+  /** Grupos destino del Dialog de mover: los del discovery SIN el actual. */
+  const moveTargetGroups =
+    groupsState.status === 'ready'
+      ? groupsState.groups.filter((candidate) => candidate.id !== groupId)
+      : []
+
+  const openMoveInterview = (item: CaptureListItem): void => {
+    setTimeout(() => setPendingMoveInterview(item), 0)
+  }
 
   const interviewTemplates =
     interviewTemplatesState.status === 'ready' ? interviewTemplatesState.templates : []
@@ -172,20 +199,45 @@ export function InterviewGroupDetailPage(): React.ReactElement {
                 className="flex flex-col divide-y rounded-md border"
               >
                 {interviewsState.items.map((item) => (
-                  <li key={item.interview.id} className="flex flex-col gap-1 px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Link
-                        to={interviewLink(item)}
-                        className="text-sm font-medium hover:underline"
-                      >
-                        {item.interview.title}
-                      </Link>
-                      <Badge variant="secondary">{STATUS_LABELS[item.interview.status]}</Badge>
+                  <li
+                    key={item.interview.id}
+                    className="flex items-center justify-between gap-2 px-4 py-3"
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <div className="flex items-center gap-3">
+                        <Link
+                          to={interviewLink(item)}
+                          className="text-sm font-medium hover:underline"
+                        >
+                          {item.interview.title}
+                        </Link>
+                        <Badge variant="secondary">{STATUS_LABELS[item.interview.status]}</Badge>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {item.companyName ?? 'Sin empresa'} ·{' '}
+                        {item.contactNames.length > 0
+                          ? item.contactNames.join(', ')
+                          : 'Sin contacto'}
+                      </span>
                     </div>
-                    <span className="text-sm text-muted-foreground">
-                      {item.companyName ?? 'Sin empresa'} ·{' '}
-                      {item.contactNames.length > 0 ? item.contactNames.join(', ') : 'Sin contacto'}
-                    </span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Acciones"
+                          data-testid="interview-row-actions"
+                        >
+                          <MoreHorizontal />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => openMoveInterview(item)}>
+                          <FolderInput />
+                          Mover a otro grupo
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </li>
                 ))}
               </ul>
@@ -207,6 +259,23 @@ export function InterviewGroupDetailPage(): React.ReactElement {
             open={createInterviewOpen}
             onOpenChange={setCreateInterviewOpen}
             onSubmit={handleCreate}
+          />
+
+          <MoveInterviewDialog
+            open={pendingMoveInterview !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setPendingMoveInterview(null)
+              }
+            }}
+            interviewTitle={pendingMoveInterview?.interview.title ?? ''}
+            groups={moveTargetGroups}
+            onSubmit={(targetGroupId) => {
+              if (pendingMoveInterview === null) {
+                return Promise.resolve(false)
+              }
+              return moveInterview(pendingMoveInterview.interview.id, targetGroupId)
+            }}
           />
         </>
       )}

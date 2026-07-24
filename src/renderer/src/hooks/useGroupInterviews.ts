@@ -33,6 +33,12 @@ export interface UseGroupInterviewsResult {
     group: InterviewGroup,
     values: GroupInterviewFormValues
   ) => Promise<Interview | null>
+  /**
+   * Mueve la entrevista al grupo destino (mismo discovery: la invariante la
+   * valida main). Devuelve true si fue bien (cierra el Dialog del caller);
+   * los toasts viven en el hook y la lista se recarga (la fila desaparece).
+   */
+  moveInterview: (interviewId: string, targetGroupId: string) => Promise<boolean>
 }
 
 /**
@@ -97,5 +103,21 @@ export function useGroupInterviews(groupId: string): UseGroupInterviewsResult {
     [load]
   )
 
-  return { state, createInterview }
+  const moveInterview = useCallback(
+    async (interviewId: string, targetGroupId: string): Promise<boolean> => {
+      const result = await window.api.db.updateInterview(interviewId, {
+        interviewGroupId: targetGroupId
+      })
+      if (!result.ok) {
+        toast.error(result.error.message)
+        return false
+      }
+      toast('Entrevista movida')
+      load()
+      return true
+    },
+    [load]
+  )
+
+  return { state, createInterview, moveInterview }
 }

@@ -471,7 +471,7 @@ export interface CreateInterviewInput {
   title: string
   /** Contactos de la empresa (SPEC-043); ausente → []. */
   contactIds?: string[]
-  /** Grupo del discovery (SPEC-043); ausente → null. Solo asignable en create. */
+  /** Grupo del discovery (SPEC-043); ausente → null. */
   interviewGroupId?: string | null
   templateId?: string | null
 }
@@ -480,6 +480,8 @@ export interface UpdateInterviewPatch {
   title?: string
   status?: InterviewStatus
   contactIds?: string[]
+  /** Grupo destino; debe pertenecer al MISMO discovery de la entrevista. */
+  interviewGroupId?: string | null
   templateId?: string | null
   scriptMarkdown?: string | null
   objectives?: string[]

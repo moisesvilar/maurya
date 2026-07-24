@@ -25,6 +25,7 @@ import {
   getInterview,
   getInterviewGroup,
   listInterviewGroups,
+  updateInterview,
   updateInterviewGroup
 } from '../../../src/main/db/repository'
 import { initStore, type DbData } from '../../../src/main/db/store'
@@ -204,6 +205,65 @@ describe('repository (SPEC-043 grupos de entrevistas)', () => {
       const cleared = updateInterviewGroup(group.id, { objective: null })
       expect(cleared.objective).toBeNull()
       expect(cleared.updatedAt > updated.updatedAt).toBe(true)
+    })
+  })
+
+  describe('moving an interview between groups (updateInterview.interviewGroupId)', () => {
+    it('moves an interview to another group of the same discovery persisting the change with updatedAt strictly forward', () => {
+      const discovery = createDiscovery({ name: 'Vertical Sanidad' })
+      const origin = createInterviewGroup({ discoveryId: discovery.id, name: 'Primer contacto' })
+      const target = createInterviewGroup({ discoveryId: discovery.id, name: 'Segunda ronda' })
+      const created = createInterview({
+        discoveryId: discovery.id,
+        title: 'Entrevista con Acme',
+        interviewGroupId: origin.id
+      })
+
+      const moved = updateInterview(created.id, { interviewGroupId: target.id })
+
+      expect(moved.interviewGroupId).toBe(target.id)
+      expect(moved.title).toBe('Entrevista con Acme')
+      expect(moved.updatedAt > created.updatedAt).toBe(true)
+      expect(readDbFile().interviews[0].interviewGroupId).toBe(target.id)
+    })
+
+    it('clears the group with an explicit null leaving the interview alive without group', () => {
+      const discovery = createDiscovery({ name: 'Vertical Sanidad' })
+      const group = createInterviewGroup({ discoveryId: discovery.id, name: 'Primer contacto' })
+      const created = createInterview({
+        discoveryId: discovery.id,
+        title: 'Entrevista con Acme',
+        interviewGroupId: group.id
+      })
+
+      const cleared = updateInterview(created.id, { interviewGroupId: null })
+
+      expect(cleared.interviewGroupId).toBeNull()
+      expect(readDbFile().interviews[0].interviewGroupId).toBeNull()
+    })
+
+    it('rejects moving to a group of ANOTHER discovery or to a nonexistent group with a reference error without persisting anything', () => {
+      const discoveryA = createDiscovery({ name: 'Discovery A' })
+      const discoveryB = createDiscovery({ name: 'Discovery B' })
+      const origin = createInterviewGroup({ discoveryId: discoveryA.id, name: 'Grupo A' })
+      const foreign = createInterviewGroup({ discoveryId: discoveryB.id, name: 'Grupo B' })
+      const created = createInterview({
+        discoveryId: discoveryA.id,
+        title: 'Entrevista de A',
+        interviewGroupId: origin.id
+      })
+
+      expectDbError(
+        () => updateInterview(created.id, { interviewGroupId: foreign.id }),
+        'reference'
+      )
+      expectDbError(
+        () => updateInterview(created.id, { interviewGroupId: 'grupo-fantasma' }),
+        'reference'
+      )
+      // La entrevista queda intacta: la actualización fallida no persistió nada
+      expect(getInterview(created.id)).toEqual(created)
+      expect(readDbFile().interviews[0].interviewGroupId).toBe(origin.id)
     })
   })
 
