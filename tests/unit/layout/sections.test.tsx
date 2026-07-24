@@ -1,10 +1,13 @@
 /**
- * Tests de las secciones bajo el layout (SPEC-009, AC-08..AC-12): Discoveries,
- * hub de Plantillas, Ajustes sin "Volver" y editor con "Volver". Misma réplica
- * de rutas reales que Layout.test.tsx.
+ * Tests de las secciones bajo el layout (SPEC-009, AC-08/AC-10..AC-12):
+ * Discoveries, Ajustes sin "Volver" y editor con "Volver". Misma réplica de
+ * rutas reales que Layout.test.tsx.
  * SPEC-020: la sección Captura (harness de spike) deja de estar enrutada — el
  * AC-12 original queda derogado y su sitio lo ocupa la verificación de que la
  * ruta legado /capture redirige al listado global de Capturas.
+ * SPEC-051: el hub de Plantillas desaparece (su gestión se muda a Ajustes) —
+ * el AC-09 (hub con dos cards) queda derogado; su cobertura se retira de aquí
+ * y la unificación se verifica en tests/unit/interview-templates/*.
  */
 import { render, screen, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -15,14 +18,12 @@ import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { CapturesPage } from '@/pages/CapturesPage'
 import { DiscoveriesPage } from '@/pages/DiscoveriesPage'
-import { InterviewTemplatesPage } from '@/pages/InterviewTemplatesPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { NoteTemplateEditorPage } from '@/pages/NoteTemplateEditorPage'
 import { SettingsPage } from '@/pages/SettingsPage'
-import { TemplatesHubPage } from '@/pages/TemplatesHubPage'
 import { installMockApi } from '../../helpers/mockApi'
 
-/** Réplica de la tabla de rutas de App.tsx (SPEC-009, actualizada por SPEC-020). */
+/** Réplica de la tabla de rutas de App.tsx (SPEC-009, actualizada por SPEC-020/051). */
 function renderApp(initialEntry: string): RenderResult {
   return render(
     <TooltipProvider>
@@ -33,8 +34,6 @@ function renderApp(initialEntry: string): RenderResult {
             <Route path="capture" element={<Navigate to="/captures" replace />} />
             <Route path="captures" element={<CapturesPage />} />
             <Route path="discoveries" element={<DiscoveriesPage />} />
-            <Route path="templates" element={<TemplatesHubPage />} />
-            <Route path="templates/interview" element={<InterviewTemplatesPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="settings/note-templates/new" element={<NoteTemplateEditorPage />} />
             <Route path="settings/note-templates/:id" element={<NoteTemplateEditorPage />} />
@@ -63,40 +62,6 @@ describe('secciones bajo el layout (SPEC-009)', () => {
       expect(
         within(screen.getByRole('main')).getByRole('button', { name: 'Crear primer discovery' })
       ).toBeInTheDocument()
-    })
-  })
-
-  describe('Plantillas (hub)', () => {
-    // SPEC-009 · AC-09 (derogado por SPEC-012 AC-01: la card de entrevistas
-    // pasó a ser clicable con descripción nueva, sin "Disponible próximamente")
-    it('shows both template cards, each navigating to its destination', async () => {
-      const user = userEvent.setup()
-      const { unmount } = renderApp('/templates')
-
-      // Card de entrevistas: clicable, con la descripción nueva de SPEC-012
-      expect(screen.queryByText('Disponible próximamente')).not.toBeInTheDocument()
-      expect(screen.getByText('Cuestionarios base para tus entrevistas')).toBeInTheDocument()
-      const interviewLink = screen.getByText('Plantillas de entrevista').closest('a')
-      if (interviewLink === null) {
-        throw new Error('La card de Plantillas de entrevista debe ser un enlace')
-      }
-      await user.click(interviewLink)
-      expect(await screen.findByText('Aún no hay plantillas de entrevista')).toBeInTheDocument()
-
-      // Card de notas: clicable → pestaña de plantillas de notas de Ajustes
-      unmount()
-      renderApp('/templates')
-      const notesLink = screen.getByText('Plantillas de notas').closest('a')
-      if (notesLink === null) {
-        throw new Error('La card de Plantillas de notas debe ser un enlace')
-      }
-      await user.click(notesLink)
-
-      expect(await screen.findByRole('tab', { name: 'Plantillas de notas' })).toHaveAttribute(
-        'aria-selected',
-        'true'
-      )
-      expect(await screen.findByText('Aún no hay plantillas de notas')).toBeInTheDocument()
     })
   })
 
