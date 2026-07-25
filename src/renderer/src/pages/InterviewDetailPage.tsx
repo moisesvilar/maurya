@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, Mic } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -190,36 +190,25 @@ function InterviewDetailContent({
   onInterviewUpdated
 }: InterviewDetailContentProps): React.ReactElement {
   const controller = useRecordingController(interview, onInterviewUpdated)
-  const preparation = !controller.capturing && !controller.recorded
 
   return (
     <>
-      {/* SPEC-055: los controles de grabación viven en la top bar en los tres
-          estados (Preparación: permisos + micrófono; Grabando: sesión en vivo;
-          Grabada: acciones), portalados al slot del Layout. */}
+      {/* SPEC-055-iter-1: TODA la sesión (permisos, «Iniciar grabación»,
+          selector, Grabando, Grabada) vive en la top bar portalada al slot del
+          Layout, en los tres estados. La cabecera ya no lleva «Iniciar». */}
       <TopBarPortal>
         <RecordingTopBarControls controller={controller} />
       </TopBarPortal>
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-semibold">{interview.title}</h1>
-            <Badge variant="secondary">{STATUS_LABELS[interview.status]}</Badge>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            {company.name} · {contactLabel} · {templateLabel} ·{' '}
-            <AiCostInline aiUsage={interview.aiUsage} />
-          </p>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold">{interview.title}</h1>
+          <Badge variant="secondary">{STATUS_LABELS[interview.status]}</Badge>
         </div>
-        {/* SPEC-055: «Iniciar grabación» en la cabecera, solo en Preparación */}
-        {preparation && (
-          <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={controller.handleStart}>
-              <Mic /> Iniciar grabación
-            </Button>
-          </div>
-        )}
+        <p className="text-sm text-muted-foreground">
+          {company.name} · {contactLabel} · {templateLabel} ·{' '}
+          <AiCostInline aiUsage={interview.aiUsage} />
+        </p>
       </div>
 
       {/* SPEC-049: el error de permiso al iniciar la grabación se pinta aquí,

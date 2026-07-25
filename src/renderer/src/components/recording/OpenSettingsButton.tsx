@@ -26,7 +26,7 @@ export function OpenSettingsButton({
   const target: PermissionTarget = microphoneGranted ? 'systemAudio' : 'microphone'
   return (
     <Button
-      variant="outline"
+      variant="destructive"
       size="sm"
       data-testid="open-settings-button"
       onClick={() => void openPrivacySettings(target)}

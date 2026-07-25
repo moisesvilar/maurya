@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, Building2, Mic } from 'lucide-react'
+import { ArrowLeft, Building2 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -190,14 +190,13 @@ function CaptureDetailContent({
 }: CaptureDetailContentProps): React.ReactElement {
   const [assignOpen, setAssignOpen] = useState(false)
   const controller = useRecordingController(interview, onInterviewUpdated)
-  const preparation = !controller.capturing && !controller.recorded
 
   return (
     <>
-      {/* SPEC-055: los controles de grabación viven en la top bar en los tres
-          estados (Preparación: permisos + micrófono; Grabando: sesión en vivo;
-          Grabada: acciones «Mostrar en Finder»/«Nueva grabación»);
-          RecordingTopBarControls elige por estado del controller. */}
+      {/* SPEC-055-iter-1: TODA la sesión (permisos, «Iniciar grabación»,
+          selector, Grabando, Grabada) vive en la top bar portalada al slot del
+          Layout, en los tres estados. La cabecera solo conserva «Asignar
+          empresa» (específico de la captura sin empresa). */}
       <TopBarPortal>
         <RecordingTopBarControls controller={controller} />
       </TopBarPortal>
@@ -216,14 +215,8 @@ function CaptureDetailContent({
             · {templateLabel} · <AiCostInline aiUsage={interview.aiUsage} />
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {preparation && (
-            <Button data-testid="capture-start-button" onClick={controller.handleStart}>
-              <Mic />
-              Iniciar grabación
-            </Button>
-          )}
-          {interview.companyId === null && (
+        {interview.companyId === null && (
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               data-testid="assign-company-button"
               variant="outline"
@@ -232,8 +225,8 @@ function CaptureDetailContent({
               <Building2 />
               Asignar empresa
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* SPEC-049: el error de permiso al iniciar la grabación se pinta aquí,
