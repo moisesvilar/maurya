@@ -64,3 +64,10 @@ Los ACs aplican por igual a la **entrevista clásica** y a la **captura** salvo 
 - El resumen de Grabada se reparte por espacio: la top bar es estrecha y no admite la ruta completa del WAV, así que las **acciones** («Mostrar en Finder», «Nueva grabación») y la etiqueta «Grabada» van arriba, y el **detalle de archivo** (rutas + latencia) va en un bloque fino bajo la cabecera (decisión humana por AskUserQuestion, 2026-07-25).
 - La duración en la etiqueta «Grabada · mm:ss» solo se muestra cuando el resultado de la sesión está en memoria (recién grabada); tras recargar, la etiqueta es «Grabada» sin duración (el resumen no persiste el número de duración fuera del WAV).
 - El componente `CaptureTopBarControls` se renombra a `RecordingTopBarControls` por dejar de ser exclusivo de la captura; el prop `variant` de `RecordingSection` desaparece (ambas páginas se comportan igual) y `SelfControlledRecordingSection` queda sin uso.
+
+## Diseño / mockups
+
+Artifacts de documentación de la Topbar (mockups por estado + criterio de estilo), generados a partir del challenge del humano sobre el diseño implementado:
+
+- **v1 — peloteo inicial** (los 4 estados de las notas + estado Grabando propuesto + inconsistencias + deltas + preguntas): https://claude.ai/code/artifact/bef624a8-6eab-43a7-b0d4-757c55686ed8
+- **v2 — decisiones aplicadas** (badges compactos ✓/✕, selector de micrófono en la barra enabled solo con permisos, «Detener» icon-only, «Grabando» sin badge de estado, «Grabada» sin duración, responsive con «Buscar»/«Modo» a la segunda fila): https://claude.ai/code/artifact/74498c34-bc2b-47b9-ab2d-0ad04599cac4

@@ -24,6 +24,16 @@ El script vive en `scripts/check-md-linebreaks.cjs`, sale con código 1 si detec
 
 ---
 
+## Challenge de diseño → artifact de documentación (OBLIGATORIO)
+
+**Cada vez que el humano cuestione («challenge») un diseño de UI que hayas implementado** —«no me gusta», «esto está mezclado / sin criterio», te pase un diagrama o boceto en Markdown, o describa cómo debería verse—, **ANTES de tocar código genera un artifact de documentación** que extraiga la información relevante del diagrama/nota y la convierta en algo revisable. Es obligatorio y precede a cualquier implementación.
+
+El artifact debe: renderizar **mockups visuales de cada estado/caso** (no ASCII: HTML con el look real de la app, para poder discutir estilos), fijar un **criterio de estilo** explícito (qué componente usa qué estilo y por qué), listar las **inconsistencias** detectadas en las notas del humano, los **deltas respecto a lo ya implementado**, y las **preguntas abiertas** para pelotear. Sirve para acordar el diseño antes de implementar y para iterar (un artifact nuevo por ronda de cambios).
+
+Guarda el **enlace del artifact** en la spec correspondiente (sección «Diseño / mockups»), como parte del registro de la decisión.
+
+---
+
 ## Flujo de desarrollo (orquestador del loop)
 
 Eres el agente de soporte de desarrollo. El desarrollo es un bucle sobre las
