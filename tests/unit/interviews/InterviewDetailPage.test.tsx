@@ -115,21 +115,19 @@ describe('InterviewDetailPage', () => {
     })
   })
 
-  describe('section order (SPEC-030)', () => {
-    // SPEC-030 · AC-01 (deroga la posición de «Grabación» fijada por
-    // SPEC-015/025: los Objetivos siguen tras la cabecera; la Grabación
-    // pasa al final, después de la zona Nota/Guión)
-    it('renders the sections in order: header, Objetivos, Nota/Guión and Grabación last', async () => {
+  describe('section order (SPEC-030 → SPEC-055)', () => {
+    // SPEC-055 deroga posicionalmente SPEC-030: ya no hay sección «Grabación» al
+    // final (su contenido sube a la top bar y a una superficie bajo la cabecera).
+    // Se conserva el orden cabecera → Objetivos → Nota/Guión.
+    it('renders the sections in order: header, Objetivos and Nota/Guión', async () => {
       renderAt('/discoveries/d-1/companies/c-1/interviews/i-1')
 
       const title = await screen.findByRole('heading', { name: 'Discovery con Acme', level: 1 })
       const objetivos = await screen.findByRole('heading', { name: 'Objetivos' })
       // Asíncronos (lección SPEC-029): los headings de la zona Nota/Guión solo
       // renderizan cuando NoteScriptSections resuelve getNoteByInterview —
-      // findByRole SIEMPRE, nunca getByRole síncrono. "Grabación" también se
-      // espera con findBy por robustez (mismo render ready).
+      // findByRole SIEMPRE, nunca getByRole síncrono.
       const guion = await screen.findByRole('heading', { name: 'Guión' })
-      const grabacion = await screen.findByRole('heading', { name: 'Grabación' })
 
       /** a precede a b en el orden del documento. */
       const expectBefore = (a: HTMLElement, b: HTMLElement): void => {
@@ -137,7 +135,8 @@ describe('InterviewDetailPage', () => {
       }
       expectBefore(title, objetivos)
       expectBefore(objetivos, guion)
-      expectBefore(guion, grabacion)
+      // SPEC-055: no existe heading «Grabación»
+      expect(screen.queryByRole('heading', { name: 'Grabación' })).not.toBeInTheDocument()
     })
   })
 

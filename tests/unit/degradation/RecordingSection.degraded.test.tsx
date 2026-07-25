@@ -13,6 +13,7 @@ import { act, render, screen, waitFor, within, type RenderResult } from '@testin
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Layout } from '@/components/layout/Layout'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { InterviewDetailPage } from '@/pages/InterviewDetailPage'
@@ -99,15 +100,22 @@ const STOP_RESULT: StopResult = {
   }
 }
 
+/**
+ * Extensión de SPEC-034: la sesión en vivo (incluido Detener) sube a la top bar
+ * mientras se graba, así que el arnés monta la ruta BAJO <Layout/> para que el
+ * portal del slot exista (patrón CaptureDetailPage.recordingControls.test.tsx).
+ */
 function renderDetail(): RenderResult {
   return render(
     <TooltipProvider>
       <MemoryRouter initialEntries={['/discoveries/d-1/companies/c-1/interviews/i-1']}>
         <Routes>
-          <Route
-            path="/discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
-            element={<InterviewDetailPage />}
-          />
+          <Route path="/" element={<Layout />}>
+            <Route
+              path="discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
+              element={<InterviewDetailPage />}
+            />
+          </Route>
         </Routes>
       </MemoryRouter>
       <Toaster />
@@ -186,8 +194,11 @@ describe('RecordingSection (degradación SPEC-022)', () => {
     )
   })
 
-  // SPEC-022 · AC-07
-  it('renders degraded final lines with the generic labels and no speaker chip, without errors', async () => {
+  // SPEC-022 · AC-07 (derogado por la extensión de SPEC-034: la transcripción
+  // en vivo del detalle clásico se retira junto con la sección «Grabación»
+  // mientras se graba — paridad total con la captura, SPEC-035. El AVISO de
+  // modo degradado sobrevive; las líneas ya no se pintan en el cuerpo)
+  it('keeps the degraded alert while recording but no longer renders the degraded transcript lines', async () => {
     const user = userEvent.setup()
     renderDetail()
     await startRecording(user)
@@ -216,15 +227,17 @@ describe('RecordingSection (degradación SPEC-022)', () => {
       })
     })
 
-    // Las líneas se pintan sin huecos y sin etiqueta de hablante (speaker null)
-    expect(await screen.findByText('línea degradada del micro')).toBeInTheDocument()
-    expect(screen.getByText('línea degradada del sistema')).toBeInTheDocument()
-    expect(screen.queryByText(/Hablante \d/)).not.toBeInTheDocument()
-    // La grabación sigue operativa
+    // El aviso de modo degradado sigue visible mientras dura la sesión…
+    expect(await screen.findByTestId('transcription-degraded-alert')).toBeInTheDocument()
+    // …pero las líneas ya no se pintan (sin superficie de transcripción en vivo)
+    expect(screen.queryByText('línea degradada del micro')).not.toBeInTheDocument()
+    expect(screen.queryByText('línea degradada del sistema')).not.toBeInTheDocument()
+    // La grabación sigue operativa (Detener vive en la top bar)
     expect(screen.getByRole('button', { name: 'Detener' })).toBeInTheDocument()
   })
 
-  // SPEC-022 · AC-08
+  // SPEC-022 · AC-08 (el AC nuclear —no aparece el aviso en sesión normal—
+  // sobrevive; la comprobación de líneas se retira con la transcripción en vivo)
   it('never shows the degraded alert during a normal session with working diarization', async () => {
     const user = userEvent.setup()
     renderDetail()
@@ -244,8 +257,10 @@ describe('RecordingSection (degradación SPEC-022)', () => {
       })
     })
 
-    expect(await screen.findByText('línea con hablante identificado')).toBeInTheDocument()
-    expect(screen.getByText('Hablante 1')).toBeInTheDocument()
+    // Ancla de sincronización: la sesión sigue viva en la top bar (el badge
+    // «Transcribiendo» se retiró en SPEC-055-iter-1)
+    expect(await screen.findByRole('button', { name: 'Detener' })).toBeInTheDocument()
+    // Sesión normal: nunca aparece el aviso de modo degradado
     expect(screen.queryByTestId('transcription-degraded-alert')).not.toBeInTheDocument()
   })
 

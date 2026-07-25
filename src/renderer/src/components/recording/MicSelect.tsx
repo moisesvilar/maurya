@@ -21,6 +21,11 @@ interface MicSelectProps {
    * fijo w-48. Por defecto false: cero cambios para el spike y la sección.
    */
   compact?: boolean
+  /**
+   * Motivo del disabled para el Tooltip (SPEC-055-iter-1): por defecto «durante
+   * la captura»; en Preparación sin permisos se pasa el motivo de permisos.
+   */
+  disabledReason?: string
 }
 
 /**
@@ -33,7 +38,8 @@ export function MicSelect({
   selectedDeviceId,
   onSelectDevice,
   disabled,
-  compact = false
+  compact = false,
+  disabledReason = 'No se puede cambiar de dispositivo durante la captura'
 }: MicSelectProps): React.ReactElement {
   const enumerated = devices.filter((device) => device.deviceId !== DEFAULT_DEVICE_ID)
 
@@ -62,7 +68,7 @@ export function MicSelect({
       <TooltipTrigger asChild>
         <div className={compact ? 'w-48' : 'w-full'}>{select}</div>
       </TooltipTrigger>
-      <TooltipContent>No se puede cambiar de dispositivo durante la captura</TooltipContent>
+      <TooltipContent>{disabledReason}</TooltipContent>
     </Tooltip>
   ) : (
     select

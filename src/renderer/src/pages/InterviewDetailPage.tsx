@@ -7,9 +7,11 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { AiCostInline } from '@/components/interviews/AiCostInline'
 import { NoteScriptSections } from '@/components/interviews/NoteScriptSections'
 import { ObjectivesSection } from '@/components/interviews/ObjectivesSection'
+import { TopBarPortal } from '@/components/layout/TopBarSlot'
 import { AssistantLiveSection } from '@/components/recording/AssistantLiveSection'
+import { RecordingTopBarControls } from '@/components/recording/RecordingTopBarControls'
 import { PermissionErrorAlert } from '@/components/recording/PermissionErrorAlert'
-import { RecordingSection } from '@/components/recording/RecordingSection'
+import { RecordingSurface } from '@/components/recording/RecordingSurface'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
 import { useContacts } from '@/hooks/useContacts'
 import { useInterviewTemplates } from '@/hooks/useInterviewTemplates'
@@ -172,9 +174,13 @@ interface InterviewDetailContentProps {
  * CaptureDetailContent de SPEC-034): crea el controller de grabación en un
  * componente hijo para no condicionar hooks, de modo que la página pueda
  * pintar el panel del asistente ARRIBA — entre «Objetivos» y Nota/Guión —
- * mientras se graba, y lo comparte con la sección Grabación por prop. El
- * ciclo de vida del controller (auto-guardado al desmontar, close guard) es
- * el mismo que tenía dentro de la sección.
+ * mientras se graba, y lo comparte con la sección Grabación y con la top bar
+ * (portal) por prop. El ciclo de vida del controller (auto-guardado al
+ * desmontar, close guard) es el mismo que tenía dentro de la sección.
+ * SPEC-055: toda la UI de grabación vive arriba — la top bar
+ * (RecordingTopBarControls) en los tres estados y «Iniciar grabación» en la
+ * cabecera; la RecordingSurface (avisos + detalle de Grabada) va bajo la
+ * cabecera. Ya no hay sección «Grabación» al final.
  */
 function InterviewDetailContent({
   interview,
@@ -187,6 +193,13 @@ function InterviewDetailContent({
 
   return (
     <>
+      {/* SPEC-055-iter-1: TODA la sesión (permisos, «Iniciar grabación»,
+          selector, Grabando, Grabada) vive en la top bar portalada al slot del
+          Layout, en los tres estados. La cabecera ya no lleva «Iniciar». */}
+      <TopBarPortal>
+        <RecordingTopBarControls controller={controller} />
+      </TopBarPortal>
+
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-semibold">{interview.title}</h1>
@@ -199,12 +212,19 @@ function InterviewDetailContent({
       </div>
 
       {/* SPEC-049: el error de permiso al iniciar la grabación se pinta aquí,
-          bajo la cabecera y antes de Objetivos — visible sin scroll (la
-          sección Grabación del final ya no lo muestra) */}
+          bajo la cabecera y antes de Objetivos — visible sin scroll */}
       <PermissionErrorAlert error={controller.error} />
 
-      {/* SPEC-025: los objetivos van arriba del todo, inmediatamente tras
-          la cabecera — son el indicador de progreso principal */}
+      {/* SPEC-055: la superficie de grabación (avisos + detalle de Grabada) vive
+          bajo la cabecera, antes de Objetivos — ya no hay sección al final */}
+      <RecordingSurface
+        interview={interview}
+        onInterviewUpdated={onInterviewUpdated}
+        controller={controller}
+      />
+
+      {/* SPEC-025: los objetivos van arriba, tras la cabecera/superficie —
+          son el indicador de progreso principal */}
       <ObjectivesSection interview={interview} onInterviewUpdated={onInterviewUpdated} />
 
       {/* SPEC-041: el panel del asistente, entre objetivos y Nota/Guión,
@@ -212,15 +232,6 @@ function InterviewDetailContent({
       <AssistantLiveSection controller={controller} />
 
       <NoteScriptSections interview={interview} onInterviewUpdated={onInterviewUpdated} />
-
-      {/* SPEC-030: la Grabación cierra la página — tras el flujo end-to-end
-          es material de archivo (rutas WAV/transcript, latencia) */}
-      <RecordingSection
-        interview={interview}
-        onInterviewUpdated={onInterviewUpdated}
-        controller={controller}
-        variant="interview"
-      />
     </>
   )
 }

@@ -12,6 +12,7 @@ import { act, render, screen, waitFor, within, type RenderResult } from '@testin
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Layout } from '@/components/layout/Layout'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { InterviewDetailPage } from '@/pages/InterviewDetailPage'
@@ -114,10 +115,12 @@ function renderDetail(): RenderResult {
     <TooltipProvider>
       <MemoryRouter initialEntries={['/discoveries/d-1/companies/c-1/interviews/i-1']}>
         <Routes>
-          <Route
-            path="/discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
-            element={<InterviewDetailPage />}
-          />
+          <Route path="/" element={<Layout />}>
+            <Route
+              path="discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
+              element={<InterviewDetailPage />}
+            />
+          </Route>
         </Routes>
       </MemoryRouter>
       <Toaster />
@@ -275,7 +278,9 @@ describe('AssistantPanel (coste de IA SPEC-021)', () => {
     emitPaused()
     await screen.findByTestId('assistant-paused-alert')
 
-    // La transcripción en vivo sigue llegando y pintándose
+    // La transcripción sigue activa: su estado llega a la top bar. La línea en
+    // vivo ya no se pinta en el cuerpo tras subir la sesión a la top bar
+    // (extensión de SPEC-034, paridad total con la captura)
     act(() => {
       mockApi.emitTranscriptionStatus({ status: 'active' })
       mockApi.emitTranscriptionResult({
@@ -289,11 +294,13 @@ describe('AssistantPanel (coste de IA SPEC-021)', () => {
         offsetSeconds: 1
       })
     })
+    // SPEC-055-iter-1: el badge de estado «Transcribiendo» se retiró de la top
+    // bar; la línea en vivo tampoco se pinta en el cuerpo
     expect(
-      await screen.findByText('Seguimos hablando con el asistente en pausa')
-    ).toBeInTheDocument()
-    expect(screen.getByText('Transcribiendo')).toBeInTheDocument()
-    // La grabación sigue operativa (cronómetro + Detener) y el guión legible
+      screen.queryByText('Seguimos hablando con el asistente en pausa')
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('Transcribiendo')).not.toBeInTheDocument()
+    // La grabación sigue operativa (cronómetro + Detener en la top bar) y el guión legible
     expect(screen.getByText('00:00')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Detener' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Guión' })).toBeInTheDocument()

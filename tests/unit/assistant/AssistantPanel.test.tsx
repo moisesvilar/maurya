@@ -10,6 +10,7 @@ import { act, render, screen, within, type RenderResult } from '@testing-library
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Layout } from '@/components/layout/Layout'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { InterviewDetailPage } from '@/pages/InterviewDetailPage'
@@ -141,10 +142,12 @@ function renderDetail(): RenderResult {
     <TooltipProvider>
       <MemoryRouter initialEntries={['/discoveries/d-1/companies/c-1/interviews/i-1']}>
         <Routes>
-          <Route
-            path="/discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
-            element={<InterviewDetailPage />}
-          />
+          <Route path="/" element={<Layout />}>
+            <Route
+              path="discoveries/:discoveryId/companies/:companyId/interviews/:interviewId"
+              element={<InterviewDetailPage />}
+            />
+          </Route>
         </Routes>
       </MemoryRouter>
       <Toaster />
@@ -239,10 +242,15 @@ describe('AssistantPanel', () => {
         mockApi.emitAssistantUpdate({ state: 'no-key', queue: EMPTY_QUEUE, objectivesMet: [] })
       })
 
+      // Acotado al panel: el sidebar del Layout también tiene un link «Ajustes»
+      const panel = await screen.findByTestId('assistant-live-section')
       expect(
-        await screen.findByText(/Asistente inactivo — configura tu clave de Anthropic en/)
+        within(panel).getByText(/Asistente inactivo — configura tu clave de Anthropic en/)
       ).toBeInTheDocument()
-      expect(screen.getByRole('link', { name: 'Ajustes' })).toHaveAttribute('href', '/settings')
+      expect(within(panel).getByRole('link', { name: 'Ajustes' })).toHaveAttribute(
+        'href',
+        '/settings'
+      )
     })
 
     // SPEC-016 · AC-04
@@ -256,7 +264,8 @@ describe('AssistantPanel', () => {
         mockApi.emitTranscriptionStatus({ status: 'inactive' })
       })
 
-      expect(screen.getByText('Inactiva')).toBeInTheDocument()
+      // SPEC-055-iter-1: el badge de estado «Inactiva» se retiró de la top bar;
+      // el AC es sobre el panel del asistente, que se queda en su estado inicial
       expect(screen.getByText(INITIAL_TEXT)).toBeInTheDocument()
       expect(screen.queryByText('Analizando…')).not.toBeInTheDocument()
     })
