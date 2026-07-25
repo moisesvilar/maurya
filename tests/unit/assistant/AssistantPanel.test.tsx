@@ -264,7 +264,8 @@ describe('AssistantPanel', () => {
         mockApi.emitTranscriptionStatus({ status: 'inactive' })
       })
 
-      expect(screen.getByText('Inactiva')).toBeInTheDocument()
+      // SPEC-055-iter-1: el badge de estado «Inactiva» se retiró de la top bar;
+      // el AC es sobre el panel del asistente, que se queda en su estado inicial
       expect(screen.getByText(INITIAL_TEXT)).toBeInTheDocument()
       expect(screen.queryByText('Analizando…')).not.toBeInTheDocument()
     })

@@ -294,12 +294,12 @@ describe('AssistantPanel (coste de IA SPEC-021)', () => {
         offsetSeconds: 1
       })
     })
-    // El estado «Transcribiendo» sigue visible (en la top bar)…
-    expect(await screen.findByText('Transcribiendo')).toBeInTheDocument()
-    // …pero la línea en vivo ya no se pinta en el cuerpo
+    // SPEC-055-iter-1: el badge de estado «Transcribiendo» se retiró de la top
+    // bar; la línea en vivo tampoco se pinta en el cuerpo
     expect(
       screen.queryByText('Seguimos hablando con el asistente en pausa')
     ).not.toBeInTheDocument()
+    expect(screen.queryByText('Transcribiendo')).not.toBeInTheDocument()
     // La grabación sigue operativa (cronómetro + Detener en la top bar) y el guión legible
     expect(screen.getByText('00:00')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Detener' })).toBeInTheDocument()

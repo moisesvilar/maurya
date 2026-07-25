@@ -9,7 +9,7 @@
  *
  * Arnés heredado de CaptureDetailPage.recordingControls.test.tsx (SPEC-034):
  * la ruta del detalle de captura montada BAJO <Layout/> (el arranque vive en
- * la cabecera vía capture-start-button y atraviesa el consentimiento de
+ * la cabecera vía topbar-start-button y atraviesa el consentimiento de
  * SPEC-019 con localStorage limpio). Fronteras de mocking idénticas a
  * RecordingSection.test.tsx (SPEC-015): servicios del spike
  * (permissionsService/captureService/wavRecorderService) + bridge window.api.
@@ -130,11 +130,11 @@ function renderCaptureDetail(): RenderResult {
 }
 
 /**
- * Arranca la grabación desde el botón de la CABECERA (capture-start-button)
+ * Arranca la grabación desde el botón de la CABECERA (topbar-start-button)
  * atravesando el aviso de consentimiento (SPEC-019) sin persistir preferencia.
  */
 async function startFromHeader(user: ReturnType<typeof userEvent.setup>): Promise<void> {
-  await user.click(await screen.findByTestId('capture-start-button'))
+  await user.click(await screen.findByTestId('topbar-start-button'))
   const consent = await screen.findByRole('alertdialog')
   expect(within(consent).getByRole('heading', { name: 'Aviso de grabación' })).toBeInTheDocument()
   await user.click(within(consent).getByRole('button', { name: 'Entendido, iniciar grabación' }))
@@ -192,8 +192,8 @@ beforeEach(() => {
 
 describe('CaptureDetailPage (SPEC-035 capture UI cleanup)', () => {
   describe('recording without live transcript area', () => {
-    // SPEC-035 · AC-05
-    it('records a capture without the live transcript area, keeping chronometer, Detener, status badge, assistant panel and level meters', async () => {
+    // SPEC-035 · AC-05 (SPEC-055-iter-1: sin badge de estado en la top bar)
+    it('records a capture without the live transcript area, keeping chronometer, Detener, assistant panel and level meters', async () => {
       const user = userEvent.setup()
       setupGrantedCapture()
       renderCaptureDetail()
@@ -201,10 +201,9 @@ describe('CaptureDetailPage (SPEC-035 capture UI cleanup)', () => {
 
       emitLiveLine()
 
-      // La transcripción sigue corriendo (badge de estado)…
-      expect(await screen.findByText('Transcribiendo')).toBeInTheDocument()
-      // …pero NO se pinta en vivo: ni la línea, ni su hablante, ni el área
-      // (su empty state «Esperando audio…» tampoco existe)
+      // SPEC-055-iter-1: sin badge «Transcribiendo». Y NO se pinta en vivo: ni la
+      // línea, ni su hablante, ni el área (su empty state «Esperando audio…» tampoco)
+      expect(screen.queryByText('Transcribiendo')).not.toBeInTheDocument()
       expect(screen.queryByText(LIVE_LINE_TEXT)).not.toBeInTheDocument()
       expect(screen.queryByText('Hablante 1')).not.toBeInTheDocument()
       expect(screen.queryByText('Esperando audio…')).not.toBeInTheDocument()
@@ -238,7 +237,8 @@ describe('CaptureDetailPage (SPEC-035 capture UI cleanup)', () => {
       })
 
       expect(await screen.findByText('Falta la key de Deepgram')).toBeInTheDocument()
-      expect(screen.getByText('Sin key')).toBeInTheDocument()
+      // SPEC-055-iter-1: el badge «Sin key» se retiró de la top bar
+      expect(screen.queryByText('Sin key')).not.toBeInTheDocument()
       // La grabación sigue operativa y el área en vivo sigue sin pintarse
       expect(screen.getByRole('button', { name: 'Detener' })).toBeInTheDocument()
       expect(screen.queryByText('Esperando audio…')).not.toBeInTheDocument()

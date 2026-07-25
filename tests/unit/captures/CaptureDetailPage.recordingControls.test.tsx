@@ -179,11 +179,11 @@ function topBar(): HTMLElement {
 }
 
 /**
- * Arranca la grabación desde el botón de la CABECERA (capture-start-button)
+ * Arranca la grabación desde el botón de la CABECERA (topbar-start-button)
  * atravesando el aviso de consentimiento (SPEC-019) sin persistir preferencia.
  */
 async function startFromHeader(user: ReturnType<typeof userEvent.setup>): Promise<void> {
-  await user.click(await screen.findByTestId('capture-start-button'))
+  await user.click(await screen.findByTestId('topbar-start-button'))
   const consent = await screen.findByRole('alertdialog')
   expect(within(consent).getByRole('heading', { name: 'Aviso de grabación' })).toBeInTheDocument()
   await user.click(within(consent).getByRole('button', { name: 'Entendido, iniciar grabación' }))
@@ -278,7 +278,7 @@ describe('CaptureDetailPage (SPEC-034 recording controls)', () => {
     it('renders the default "Iniciar grabación" button before the outline "Asignar empresa" when the capture has no company', async () => {
       renderAt('/captures/i-1')
 
-      const start = await screen.findByTestId('capture-start-button')
+      const start = await screen.findByTestId('topbar-start-button')
       expect(start).toHaveTextContent('Iniciar grabación')
       expect(start).toHaveAttribute('data-variant', 'default')
       const assign = screen.getByTestId('assign-company-button')
@@ -292,7 +292,7 @@ describe('CaptureDetailPage (SPEC-034 recording controls)', () => {
       setInterview(capture({ companyId: 'c-1', contactIds: ['ct-1'] }))
       renderAt('/captures/i-1')
 
-      expect(await screen.findByTestId('capture-start-button')).toBeInTheDocument()
+      expect(await screen.findByTestId('topbar-start-button')).toBeInTheDocument()
       expect(screen.queryByTestId('assign-company-button')).not.toBeInTheDocument()
     })
 
@@ -324,7 +324,7 @@ describe('CaptureDetailPage (SPEC-034 recording controls)', () => {
 
       // Los controles de Preparación desaparecen (top bar y cabecera)…
       expect(screen.queryByTestId('topbar-capture-controls')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('capture-start-button')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('topbar-start-button')).not.toBeInTheDocument()
       // …y la sesión en curso vive en la top bar: cronómetro, Detener y
       // medidores compactos, dentro del banner junto a «Buscar»
       const controls = within(topBar()).getByTestId('topbar-recording-controls')
@@ -333,9 +333,9 @@ describe('CaptureDetailPage (SPEC-034 recording controls)', () => {
       expect(within(controls).getAllByRole('progressbar')).toHaveLength(2)
       expect(within(controls).getByLabelText('Nivel de Micrófono')).toBeInTheDocument()
       expect(within(controls).getByLabelText('Nivel de Sistema')).toBeInTheDocument()
-      // Sin selector de micrófono durante la grabación (el dispositivo ya no
-      // puede cambiar) y sin sección «Grabación» al final de la página
-      expect(screen.queryByRole('combobox', { name: 'Micrófono' })).not.toBeInTheDocument()
+      // SPEC-055-iter-1: el selector sigue presente pero DISABLED durante la
+      // grabación (el dispositivo no se cambia en caliente); sin sección «Grabación»
+      expect(within(controls).getByRole('combobox', { name: 'Micrófono' })).toBeDisabled()
       expect(screen.queryByRole('heading', { name: 'Grabación' })).not.toBeInTheDocument()
     })
 
@@ -347,17 +347,18 @@ describe('CaptureDetailPage (SPEC-034 recording controls)', () => {
       renderAt('/captures/i-1')
 
       expect(await screen.findByText(WAV_PATH)).toBeInTheDocument()
-      // Sin controles de preparación ni de grabación en curso ni selector
+      // Sin controles de preparación ni de grabación en curso
       expect(screen.queryByTestId('topbar-capture-controls')).not.toBeInTheDocument()
       expect(screen.queryByTestId('topbar-recording-controls')).not.toBeInTheDocument()
-      expect(screen.queryByTestId('capture-start-button')).not.toBeInTheDocument()
-      expect(screen.queryByRole('combobox', { name: 'Micrófono' })).not.toBeInTheDocument()
-      // La sesión Grabada vive en la top bar: etiqueta + acciones
+      expect(screen.queryByTestId('topbar-start-button')).not.toBeInTheDocument()
+      // La sesión Grabada vive en la top bar: etiqueta + acciones + selector
+      // (SPEC-055-iter-1: el selector está presente para la próxima grabación)
       const recorded = within(topBar()).getByTestId('topbar-recorded-controls')
       expect(within(recorded).getByText('Grabada')).toBeInTheDocument()
       expect(
         within(recorded).getByRole('button', { name: 'Mostrar en Finder' })
       ).toBeInTheDocument()
+      expect(within(recorded).getByRole('combobox', { name: 'Micrófono' })).toBeInTheDocument()
       expect(within(recorded).getByRole('button', { name: 'Nueva grabación' })).toBeInTheDocument()
       // Y el detalle de archivo (transcript) bajo la cabecera
       expect(screen.getByText(TRANSCRIPT_PATH)).toBeInTheDocument()
@@ -380,7 +381,7 @@ describe('CaptureDetailPage (SPEC-034 recording controls)', () => {
       const controls = await within(topBar()).findByTestId('topbar-capture-controls')
       expect(await within(controls).findAllByText('Concedido')).toHaveLength(2)
       expect(within(controls).getByRole('combobox', { name: 'Micrófono' })).toBeEnabled()
-      expect(await screen.findByTestId('capture-start-button')).toBeInTheDocument()
+      expect(await screen.findByTestId('topbar-start-button')).toBeInTheDocument()
       expect(screen.queryByText(WAV_PATH)).not.toBeInTheDocument()
     })
   })
@@ -417,38 +418,27 @@ describe('CaptureDetailPage (SPEC-034 recording controls)', () => {
   })
 
   describe('flow regressions', () => {
-    // SPEC-034 · AC-12 (adaptado por SPEC-049: el Alert de permiso ya no vive
-    // en la sección «Grabación» del final — se muestra arriba de la página,
-    // bajo la cabecera, dentro de permission-error-alert)
-    it('blocks the start from the header and shows the destructive permission Alert below the page header', async () => {
-      const user = userEvent.setup()
+    // SPEC-034 · AC-12 (derogado por SPEC-055-iter-1: el bloqueo por permiso es
+    // preventivo — «Iniciar grabación» disabled + «Abrir Ajustes» destructive —
+    // no reactivo por Alert al pulsar)
+    it('disables the start button and shows the destructive "Abrir Ajustes" when a permission is denied', async () => {
       vi.mocked(getPermissionsStatus).mockResolvedValue({
         microphone: 'denied',
         systemAudio: 'granted'
       })
       renderAt('/captures/i-1')
 
-      await user.click(await screen.findByTestId('capture-start-button'))
-      // SPEC-019: el aviso aparece ANTES; el bloqueo se evalúa tras confirmar
-      const consent = await screen.findByRole('alertdialog')
-      await user.click(
-        within(consent).getByRole('button', { name: 'Entendido, iniciar grabación' })
+      const controls = await within(topBar()).findByTestId('topbar-capture-controls')
+      expect(await within(controls).findByTestId('topbar-start-button')).toBeDisabled()
+      expect(within(controls).getByTestId('open-settings-button')).toHaveAttribute(
+        'data-variant',
+        'destructive'
       )
-
-      const title = await screen.findByText('Permiso de micrófono no concedido')
-      const alert = title.closest('[role="alert"]')
-      if (alert === null) {
-        throw new Error('El error de permiso debe mostrarse dentro de un Alert')
-      }
-      expect(alert).toHaveTextContent(/Ajustes del Sistema → Privacidad y seguridad → Micrófono/)
-      // SPEC-049/055: el Alert vive arriba de la página (permission-error-alert);
-      // ya no hay sección «Grabación» que pudiera duplicarlo
-      expect(screen.getByTestId('permission-error-alert').contains(alert)).toBe(true)
-      expect(screen.queryByRole('heading', { name: 'Grabación' })).not.toBeInTheDocument()
-      // No arranca: sin Detener ni recorder ni bridge
+      // No arranca ni aparece Alert reactivo (bloqueo preventivo)
       expect(screen.queryByRole('button', { name: 'Detener' })).not.toBeInTheDocument()
       expect(recorderMock.start).not.toHaveBeenCalled()
       expect(vi.mocked(mockApi.api.recording.start)).not.toHaveBeenCalled()
+      expect(screen.queryByTestId('permission-error-alert')).not.toBeInTheDocument()
     })
 
     // SPEC-034 · AC-13

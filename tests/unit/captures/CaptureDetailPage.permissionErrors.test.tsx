@@ -144,7 +144,7 @@ function renderCapture(): RenderResult {
  * lo asevera cada test.
  */
 async function startFromHeader(user: ReturnType<typeof userEvent.setup>): Promise<void> {
-  await user.click(await screen.findByTestId('capture-start-button'))
+  await user.click(await screen.findByTestId('topbar-start-button'))
   const consent = await screen.findByRole('alertdialog')
   expect(within(consent).getByRole('heading', { name: 'Aviso de grabación' })).toBeInTheDocument()
   await user.click(within(consent).getByRole('button', { name: 'Entendido, iniciar grabación' }))
@@ -203,82 +203,62 @@ describe('CaptureDetailPage (SPEC-049 permission visibility)', () => {
     })
   })
 
-  describe('permission error Alert below the header', () => {
-    // SPEC-049 · AC-09
-    it('shows the system audio permission Alert right below the page header and before Objetivos when the capture fails', async () => {
-      const user = userEvent.setup()
+  describe('preventive permission handling in the top bar', () => {
+    // SPEC-055-iter-1 (deroga SPEC-049 AC-09/10/12/14 «Alert al pulsar»): con
+    // algún permiso denegado, «Iniciar grabación» está DISABLED y «Abrir
+    // Ajustes» (destructive) a la vista — bloqueo preventivo, sin Alert reactivo.
+    it('disables "Iniciar grabación" and shows the destructive "Abrir Ajustes" when system audio is denied', async () => {
       vi.mocked(getPermissionsStatus).mockResolvedValue({
         microphone: 'granted',
         systemAudio: 'denied'
       })
       renderCapture()
 
-      await startFromHeader(user)
-
-      const container = await screen.findByTestId('permission-error-alert')
-      expect(
-        within(container).getByText('Permiso de audio del sistema no concedido')
-      ).toBeInTheDocument()
-      // Posición: tras la cabecera (h1 de la captura) y antes de Objetivos
-      const title = screen.getByRole('heading', { name: 'Captura sin empresa', level: 1 })
-      const objectives = screen.getByRole('heading', { name: 'Objetivos', level: 3 })
-      expect(
-        title.compareDocumentPosition(container) & Node.DOCUMENT_POSITION_FOLLOWING
-      ).toBeTruthy()
-      expect(
-        container.compareDocumentPosition(objectives) & Node.DOCUMENT_POSITION_FOLLOWING
-      ).toBeTruthy()
-      // No arranca: sin Detener ni recorder
+      const controls = await within(screen.getByRole('banner')).findByTestId(
+        'topbar-capture-controls'
+      )
+      const openSettings = await within(controls).findByTestId('open-settings-button')
+      expect(openSettings).toHaveAttribute('data-variant', 'destructive')
+      expect(within(controls).getByRole('button', { name: 'Iniciar grabación' })).toBeDisabled()
+      // No arranca ni aparece Alert reactivo (el bloqueo es preventivo)
       expect(screen.queryByRole('button', { name: 'Detener' })).not.toBeInTheDocument()
       expect(recorderMock.start).not.toHaveBeenCalled()
+      expect(
+        screen.queryByText('Permiso de audio del sistema no concedido')
+      ).not.toBeInTheDocument()
     })
 
-    // SPEC-049 · AC-10
-    it('shows the microphone permission Alert right below the page header when the capture fails by microphone', async () => {
-      const user = userEvent.setup()
+    it('disables "Iniciar grabación" when the microphone is denied', async () => {
       vi.mocked(getPermissionsStatus).mockResolvedValue({
         microphone: 'denied',
         systemAudio: 'granted'
       })
       renderCapture()
 
-      await startFromHeader(user)
-
-      const container = await screen.findByTestId('permission-error-alert')
-      expect(within(container).getByText('Permiso de micrófono no concedido')).toBeInTheDocument()
-      const objectives = screen.getByRole('heading', { name: 'Objetivos', level: 3 })
-      expect(
-        container.compareDocumentPosition(objectives) & Node.DOCUMENT_POSITION_FOLLOWING
-      ).toBeTruthy()
+      const controls = await within(screen.getByRole('banner')).findByTestId(
+        'topbar-capture-controls'
+      )
+      await within(controls).findByTestId('open-settings-button')
+      expect(within(controls).getByRole('button', { name: 'Iniciar grabación' })).toBeDisabled()
       expect(recorderMock.start).not.toHaveBeenCalled()
     })
 
-    // SPEC-049 · AC-12
-    it('does not duplicate the permission error inside the Grabación section while the Alert is shown on top', async () => {
+    it('enables "Iniciar grabación" and can record once permissions are granted', async () => {
       const user = userEvent.setup()
-      vi.mocked(getPermissionsStatus).mockResolvedValue({
-        microphone: 'granted',
-        systemAudio: 'denied'
-      })
+      setupGrantedCapture()
       renderCapture()
 
       await startFromHeader(user)
-      await screen.findByTestId('permission-error-alert')
 
-      // Un único Alert de permiso en toda la página…
-      expect(screen.getAllByText('Permiso de audio del sistema no concedido')).toHaveLength(1)
-      // …y vive en el contenedor de arriba (permission-error-alert), SPEC-055
-      const container = screen.getByTestId('permission-error-alert')
-      expect(
-        within(container).getByText('Permiso de audio del sistema no concedido')
-      ).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Detener' })).toBeInTheDocument()
+      expect(screen.queryByTestId('open-settings-button')).not.toBeInTheDocument()
     })
 
-    // SPEC-049 · AC-13
-    it('keeps non-permission capture errors inside the Grabación section and off the top of the page', async () => {
+    // SPEC-049 · AC-13 (vigente): un error de arranque que NO es de permisos
+    // (con permisos concedidos) vive en la superficie bajo la cabecera, no arriba
+    it('keeps non-permission capture errors in the recording surface, off the top of the page', async () => {
       const user = userEvent.setup()
       setupGrantedCapture()
-      // Fallo de arranque que NO es de permisos: el bridge recording:start falla
       vi.mocked(mockApi.api.recording.start).mockRejectedValue(new Error('disk full'))
       renderCapture()
 
@@ -289,30 +269,7 @@ describe('CaptureDetailPage (SPEC-049 permission visibility)', () => {
       if (alert === null) {
         throw new Error('El error de captura debe mostrarse dentro de un Alert')
       }
-      // SPEC-055: los errores no-de-permiso viven en la superficie de grabación
-      // (bajo la cabecera), NO en el contenedor de permisos de arriba
       expect(screen.queryByTestId('permission-error-alert')).not.toBeInTheDocument()
-    })
-
-    // SPEC-049 · AC-14
-    it('removes the permission Alert when a new recording starts correctly', async () => {
-      const user = userEvent.setup()
-      vi.mocked(getPermissionsStatus).mockResolvedValue({
-        microphone: 'denied',
-        systemAudio: 'granted'
-      })
-      renderCapture()
-
-      await startFromHeader(user)
-      expect(await screen.findByTestId('permission-error-alert')).toBeInTheDocument()
-
-      // El permiso se concede fuera y el nuevo intento arranca con éxito
-      setupGrantedCapture()
-      await startFromHeader(user)
-      await screen.findByRole('button', { name: 'Detener' })
-
-      expect(screen.queryByTestId('permission-error-alert')).not.toBeInTheDocument()
-      expect(screen.queryByText('Permiso de micrófono no concedido')).not.toBeInTheDocument()
     })
   })
 })

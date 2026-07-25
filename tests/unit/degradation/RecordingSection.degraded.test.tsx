@@ -257,12 +257,11 @@ describe('RecordingSection (degradación SPEC-022)', () => {
       })
     })
 
-    // Ancla de sincronización: el estado «Transcribiendo» llega a la top bar
-    expect(await screen.findByText('Transcribiendo')).toBeInTheDocument()
+    // Ancla de sincronización: la sesión sigue viva en la top bar (el badge
+    // «Transcribiendo» se retiró en SPEC-055-iter-1)
+    expect(await screen.findByRole('button', { name: 'Detener' })).toBeInTheDocument()
     // Sesión normal: nunca aparece el aviso de modo degradado
     expect(screen.queryByTestId('transcription-degraded-alert')).not.toBeInTheDocument()
-    // La grabación sigue operativa (Detener en la top bar)
-    expect(screen.getByRole('button', { name: 'Detener' })).toBeInTheDocument()
   })
 
   // SPEC-022-iter-1 (refuerzo de AC-06: el Alert SOLO en modo degradado real —

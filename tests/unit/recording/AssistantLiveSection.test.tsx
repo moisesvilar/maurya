@@ -202,7 +202,7 @@ async function startRecording(user: ReturnType<typeof userEvent.setup>): Promise
 
 /** Arranca la captura desde el botón de la cabecera (SPEC-034) + consentimiento. */
 async function startFromHeader(user: ReturnType<typeof userEvent.setup>): Promise<void> {
-  await user.click(await screen.findByTestId('capture-start-button'))
+  await user.click(await screen.findByTestId('topbar-start-button'))
   const consent = await screen.findByRole('alertdialog')
   await user.click(within(consent).getByRole('button', { name: 'Entendido, iniciar grabación' }))
   await screen.findByRole('button', { name: 'Detener' })
@@ -386,9 +386,10 @@ describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
         })
       })
 
-      // Ancla de sincronización: el estado «Transcribiendo» llega a la top bar
+      // Ancla de sincronización: la sesión sigue viva en la top bar (Detener);
+      // el badge «Transcribiendo» se retiró en iter-1
       expect(
-        await within(topBarRecordingControls()).findByText('Transcribiendo')
+        within(topBarRecordingControls()).getByRole('button', { name: 'Detener' })
       ).toBeInTheDocument()
       // La línea en vivo no se pinta en ninguna parte (ni cuerpo ni panel)
       expect(screen.queryByText(LIVE_LINE_TEXT)).not.toBeInTheDocument()
@@ -422,7 +423,7 @@ describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
     it('does not render the assistant panel on the capture detail without a recording in progress', async () => {
       renderCaptureDetail()
 
-      expect(await screen.findByTestId('capture-start-button')).toBeInTheDocument()
+      expect(await screen.findByTestId('topbar-start-button')).toBeInTheDocument()
       expect(screen.queryByTestId('assistant-live-section')).not.toBeInTheDocument()
     })
   })
