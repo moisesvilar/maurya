@@ -1,3 +1,4 @@
+import { execFile } from 'child_process'
 import { shell, systemPreferences } from 'electron'
 import type { PermissionsSnapshot, PermissionTarget } from '../renderer/src/types/audio'
 
@@ -31,4 +32,30 @@ export function askForMicrophoneAccess(): Promise<boolean> {
 /** Abre el pane de Ajustes del Sistema correspondiente al permiso. */
 export function openPrivacySettings(target: PermissionTarget): Promise<void> {
   return shell.openExternal(SETTINGS_URLS[target])
+}
+
+/**
+ * Workaround del permiso de micrófono con firma ad-hoc: cada rebuild cambia el
+ * cdhash del bundle y la entrada TCC deja de casar (Ajustes muestra el toggle
+ * activado pero macOS deniega). `tccutil reset` borra esa entrada fósil para
+ * que el siguiente intento de grabación vuelva a disparar el prompt TCC.
+ * Se lanza en Terminal (visible para el usuario) vía osascript; el primer uso
+ * dispara el prompt de Automatización ("Maurya quiere controlar Terminal").
+ * Nunca rechaza: devuelve false si osascript falla (p. ej. permiso denegado).
+ */
+const TCC_RESET_COMMAND = 'tccutil reset Microphone com.maurya.app'
+
+export function launchMicrophoneResetInTerminal(): Promise<boolean> {
+  return new Promise((resolve) => {
+    execFile(
+      'osascript',
+      [
+        '-e',
+        'tell application "Terminal" to activate',
+        '-e',
+        `tell application "Terminal" to do script "${TCC_RESET_COMMAND}"`
+      ],
+      (error) => resolve(error === null)
+    )
+  })
 }

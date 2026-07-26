@@ -211,7 +211,8 @@ const api: MauryaApi & {
     getStatus: (): Promise<PermissionsSnapshot> => ipcRenderer.invoke('permissions:get-status'),
     requestMicrophone: (): Promise<boolean> => ipcRenderer.invoke('permissions:request-microphone'),
     openSettings: (target: PermissionTarget): Promise<void> =>
-      ipcRenderer.invoke('permissions:open-settings', target)
+      ipcRenderer.invoke('permissions:open-settings', target),
+    resetMicrophone: (): Promise<boolean> => ipcRenderer.invoke('permissions:reset-microphone')
   },
   recording: {
     // interviewId opcional (SPEC-015) y consentAcknowledgedAt opcional

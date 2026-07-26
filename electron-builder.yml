@@ -24,7 +24,11 @@ mac:
     - target: zip
       arch:
         - arm64
-  # Firma ad-hoc: sin Developer ID ni notarización en esta fase (H7 = distribución)
+  # Sin Developer ID ni notarización en esta fase (H7 = distribución).
+  # identity: null desactiva la firma de electron-builder; la firma real la
+  # aplica build/afterPack.js: identidad self-signed estable "Maurya Dev" si
+  # existe en el Keychain (crearla una vez con scripts/setup-signing.sh; hace
+  # que los permisos TCC sobrevivan a los rebuilds) o ad-hoc como fallback.
   identity: null
   notarize: false
   # Camino a firma real + notarización (SPEC-024, activar cuando haya cuenta

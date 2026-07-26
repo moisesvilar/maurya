@@ -14,3 +14,11 @@ export function requestMicrophoneAccess(): Promise<boolean> {
 export function openPrivacySettings(target: PermissionTarget): Promise<void> {
   return window.api.permissions.openSettings(target)
 }
+
+/**
+ * Workaround del permiso de micrófono (firma ad-hoc): abre Terminal con el
+ * `tccutil reset` del bundle. Devuelve true si Terminal llegó a lanzarse.
+ */
+export function resetMicrophonePermission(): Promise<boolean> {
+  return window.api.permissions.resetMicrophone()
+}

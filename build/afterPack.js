@@ -20,6 +20,37 @@
 const { execFileSync } = require('child_process')
 const path = require('path')
 
+/**
+ * Identidad de firma estable (fix permisos TCC): con firma ad-hoc (`-`) el
+ * designated requirement es el cdhash del binario exacto, así que CADA rebuild
+ * invalida los permisos TCC ya concedidos (Ajustes muestra el toggle activado
+ * pero macOS deniega el micrófono). Un certificado self-signed local con
+ * nombre estable ancla el requirement a identifier+certificado y los permisos
+ * sobreviven a los rebuilds. Se crea una vez con `scripts/setup-signing.sh`.
+ * Sin el certificado en el Keychain se cae al ad-hoc anterior, con aviso.
+ */
+const STABLE_IDENTITY = process.env.MAURYA_SIGN_IDENTITY || 'Maurya Dev'
+
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type -- archivo JS de build, fuera del bundle tipado
+function resolveSigningIdentity() {
+  try {
+    const identities = execFileSync('security', ['find-identity', '-v', '-p', 'codesigning'], {
+      encoding: 'utf8'
+    })
+    if (identities.includes(`"${STABLE_IDENTITY}"`)) {
+      return STABLE_IDENTITY
+    }
+  } catch {
+    // security no disponible o sin identidades: fallback ad-hoc
+  }
+  console.warn(
+    `[afterPack] AVISO: identidad "${STABLE_IDENTITY}" no encontrada en el Keychain; ` +
+      'firma ad-hoc (los permisos TCC se invalidarán en cada rebuild). ' +
+      'Créala una vez con: ./scripts/setup-signing.sh'
+  )
+  return '-'
+}
+
 module.exports = function afterPack(context) {
   // Solo macOS: el hook es un no-op en cualquier otra plataforma
   if (context.electronPlatformName !== 'darwin') {
@@ -27,12 +58,14 @@ module.exports = function afterPack(context) {
   }
   const appPath = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`)
   const entitlementsPath = path.join(__dirname, 'entitlements.mac.plist')
+  const identity = resolveSigningIdentity()
   // execFileSync lanza si codesign devuelve distinto de 0 → build en rojo
   execFileSync(
     'codesign',
-    ['--force', '--deep', '--sign', '-', '--entitlements', entitlementsPath, appPath],
+    ['--force', '--deep', '--sign', identity, '--entitlements', entitlementsPath, appPath],
     { stdio: 'inherit' }
   )
   execFileSync('codesign', ['--verify', '--deep', '--strict', appPath], { stdio: 'inherit' })
-  console.log(`[afterPack] Firma ad-hoc aplicada con entitlements y verificada: ${appPath}`)
+  const kind = identity === '-' ? 'ad-hoc' : `estable ("${identity}")`
+  console.log(`[afterPack] Firma ${kind} aplicada con entitlements y verificada: ${appPath}`)
 }
