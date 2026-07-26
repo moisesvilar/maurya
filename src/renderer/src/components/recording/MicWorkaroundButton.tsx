@@ -9,6 +9,7 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { isDenied } from '@/lib/permissions'
 import { resetMicrophonePermission } from '@/services/permissionsService'
 import type { PermissionsSnapshot } from '@/types/audio'
 
@@ -19,19 +20,20 @@ interface MicWorkaroundButtonProps {
 type WorkaroundDialog = 'launched' | 'failed' | null
 
 /**
- * Workaround del permiso de micrófono con firma ad-hoc: tras un rebuild la
- * entrada TCC deja de casar con el cdhash del bundle y macOS deniega el micro
- * aunque Ajustes muestre el toggle activado. El botón lanza en Terminal
- * `tccutil reset Microphone com.maurya.app` (borra la entrada fósil) y después
+ * Workaround de permisos con firma ad-hoc: tras un rebuild la entrada TCC deja
+ * de casar con el cdhash del bundle y macOS deniega aunque Ajustes muestre el
+ * toggle activado. El botón lanza en Terminal el reset de Microphone y
+ * ScreenCapture de com.maurya.app (borra las entradas fósiles) y después
  * indica al usuario que relance la app e inicie una grabación para volver a
- * disparar el prompt TCC. Misma visibilidad que el caso micrófono de
- * OpenSettingsButton: micrófono en estado distinto de `granted`.
+ * disparar los prompts TCC. Visibilidad (SPEC-055-iter-2): solo con el
+ * micrófono en denegación dura — con permiso pendiente no hay entrada que
+ * resetear.
  */
 export function MicWorkaroundButton({
   permissions
 }: MicWorkaroundButtonProps): React.ReactElement | null {
   const [dialog, setDialog] = useState<WorkaroundDialog>(null)
-  if (permissions?.microphone === 'granted') {
+  if (!isDenied(permissions?.microphone)) {
     return null
   }
   return (
@@ -56,8 +58,8 @@ export function MicWorkaroundButton({
             </AlertDialogTitle>
             <AlertDialogDescription>
               {dialog === 'failed'
-                ? 'No se pudo abrir Terminal. Ejecuta manualmente «tccutil reset Microphone com.maurya.app» en una terminal y, después, relanza Maurya e inicia una grabación para volver a conceder el permiso.'
-                : 'Se ha abierto Terminal con «tccutil reset Microphone com.maurya.app». Cuando termine, relanza Maurya e inicia una grabación: macOS volverá a pedir el permiso de micrófono.'}
+                ? 'No se pudo abrir Terminal. Ejecuta manualmente «tccutil reset Microphone com.maurya.app && tccutil reset ScreenCapture com.maurya.app» en una terminal y, después, relanza Maurya e inicia una grabación para volver a conceder los permisos de micrófono y de grabación de pantalla.'
+                : 'Se ha abierto Terminal con «tccutil reset Microphone com.maurya.app && tccutil reset ScreenCapture com.maurya.app». Cuando termine, relanza Maurya e inicia una grabación: macOS volverá a pedir los permisos de micrófono y de grabación de pantalla.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

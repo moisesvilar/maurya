@@ -18,6 +18,7 @@ import { OpenSettingsButton } from '@/components/recording/OpenSettingsButton'
 import { PermissionBadges } from '@/components/recording/PermissionBadges'
 import { LevelMeter } from '@/components/spike/LevelMeter'
 import { formatElapsed } from '@/lib/formatElapsed'
+import { hasHardDenial } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
 import type { RecordingController } from '@/hooks/useRecordingController'
 
@@ -29,6 +30,7 @@ interface RecordingTopBarControlsProps {
 const CONTAINER_CLASS = 'flex flex-wrap items-center gap-4'
 
 const MIC_DISABLED_NO_PERMS = 'Concede los permisos de audio para elegir el micrófono'
+const START_BLOCKED_REASON = 'Hay permisos de audio denegados: concédelos en Ajustes del Sistema'
 const MIC_DISABLED_RECORDING = 'No se puede cambiar de dispositivo durante la captura'
 
 /**
@@ -98,16 +100,17 @@ function IconAction({
  * - Grabando: selector (disabled) + cronómetro + «Detener» (icon-only) +
  *   medidores. Sin badge de estado de transcripción.
  * - Preparación: selector + «Iniciar grabación» (ambos disabled sin permisos).
- * «Permisos concedidos» = micrófono Y audio del sistema en `granted` (mismo
- * criterio que la visibilidad de «Abrir Ajustes»).
+ * Bloqueo por permisos (SPEC-055-iter-2) = algún permiso en denied/restricted
+ * (mismo criterio que la visibilidad de «Abrir Ajustes»); pendiente no bloquea.
  */
 export function RecordingTopBarControls({
   controller
 }: RecordingTopBarControlsProps): React.ReactElement {
   const [confirmOverwrite, setConfirmOverwrite] = useState(false)
-  const permsGranted =
-    controller.permissions?.microphone === 'granted' &&
-    controller.permissions?.systemAudio === 'granted'
+  // SPEC-055-iter-2: solo la denegación dura (denied/restricted) bloquea las
+  // acciones; con permisos pendientes (not-determined) iniciar una grabación
+  // es precisamente lo que dispara los prompts TCC de macOS.
+  const permsBlocked = hasHardDenial(controller.permissions)
 
   if (controller.recorded) {
     return (
@@ -122,13 +125,13 @@ export function RecordingTopBarControls({
           devices={controller.devices}
           selectedDeviceId={controller.selectedDeviceId}
           onSelectDevice={controller.setSelectedDeviceId}
-          disabled={!permsGranted}
+          disabled={permsBlocked}
           disabledReason={MIC_DISABLED_NO_PERMS}
         />
         <IconAction
           label="Nueva grabación"
           onClick={() => setConfirmOverwrite(true)}
-          disabled={!permsGranted}
+          disabled={permsBlocked}
         >
           <Mic />
         </IconAction>
@@ -204,16 +207,23 @@ export function RecordingTopBarControls({
         devices={controller.devices}
         selectedDeviceId={controller.selectedDeviceId}
         onSelectDevice={controller.setSelectedDeviceId}
-        disabled={!permsGranted}
+        disabled={permsBlocked}
         disabledReason={MIC_DISABLED_NO_PERMS}
       />
-      <Button
-        data-testid="topbar-start-button"
-        onClick={controller.handleStart}
-        disabled={!permsGranted}
-      >
-        <Mic /> Iniciar grabación
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="inline-flex">
+            <Button
+              data-testid="topbar-start-button"
+              onClick={controller.handleStart}
+              disabled={permsBlocked}
+            >
+              <Mic /> Iniciar grabación
+            </Button>
+          </span>
+        </TooltipTrigger>
+        {permsBlocked && <TooltipContent>{START_BLOCKED_REASON}</TooltipContent>}
+      </Tooltip>
     </div>
   )
 }

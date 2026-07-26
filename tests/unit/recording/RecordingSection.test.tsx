@@ -255,6 +255,28 @@ describe('RecordingSection', () => {
       expect(vi.mocked(mockApi.api.recording.start)).not.toHaveBeenCalled()
     })
 
+    // SPEC-055-iter-2 · AC-01/AC-02: pendiente (not-determined) NO bloquea — el
+    // primer clic en «Iniciar grabación» es lo que dispara los prompts TCC; sin
+    // botones correctivos (no hay fila en Ajustes ni entrada TCC que resetear)
+    it('enables "Iniciar grabación" and hides the corrective buttons while permissions are pending', async () => {
+      vi.mocked(getPermissionsStatus).mockResolvedValue({
+        microphone: 'not-determined',
+        systemAudio: 'not-determined'
+      })
+      renderDetail()
+
+      const controls = await within(topBar()).findByTestId('topbar-capture-controls')
+      expect(
+        await within(controls).findByRole('button', { name: 'Iniciar grabación' })
+      ).toBeEnabled()
+      expect(within(controls).getByTestId('permission-badge-microphone')).toHaveAttribute(
+        'data-state',
+        'pending'
+      )
+      expect(within(controls).queryByTestId('open-settings-button')).not.toBeInTheDocument()
+      expect(within(controls).queryByTestId('mic-workaround-button')).not.toBeInTheDocument()
+    })
+
     // SPEC-015 · AC-03 (SPEC-055-iter-1: el selector de micrófono sigue en la
     // top bar durante la grabación, pero DISABLED — no se cambia de dispositivo
     // en caliente; el slot no salta entre estados)
