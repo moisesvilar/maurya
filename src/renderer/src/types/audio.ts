@@ -149,6 +149,11 @@ export interface MauryaApi {
     getStatus: () => Promise<PermissionsSnapshot>
     requestMicrophone: () => Promise<boolean>
     openSettings: (target: PermissionTarget) => Promise<void>
+    /**
+     * Workaround del permiso de micrófono (firma ad-hoc): abre Terminal con
+     * `tccutil reset Microphone com.maurya.app`. true si Terminal se lanzó.
+     */
+    resetMicrophone: () => Promise<boolean>
   }
   recording: {
     /**

@@ -31,5 +31,17 @@ export function usePermissions(): UsePermissionsResult {
     }
   }, [refresh])
 
+  useEffect(() => {
+    // Re-consulta al recuperar el foco: el usuario vuelve de conceder el
+    // permiso en Ajustes del Sistema y los badges deben reaccionar sin remontar
+    const onFocus = (): void => {
+      void refresh()
+    }
+    window.addEventListener('focus', onFocus)
+    return (): void => {
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [refresh])
+
   return { permissions, refresh }
 }

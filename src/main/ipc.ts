@@ -14,6 +14,7 @@ import type { NoteExportResult, NoteExportTarget } from '../renderer/src/types/n
 import {
   askForMicrophoneAccess,
   getPermissionsSnapshot,
+  launchMicrophoneResetInTerminal,
   openPrivacySettings
 } from './permissionService'
 import { startRecording, stopRecording, writeChunk } from './wavFileService'
@@ -194,6 +195,8 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('permissions:open-settings', (_event, target: PermissionTarget) =>
     openPrivacySettings(target)
   )
+
+  ipcMain.handle('permissions:reset-microphone', () => launchMicrophoneResetInTerminal())
 
   ipcMain.handle(
     'recording:start',

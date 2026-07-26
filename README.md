@@ -19,12 +19,20 @@ Ejecuta typecheck + build de electron-vite + electron-builder y deja los artefac
 
 - `Maurya-<versión>.dmg` — el instalador (arrastrar a Aplicaciones).
 - `Maurya-<versión>-arm64-mac.zip` — alternativa comprimida.
-- `dist/mac-arm64/Maurya.app` — el bundle, sellado con **firma ad-hoc** y los
-  entitlements de `build/entitlements.mac.plist` mediante el hook
-  `build/afterPack.js` (el propio build falla si el sellado no verifica).
+- `dist/mac-arm64/Maurya.app` — el bundle, sellado con los entitlements de `build/entitlements.mac.plist` mediante el hook `build/afterPack.js` (el propio build falla si el sellado no verifica). El hook firma con la identidad estable **"Maurya Dev"** si existe en el Keychain, y con **firma ad-hoc** como fallback.
 
 Sin Developer ID ni notarización en esta fase; el camino a firma real está
 documentado en comentarios dentro de `electron-builder.yml`.
+
+### Identidad de firma estable (permisos TCC que sobreviven a los rebuilds)
+
+Con firma ad-hoc, macOS ancla los permisos TCC (micrófono, grabación de pantalla) al **cdhash del binario exacto**: cada `npm run build:mac` los invalida, y Ajustes del Sistema muestra el toggle de Maurya activado mientras macOS deniega el acceso. Para evitarlo, crea una vez el certificado self-signed local:
+
+```bash
+./scripts/setup-signing.sh
+```
+
+Pide la contraseña de administrador (marca el certificado como confiable) y la del Keychain de login. A partir de ahí `npm run build:mac` firma con esa identidad y los permisos concedidos sobreviven a los rebuilds. Tras instalar el primer build firmado así, concede los permisos una última vez; si Ajustes arrastra una entrada vieja, usa el botón **«Workaround permisos micrófono»** de la Topbar (lanza `tccutil reset Microphone com.maurya.app` en Terminal) y relanza la app.
 
 ### Instalar y abrir la app
 

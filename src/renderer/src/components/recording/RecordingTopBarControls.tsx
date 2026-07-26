@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MicSelect } from '@/components/recording/MicSelect'
+import { MicWorkaroundButton } from '@/components/recording/MicWorkaroundButton'
 import { OpenSettingsButton } from '@/components/recording/OpenSettingsButton'
 import { PermissionBadges } from '@/components/recording/PermissionBadges'
 import { LevelMeter } from '@/components/spike/LevelMeter'
@@ -40,6 +41,7 @@ function PermsHeader({ controller }: RecordingTopBarControlsProps): React.ReactE
     <>
       <PermissionBadges permissions={controller.permissions} />
       <OpenSettingsButton permissions={controller.permissions} />
+      <MicWorkaroundButton permissions={controller.permissions} />
     </>
   )
 }

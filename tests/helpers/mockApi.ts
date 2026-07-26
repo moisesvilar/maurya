@@ -295,7 +295,8 @@ export function createMockApi(): MockApiHandle {
       requestMicrophone: vi
         .fn<MauryaApi['permissions']['requestMicrophone']>()
         .mockResolvedValue(true),
-      openSettings: vi.fn<MauryaApi['permissions']['openSettings']>().mockResolvedValue(undefined)
+      openSettings: vi.fn<MauryaApi['permissions']['openSettings']>().mockResolvedValue(undefined),
+      resetMicrophone: vi.fn<MauryaApi['permissions']['resetMicrophone']>().mockResolvedValue(true)
     },
     recording: {
       start: vi
