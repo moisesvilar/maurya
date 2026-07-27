@@ -88,10 +88,12 @@ function ObjectiveOverrideForm({
       </RadioGroup>
       <div className="flex flex-col gap-2">
         <Label htmlFor="objective-override-comment">Comentario</Label>
+        {/* SPEC-056: techo de altura + scroll propio (ver InterviewGroupFormDialog). */}
         <Textarea
           id="objective-override-comment"
           data-testid="objective-override-comment"
           rows={4}
+          className="max-h-[35vh] overflow-y-auto"
           placeholder="¿Por qué? Aporta la evidencia u observación que justifica el cambio"
           value={comment}
           onChange={(event) => {

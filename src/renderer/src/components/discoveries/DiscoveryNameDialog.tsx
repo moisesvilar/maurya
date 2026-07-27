@@ -96,10 +96,12 @@ function DiscoveryNameForm({
         <label htmlFor="discovery-objectives" className="text-sm font-medium">
           Objetivos
         </label>
+        {/* SPEC-056: techo de altura + scroll propio (ver InterviewGroupFormDialog). */}
         <Textarea
           id="discovery-objectives"
           data-testid="discovery-objectives-textarea"
           rows={4}
+          className="max-h-[35vh] overflow-y-auto"
           placeholder="¿Qué quieres aprender con este discovery?"
           value={objectives}
           onChange={(event) => setObjectives(event.target.value)}

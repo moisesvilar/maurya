@@ -121,9 +121,17 @@ function InterviewGroupForm({
         <label htmlFor="group-objective" className="text-sm font-medium">
           Objetivo
         </label>
+        {/*
+          SPEC-056: el objetivo es el único campo de longitud libre del form.
+          field-sizing-content (Textarea base) lo haría crecer sin techo y
+          arrastraría al Dialog fuera de la ventana, ocultando Selects y
+          botones; max-h-[35vh] + scroll propio lo acotan sin mover el resto.
+        */}
         <Textarea
           id="group-objective"
+          data-testid="group-objective-textarea"
           rows={3}
+          className="max-h-[35vh] overflow-y-auto"
           placeholder="¿Qué quieres aprender con este grupo de entrevistas?"
           value={objective}
           onChange={(event) => setObjective(event.target.value)}
