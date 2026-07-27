@@ -51,11 +51,16 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          // max-h-[85vh] (SPEC-056): red de seguridad para ventanas bajas. Sin
-          // overflow propio a propósito — el diálogo NO debe scrollear (se
-          // llevaría el DialogFooter fuera de vista); scrollea el campo de
-          // texto libre, que es quien se acota en cada formulario.
-          'fixed top-[50%] left-[50%] z-50 grid max-h-[85vh] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg',
+          // SPEC-056-iter-1: columna de tres zonas (cabecera fija / cuerpo
+          // scrolleable / pie fijo) acotada a max-h-[85vh].
+          //
+          // `flex flex-col` y NO `grid`: con filas implícitas `auto`, la
+          // retícula las dimensiona por contenido y no encogen aunque el
+          // contenedor tenga max-height, así que el formulario se pintaba
+          // FUERA del panel y los botones se iban de pantalla por debajo de
+          // ~800px de ventana. `overflow-hidden` garantiza que nada se dibuje
+          // fuera; el scroll lo pone cada formulario en su zona de cuerpo.
+          'fixed top-[50%] left-[50%] z-50 flex max-h-[85vh] w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] flex-col gap-4 overflow-hidden rounded-lg border bg-background p-6 shadow-lg duration-200 outline-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 sm:max-w-lg',
           className
         )}
         {...props}
@@ -79,7 +84,9 @@ function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn('flex flex-col gap-2 text-center sm:text-left', className)}
+      // shrink-0 (SPEC-056-iter-1): zona 1 de las tres del DialogContent — la
+      // cabecera queda fija y no la aplasta el cuerpo al desbordar.
+      className={cn('flex shrink-0 flex-col gap-2 text-center sm:text-left', className)}
       {...props}
     />
   )
@@ -96,7 +103,9 @@ function DialogFooter({
   return (
     <div
       data-slot="dialog-footer"
-      className={cn('flex flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
+      // shrink-0 (SPEC-056-iter-1): zona 3 — el pie con las acciones primarias
+      // queda fijo abajo; es el que nunca debe irse de vista.
+      className={cn('flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
       {...props}
     >
       {children}

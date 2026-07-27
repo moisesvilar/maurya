@@ -75,36 +75,40 @@ function ObjectiveOverrideForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <RadioGroup value={metValue} onValueChange={setMetValue}>
-        <div className="flex items-center gap-2">
-          <RadioGroupItem value={MET} id="objective-override-met" />
-          <Label htmlFor="objective-override-met">Cumplido</Label>
+    // SPEC-056-iter-1: cuerpo scrolleable + DialogFooter fijo fuera de él
+    // (ver InterviewGroupFormDialog).
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+        <RadioGroup value={metValue} onValueChange={setMetValue}>
+          <div className="flex items-center gap-2">
+            <RadioGroupItem value={MET} id="objective-override-met" />
+            <Label htmlFor="objective-override-met">Cumplido</Label>
+          </div>
+          <div className="flex items-center gap-2">
+            <RadioGroupItem value={UNMET} id="objective-override-unmet" />
+            <Label htmlFor="objective-override-unmet">No cumplido</Label>
+          </div>
+        </RadioGroup>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="objective-override-comment">Comentario</Label>
+          {/* SPEC-056: techo de altura + scroll propio (ver InterviewGroupFormDialog). */}
+          <Textarea
+            id="objective-override-comment"
+            data-testid="objective-override-comment"
+            rows={4}
+            className="max-h-[35vh] overflow-y-auto"
+            placeholder="¿Por qué? Aporta la evidencia u observación que justifica el cambio"
+            value={comment}
+            onChange={(event) => {
+              setComment(event.target.value)
+              setShowRequiredError(false)
+            }}
+            aria-invalid={showRequiredError || undefined}
+          />
+          {showRequiredError && (
+            <p className="text-sm text-destructive">El comentario es obligatorio</p>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <RadioGroupItem value={UNMET} id="objective-override-unmet" />
-          <Label htmlFor="objective-override-unmet">No cumplido</Label>
-        </div>
-      </RadioGroup>
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="objective-override-comment">Comentario</Label>
-        {/* SPEC-056: techo de altura + scroll propio (ver InterviewGroupFormDialog). */}
-        <Textarea
-          id="objective-override-comment"
-          data-testid="objective-override-comment"
-          rows={4}
-          className="max-h-[35vh] overflow-y-auto"
-          placeholder="¿Por qué? Aporta la evidencia u observación que justifica el cambio"
-          value={comment}
-          onChange={(event) => {
-            setComment(event.target.value)
-            setShowRequiredError(false)
-          }}
-          aria-invalid={showRequiredError || undefined}
-        />
-        {showRequiredError && (
-          <p className="text-sm text-destructive">El comentario es obligatorio</p>
-        )}
       </div>
       <DialogFooter>
         <Button

@@ -99,89 +99,94 @@ function InterviewGroupForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <label htmlFor="group-name" className="text-sm font-medium">
-          Nombre
-        </label>
-        <Input
-          ref={nameInputRef}
-          id="group-name"
-          placeholder="Founders early-stage"
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value)
-            setShowRequiredError(false)
-          }}
-          aria-invalid={showRequiredError || undefined}
-        />
-        {showRequiredError && <p className="text-sm text-destructive">Campo requerido</p>}
-      </div>
-      <div className="flex flex-col gap-2">
-        <label htmlFor="group-objective" className="text-sm font-medium">
-          Objetivo
-        </label>
-        {/*
+    // SPEC-056-iter-1: el form llena el Dialog (min-h-0 flex-1) y agrupa los
+    // campos en una zona scrolleable; el DialogFooter queda FUERA de ella pero
+    // dentro del form, así que sigue fijo abajo y Enter sigue enviando nativo.
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="group-name" className="text-sm font-medium">
+            Nombre
+          </label>
+          <Input
+            ref={nameInputRef}
+            id="group-name"
+            placeholder="Founders early-stage"
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value)
+              setShowRequiredError(false)
+            }}
+            aria-invalid={showRequiredError || undefined}
+          />
+          {showRequiredError && <p className="text-sm text-destructive">Campo requerido</p>}
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="group-objective" className="text-sm font-medium">
+            Objetivo
+          </label>
+          {/*
           SPEC-056: el objetivo es el único campo de longitud libre del form.
           field-sizing-content (Textarea base) lo haría crecer sin techo y
           arrastraría al Dialog fuera de la ventana, ocultando Selects y
           botones; max-h-[35vh] + scroll propio lo acotan sin mover el resto.
         */}
-        <Textarea
-          id="group-objective"
-          data-testid="group-objective-textarea"
-          rows={3}
-          className="max-h-[35vh] overflow-y-auto"
-          placeholder="¿Qué quieres aprender con este grupo de entrevistas?"
-          value={objective}
-          onChange={(event) => setObjective(event.target.value)}
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <label htmlFor="group-interview-template" className="text-sm font-medium">
-          Plantilla de preguntas
-        </label>
-        <Select value={interviewTemplateId} onValueChange={setInterviewTemplateId}>
-          <SelectTrigger
-            id="group-interview-template"
-            data-testid="group-interview-template-select"
-            className="w-full"
-            aria-label="Plantilla de preguntas"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NONE}>Sin plantilla</SelectItem>
-            {interviewTemplates.map((template) => (
-              <SelectItem key={template.id} value={template.id}>
-                {templateLabel(template)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="flex flex-col gap-2">
-        <label htmlFor="group-note-template" className="text-sm font-medium">
-          Plantilla de notas
-        </label>
-        <Select value={noteTemplateId} onValueChange={setNoteTemplateId}>
-          <SelectTrigger
-            id="group-note-template"
-            data-testid="group-note-template-select"
-            className="w-full"
-            aria-label="Plantilla de notas"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NONE}>Sin plantilla</SelectItem>
-            {noteTemplates.map((template) => (
-              <SelectItem key={template.id} value={template.id}>
-                {template.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <Textarea
+            id="group-objective"
+            data-testid="group-objective-textarea"
+            rows={3}
+            className="max-h-[35vh] overflow-y-auto"
+            placeholder="¿Qué quieres aprender con este grupo de entrevistas?"
+            value={objective}
+            onChange={(event) => setObjective(event.target.value)}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="group-interview-template" className="text-sm font-medium">
+            Plantilla de preguntas
+          </label>
+          <Select value={interviewTemplateId} onValueChange={setInterviewTemplateId}>
+            <SelectTrigger
+              id="group-interview-template"
+              data-testid="group-interview-template-select"
+              className="w-full"
+              aria-label="Plantilla de preguntas"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>Sin plantilla</SelectItem>
+              {interviewTemplates.map((template) => (
+                <SelectItem key={template.id} value={template.id}>
+                  {templateLabel(template)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="group-note-template" className="text-sm font-medium">
+            Plantilla de notas
+          </label>
+          <Select value={noteTemplateId} onValueChange={setNoteTemplateId}>
+            <SelectTrigger
+              id="group-note-template"
+              data-testid="group-note-template-select"
+              className="w-full"
+              aria-label="Plantilla de notas"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>Sin plantilla</SelectItem>
+              {noteTemplates.map((template) => (
+                <SelectItem key={template.id} value={template.id}>
+                  {template.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
