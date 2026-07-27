@@ -75,7 +75,7 @@ function ObjectiveOverrideForm({
   }
 
   return (
-    // SPEC-056-iter-1: cuerpo scrolleable + DialogFooter fijo fuera de él
+    // SPEC-057-iter-1: cuerpo scrolleable + DialogFooter fijo fuera de él
     // (ver InterviewGroupFormDialog).
     <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
@@ -91,7 +91,7 @@ function ObjectiveOverrideForm({
         </RadioGroup>
         <div className="flex flex-col gap-2">
           <Label htmlFor="objective-override-comment">Comentario</Label>
-          {/* SPEC-056: techo de altura + scroll propio (ver InterviewGroupFormDialog). */}
+          {/* SPEC-057: techo de altura + scroll propio (ver InterviewGroupFormDialog). */}
           <Textarea
             id="objective-override-comment"
             data-testid="objective-override-comment"

@@ -99,7 +99,7 @@ function InterviewGroupForm({
   }
 
   return (
-    // SPEC-056-iter-1: el form llena el Dialog (min-h-0 flex-1) y agrupa los
+    // SPEC-057-iter-1: el form llena el Dialog (min-h-0 flex-1) y agrupa los
     // campos en una zona scrolleable; el DialogFooter queda FUERA de ella pero
     // dentro del form, así que sigue fijo abajo y Enter sigue enviando nativo.
     <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
@@ -126,7 +126,7 @@ function InterviewGroupForm({
             Objetivo
           </label>
           {/*
-          SPEC-056: el objetivo es el único campo de longitud libre del form.
+          SPEC-057: el objetivo es el único campo de longitud libre del form.
           field-sizing-content (Textarea base) lo haría crecer sin techo y
           arrastraría al Dialog fuera de la ventana, ocultando Selects y
           botones; max-h-[35vh] + scroll propio lo acotan sin mover el resto.

@@ -1,4 +1,4 @@
-# SPEC-056 — Altura acotada del campo Objetivo en los diálogos
+# SPEC-057 — Altura acotada del campo Objetivo en los diálogos
 
 > Origen: bug reportado por el usuario (2026-07-27) con capturas: al editar un grupo de entrevistas cuyo objetivo es largo, el diálogo crece hasta desbordar la ventana por arriba y por abajo a la vez y desaparecen el título, el botón de cerrar, los dos Selects de plantilla y los botones Cancelar/Guardar; no hay forma de guardar sin borrar texto. Mismo defecto en el campo «Objetivos» del discovery y —detectado en el diagnóstico, no reportado— en el diálogo de override de objetivo. No proviene del checklist (precedente SPEC-049, SPEC-054). Traza a **RF-DISC-008** (objetivos del discovery), **RF-DISC-009** (campo `objetivo` del grupo de entrevistas) y **RF-ASIS-005** (marcado manual del estado de objetivos en vivo). Diseño acordado con el humano antes de implementar: ver «Diseño / mockups».
 

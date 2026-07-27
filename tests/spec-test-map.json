@@ -2692,10 +2692,10 @@
       "AC-20": "MANUAL"
     }
   },
-  "SPEC-056-iter-1": {
-    "spec_file": "specs/SPEC-056-iter-1-altura-acotada-campo-objetivo.md",
+  "SPEC-057-iter-1": {
+    "spec_file": "specs/SPEC-057-iter-1-altura-acotada-campo-objetivo.md",
     "unit": [],
-    "unit_note": "Sin tests nuevos. La iteración es 100% layout y jsdom no compone; los 2 tests de SPEC-056 (locator estable + integridad del objetivo largo al guardar) siguen vigentes y cubren la no regresión de contrato. La red frente a regresiones del cambio grid→flex en DialogContent son las 137 suites existentes, que ejercitan todos los diálogos de la app: 924/924 PASS tras el cambio.",
+    "unit_note": "Sin tests nuevos. La iteración es 100% layout y jsdom no compone; los 2 tests de SPEC-057 (locator estable + integridad del objetivo largo al guardar) siguen vigentes y cubren la no regresión de contrato. La red frente a regresiones del cambio grid→flex en DialogContent son las 137 suites existentes, que ejercitan todos los diálogos de la app: 924/924 PASS tras el cambio.",
     "e2e": [],
     "e2e_note": "e2e (Playwright) no aplica en este proyecto: app Electron local sin public link (decisión humana 2026-07-03). QA automatizado = Vitest unit.",
     "manual_verification": {
@@ -2703,7 +2703,7 @@
       "resultado": "En los seis altos: título, Cancelar y Guardar visibles y dentro del panel; el cuerpo desplaza solo por debajo de ~900 px; el campo conserva su tope de 35 vh y su scroll propio; el diálogo respeta el 85 vh y se ajusta a su contenido cuando sobra altura. Nada se dibuja fuera del panel.",
       "pendiente": "Comprobar a ojo que los diálogos cortos de la app (borrado, nueva entrevista, ajustes) no cambian de aspecto tras el paso de grid a flex en DialogContent."
     },
-    "notes": "Iteración por defecto de código detectado en la verificación manual de SPEC-056, no por fallo de test. La base aplicaba max-h-[85vh] a DialogContent sin overflow y con display:grid: max-height recorta la caja pero no obliga a los hijos a encoger, y las filas grid `auto` no encogen aunque el contenedor tenga altura máxima, así que el formulario se pintaba fuera del panel y los botones se iban de pantalla por debajo de ~800 px (99 px de desborde a 608 px). Fix: DialogContent pasa a flex flex-col + overflow-hidden, DialogHeader y DialogFooter a shrink-0, y los tres formularios agrupan sus campos en un div min-h-0 flex-1 overflow-y-auto con el DialogFooter fuera de él pero dentro del form (Enter sigue enviando nativo). Deroga el bullet «Contenedor de diálogo» del UX Design de SPEC-056. Todos los ACs de la base siguen vigentes: esta iteración es lo que los hace cumplirse, en particular AC-03, AC-14 y AC-15, que estaban incumplidos en silencio.",
+    "notes": "Iteración por defecto de código detectado en la verificación manual de SPEC-057, no por fallo de test. La base aplicaba max-h-[85vh] a DialogContent sin overflow y con display:grid: max-height recorta la caja pero no obliga a los hijos a encoger, y las filas grid `auto` no encogen aunque el contenedor tenga altura máxima, así que el formulario se pintaba fuera del panel y los botones se iban de pantalla por debajo de ~800 px (99 px de desborde a 608 px). Fix: DialogContent pasa a flex flex-col + overflow-hidden, DialogHeader y DialogFooter a shrink-0, y los tres formularios agrupan sus campos en un div min-h-0 flex-1 overflow-y-auto con el DialogFooter fuera de él pero dentro del form (Enter sigue enviando nativo). Deroga el bullet «Contenedor de diálogo» del UX Design de SPEC-057. Todos los ACs de la base siguen vigentes: esta iteración es lo que los hace cumplirse, en particular AC-03, AC-14 y AC-15, que estaban incumplidos en silencio.",
     "acceptance_criteria_coverage": {
       "DEFECTO": "MANUAL — criterio de layout. jsdom no calcula layout (sin motor de composición, vh y max-height sin resolver, getBoundingClientRect a cero), así que la corrección no es verificable en Vitest. Verificado por medición sobre la app real; ver manual_verification. Un test de presencia de clases daría cobertura falsa (docs/RULES.md)."
     }

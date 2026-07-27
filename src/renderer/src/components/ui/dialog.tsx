@@ -51,7 +51,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          // SPEC-056-iter-1: columna de tres zonas (cabecera fija / cuerpo
+          // SPEC-057-iter-1: columna de tres zonas (cabecera fija / cuerpo
           // scrolleable / pie fijo) acotada a max-h-[85vh].
           //
           // `flex flex-col` y NO `grid`: con filas implícitas `auto`, la
@@ -84,7 +84,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="dialog-header"
-      // shrink-0 (SPEC-056-iter-1): zona 1 de las tres del DialogContent — la
+      // shrink-0 (SPEC-057-iter-1): zona 1 de las tres del DialogContent — la
       // cabecera queda fija y no la aplasta el cuerpo al desbordar.
       className={cn('flex shrink-0 flex-col gap-2 text-center sm:text-left', className)}
       {...props}
@@ -103,7 +103,7 @@ function DialogFooter({
   return (
     <div
       data-slot="dialog-footer"
-      // shrink-0 (SPEC-056-iter-1): zona 3 — el pie con las acciones primarias
+      // shrink-0 (SPEC-057-iter-1): zona 3 — el pie con las acciones primarias
       // queda fijo abajo; es el que nunca debe irse de vista.
       className={cn('flex shrink-0 flex-col-reverse gap-2 sm:flex-row sm:justify-end', className)}
       {...props}

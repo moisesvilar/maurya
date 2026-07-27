@@ -74,7 +74,7 @@ function DiscoveryNameForm({
   }
 
   return (
-    // SPEC-056-iter-1: cuerpo scrolleable + DialogFooter fijo fuera de él
+    // SPEC-057-iter-1: cuerpo scrolleable + DialogFooter fijo fuera de él
     // (ver InterviewGroupFormDialog).
     <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
@@ -99,7 +99,7 @@ function DiscoveryNameForm({
           <label htmlFor="discovery-objectives" className="text-sm font-medium">
             Objetivos
           </label>
-          {/* SPEC-056: techo de altura + scroll propio (ver InterviewGroupFormDialog). */}
+          {/* SPEC-057: techo de altura + scroll propio (ver InterviewGroupFormDialog). */}
           <Textarea
             id="discovery-objectives"
             data-testid="discovery-objectives-textarea"

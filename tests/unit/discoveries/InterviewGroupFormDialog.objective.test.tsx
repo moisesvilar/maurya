@@ -1,5 +1,5 @@
 /**
- * SPEC-056 — campo «Objetivo» del Dialog de grupo de entrevistas.
+ * SPEC-057 — campo «Objetivo» del Dialog de grupo de entrevistas.
  *
  * La spec acota la altura del campo (max-h + scroll propio) para que un
  * objetivo largo no arrastre al Dialog fuera de la ventana. Esos criterios son
@@ -40,8 +40,8 @@ function renderDialog(onSubmit: (values: unknown) => Promise<boolean>): RenderRe
   )
 }
 
-describe('InterviewGroupFormDialog · campo Objetivo (SPEC-056)', () => {
-  // SPEC-056 · AC-01 (parte automatizable: existencia del locator estable)
+describe('InterviewGroupFormDialog · campo Objetivo (SPEC-057)', () => {
+  // SPEC-057 · AC-01 (parte automatizable: existencia del locator estable)
   it('exposes the objective textarea under the group-objective-textarea testid, bound to its label', async () => {
     renderDialog(vi.fn().mockResolvedValue(true))
 
@@ -56,7 +56,7 @@ describe('InterviewGroupFormDialog · campo Objetivo (SPEC-056)', () => {
     )
   })
 
-  // SPEC-056 · AC-05 · "el objetivo se persiste íntegro, sin truncar"
+  // SPEC-057 · AC-05 · "el objetivo se persiste íntegro, sin truncar"
   it('submits the whole objective when a multi-thousand-character text is pasted at once', async () => {
     const user = userEvent.setup()
     const onSubmit = vi.fn().mockResolvedValue(true)

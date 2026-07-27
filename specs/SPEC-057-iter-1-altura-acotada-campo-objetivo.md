@@ -1,14 +1,14 @@
-# SPEC-056-iter-1 — El diálogo pasa a tres zonas: cabecera fija, cuerpo scrolleable y pie fijo
+# SPEC-057-iter-1 — El diálogo pasa a tres zonas: cabecera fija, cuerpo scrolleable y pie fijo
 
 ## Descripción
 
-Iteración por **defecto de código** detectado en la verificación manual de SPEC-056 sobre la app real. La implementación de la spec base aplica los dos topes con exactitud —el diálogo mide 85 vh y el campo 35 vh— pero por debajo de unos 800 px de alto de ventana el formulario se pinta **fuera** del panel del diálogo, sobre la página de detrás, y los botones Cancelar y Guardar quedan fuera de pantalla. A 608 px el desborde medido es de 99 px.
+Iteración por **defecto de código** detectado en la verificación manual de SPEC-057 sobre la app real. La implementación de la spec base aplica los dos topes con exactitud —el diálogo mide 85 vh y el campo 35 vh— pero por debajo de unos 800 px de alto de ventana el formulario se pinta **fuera** del panel del diálogo, sobre la página de detrás, y los botones Cancelar y Guardar quedan fuera de pantalla. A 608 px el desborde medido es de 99 px.
 
 Lo desencadena la verificación manual del 2026-07-27 sobre los ACs marcados `MANUAL` en `tests/spec-test-map.json`, medida por protocolo de depuración remota contra la app corriendo con datos reales. Ningún test automatizado podía detectarlo: jsdom no calcula layout, que es exactamente el motivo por el que esos criterios se marcaron `MANUAL`.
 
 El cambio: `DialogContent` deja de ser una caja que crece y pasa a ser una **columna de tres zonas** —cabecera fija, cuerpo scrolleable, pie fijo—, de modo que el desbordamiento deja de ser accidental y lo absorbe el cuerpo, único elemento que scrollea. El pie queda anclado por construcción y no por confiar en que quepa.
 
-No cambia el criterio de fondo acordado en la ronda 1 —el andamiaje del formulario no se mueve y el campo de objetivo conserva su tope de 35 vh con scroll propio—, ni los textos, ni el estado, ni la validación, ni la persistencia, ni los contratos IPC. Los ACs de SPEC-056 siguen todos vigentes: esta iteración los hace cumplirse, y solo deroga la parte del UX Design de la base que describía el tope del diálogo como un mecanismo sin scroll.
+No cambia el criterio de fondo acordado en la ronda 1 —el andamiaje del formulario no se mueve y el campo de objetivo conserva su tope de 35 vh con scroll propio—, ni los textos, ni el estado, ni la validación, ni la persistencia, ni los contratos IPC. Los ACs de SPEC-057 siguen todos vigentes: esta iteración los hace cumplirse, y solo deroga la parte del UX Design de la base que describía el tope del diálogo como un mecanismo sin scroll.
 
 ## Diseño / mockups
 
@@ -65,7 +65,7 @@ Ficheros: `InterviewGroupFormDialog.tsx`, `DiscoveryNameDialog.tsx` y `Objective
 
 ## UX Design — ajuste puntual
 
-La sección «Wireframe textual» del UX Design de SPEC-056 se ajusta **solo** en su bullet del contenedor de diálogo y mantiene todos los demás: la composición de los tres formularios, sus campos, etiquetas literales, placeholders y el tope de 35 vh del campo de objetivo siguen exactamente igual.
+La sección «Wireframe textual» del UX Design de SPEC-057 se ajusta **solo** en su bullet del contenedor de diálogo y mantiene todos los demás: la composición de los tres formularios, sus campos, etiquetas literales, placeholders y el tope de 35 vh del campo de objetivo siguen exactamente igual.
 
 El bullet original decía:
 
@@ -101,7 +101,7 @@ El contenedor scrolleable del cuerpo debe ser alcanzable por teclado para que el
 - **Datos y schema**: sin impacto. No hay cambios en `db.json`, ni en canales IPC, ni en tipos de `src/renderer/src/types/`, ni en main o preload.
 - **i18n y tracking**: sin impacto; no se añade ni modifica ningún texto visible.
 - **Retrocompatibilidad**: total. No hay migración ni datos que reinterpretar; un usuario con objetivos ya guardados los ve igual, y los objetivos se guardan íntegros como hasta ahora.
-- **Dependencias**: SPEC-056 (base). No depende de ninguna otra spec ni la bloquea.
+- **Dependencias**: SPEC-057 (base). No depende de ninguna otra spec ni la bloquea.
 
 ### Verificación manual sugerida
 
