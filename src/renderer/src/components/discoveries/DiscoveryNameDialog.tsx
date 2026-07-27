@@ -74,36 +74,42 @@ function DiscoveryNameForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <label htmlFor="discovery-name" className="text-sm font-medium">
-          Nombre
-        </label>
-        <Input
-          ref={inputRef}
-          id="discovery-name"
-          placeholder="Discovery de Maurya"
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value)
-            setShowRequiredError(false)
-          }}
-          aria-invalid={showRequiredError || undefined}
-        />
-        {showRequiredError && <p className="text-sm text-destructive">Campo requerido</p>}
-      </div>
-      <div className="flex flex-col gap-2">
-        <label htmlFor="discovery-objectives" className="text-sm font-medium">
-          Objetivos
-        </label>
-        <Textarea
-          id="discovery-objectives"
-          data-testid="discovery-objectives-textarea"
-          rows={4}
-          placeholder="¿Qué quieres aprender con este discovery?"
-          value={objectives}
-          onChange={(event) => setObjectives(event.target.value)}
-        />
+    // SPEC-057-iter-1: cuerpo scrolleable + DialogFooter fijo fuera de él
+    // (ver InterviewGroupFormDialog).
+    <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+        <div className="flex flex-col gap-2">
+          <label htmlFor="discovery-name" className="text-sm font-medium">
+            Nombre
+          </label>
+          <Input
+            ref={inputRef}
+            id="discovery-name"
+            placeholder="Discovery de Maurya"
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value)
+              setShowRequiredError(false)
+            }}
+            aria-invalid={showRequiredError || undefined}
+          />
+          {showRequiredError && <p className="text-sm text-destructive">Campo requerido</p>}
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="discovery-objectives" className="text-sm font-medium">
+            Objetivos
+          </label>
+          {/* SPEC-057: techo de altura + scroll propio (ver InterviewGroupFormDialog). */}
+          <Textarea
+            id="discovery-objectives"
+            data-testid="discovery-objectives-textarea"
+            rows={4}
+            className="max-h-[35vh] overflow-y-auto"
+            placeholder="¿Qué quieres aprender con este discovery?"
+            value={objectives}
+            onChange={(event) => setObjectives(event.target.value)}
+          />
+        </div>
       </div>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

@@ -2635,5 +2635,77 @@
     "notes": "Spec de tooling interno: maurya-cli no está en docs/prd.md ni en docs/checklist.md, así que no traza a ningún RF- y no hay ítem que marcar [x] al cerrar. Fuera de alcance por decisión humana y anotado en la spec como hallazgos derivados: (1) el repositorio no valida VALORES (--status acepta cualquier string, objectives acepta un string donde el dominio declara string[]) — va por flags declarados, así que la validación de claves no lo tapa, y corromper objectives afecta a la app; (2) el CLI no expone assignInterviewCompany, así que no puede asignar empresa a una entrevista. Observación de QA: en una de las cuatro corridas completas, dos suites de spike (transcriptionService) fallaron al colectar con «Electron failed to install correctly» — flaky de entorno sin relación con el CLI (el binario existe, aisladas pasan, y las tres corridas restantes dieron 941/941).",
     "created_at": "2026-07-27",
     "updated_at": "2026-07-27"
+  },
+  "SPEC-057": {
+    "spec_file": "specs/SPEC-057-altura-acotada-campo-objetivo.md",
+    "unit": [
+      {
+        "file": "tests/unit/discoveries/InterviewGroupFormDialog.objective.test.tsx",
+        "test_count": 2,
+        "description": "Contrato del campo «Objetivo» del Dialog de grupo, renderizado directo del componente (recibe onSubmit por prop: sin bridge). Locator estable group-objective-textarea asociado a la etiqueta y con el placeholder de la spec, y objetivo de ~3.500 caracteres pegado de golpe que llega íntegro a onSubmit (AC-05): acotar la altura hace scrollear el campo, no truncar su valor."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e (Playwright) no aplica en este proyecto: app Electron local sin public link (decisión humana 2026-07-03). QA automatizado = Vitest unit.",
+    "manual_verification": {
+      "AC-01": "Título y botón de cerrar visibles con objetivo largo. Criterio de layout: afirma qué queda dentro de la ventana. jsdom no compone (sin motor de layout, `vh` y `max-height` sin resolver, getBoundingClientRect a cero), así que ningún test unitario puede verificarlo y un assert de clases CSS daría cobertura falsa (docs/RULES.md). Verificación visual en la app real.",
+      "AC-02": "Campos Nombre y ambos Selects visibles con objetivo largo. Criterio de layout: afirma qué queda dentro de la ventana. jsdom no compone (sin motor de layout, `vh` y `max-height` sin resolver, getBoundingClientRect a cero), así que ningún test unitario puede verificarlo y un assert de clases CSS daría cobertura falsa (docs/RULES.md). Verificación visual en la app real.",
+      "AC-03": "Botones Cancelar y Guardar visibles con objetivo largo. Criterio de layout: afirma qué queda dentro de la ventana. jsdom no compone (sin motor de layout, `vh` y `max-height` sin resolver, getBoundingClientRect a cero), así que ningún test unitario puede verificarlo y un assert de clases CSS daría cobertura falsa (docs/RULES.md). Verificación visual en la app real.",
+      "AC-04": "Scroll dentro del campo sin mover el resto del formulario. Requiere un contenedor con desbordamiento real; en jsdom scrollTop no se mueve porque clientHeight y scrollHeight son 0. Verificación visual.",
+      "AC-06": "Objetivo corto conserva la altura mínima y no muestra barra de desplazamiento. Depende de field-sizing:content, no implementado en jsdom.",
+      "AC-07": "Placeholder con altura mínima y sin barra de desplazamiento. Mismo motivo que AC-06.",
+      "AC-08": "El campo deja de crecer al superar el tope y aparece la barra de desplazamiento sin que el Dialog cambie de tamaño. Mismo motivo que AC-06.",
+      "AC-09": "Diálogo de discovery: Nombre y botones visibles con objetivos largos. Criterio de layout: afirma qué queda dentro de la ventana. jsdom no compone (sin motor de layout, `vh` y `max-height` sin resolver, getBoundingClientRect a cero), así que ningún test unitario puede verificarlo y un assert de clases CSS daría cobertura falsa (docs/RULES.md). Verificación visual en la app real.",
+      "AC-10": "Diálogo de discovery: scroll dentro del campo. Mismo motivo que AC-04.",
+      "AC-11": "Diálogo de discovery sin objetivos: altura mínima. Mismo motivo que AC-06.",
+      "AC-12": "Diálogo de override: RadioGroup y botones visibles con comentario largo. Criterio de layout: afirma qué queda dentro de la ventana. jsdom no compone (sin motor de layout, `vh` y `max-height` sin resolver, getBoundingClientRect a cero), así que ningún test unitario puede verificarlo y un assert de clases CSS daría cobertura falsa (docs/RULES.md). Verificación visual en la app real.",
+      "AC-13": "Diálogo de override: scroll dentro del campo. Mismo motivo que AC-04.",
+      "AC-14": "Ventana de altura reducida: el Dialog completo cabe. jsdom no tiene tamaño de ventana real ni resuelve el tope del 85%. Verificación redimensionando la ventana de la app.",
+      "AC-15": "Al reducir la ventana el campo cede altura y los botones siguen visibles. Mismo motivo que AC-14.",
+      "AC-16": "Al ampliar la ventana el campo gana altura hasta su tope. Mismo motivo que AC-14.",
+      "AC-17": "Que el Dialog no crezca más allá de la ventana al pegar miles de caracteres es layout. Criterio de layout: afirma qué queda dentro de la ventana. jsdom no compone (sin motor de layout, `vh` y `max-height` sin resolver, getBoundingClientRect a cero), así que ningún test unitario puede verificarlo y un assert de clases CSS daría cobertura falsa (docs/RULES.md). Verificación visual en la app real. La ruta de entrada (pegado de golpe de ~3.500 caracteres sin pérdida) sí queda cubierta por el test de AC-05.",
+      "AC-18": "Arrastre del asa de redimensionar acotado por max-height. jsdom no implementa el resize nativo del textarea. Verificación visual.",
+      "AC-19": "El error inline «Campo requerido» es visible sin desplazar el Dialog. La aparición del error ya está automatizada (SPEC-045 AC-10); lo que es MANUAL es su visibilidad en pantalla. Criterio de layout: afirma qué queda dentro de la ventana. jsdom no compone (sin motor de layout, `vh` y `max-height` sin resolver, getBoundingClientRect a cero), así que ningún test unitario puede verificarlo y un assert de clases CSS daría cobertura falsa (docs/RULES.md). Verificación visual en la app real.",
+      "AC-20": "El foco va al campo Nombre y no hay desplazamiento automático. El foco ya está automatizado (SPEC-045); la ausencia de scroll del Dialog es layout. Criterio de layout: afirma qué queda dentro de la ventana. jsdom no compone (sin motor de layout, `vh` y `max-height` sin resolver, getBoundingClientRect a cero), así que ningún test unitario puede verificarlo y un assert de clases CSS daría cobertura falsa (docs/RULES.md). Verificación visual en la app real."
+    },
+    "notes": "Fix de presentación puro: 4 archivos del renderer, solo clases (max-h-[85vh] en DialogContent sin overflow propio; max-h-[35vh] + overflow-y-auto en los tres Textarea de texto libre). Sin cambios de estado, validación, IPC, tipos ni persistencia. 18 de los 20 ACs son de layout y quedan MANUAL por decisión humana registrada en la sección «Verificación» de la spec: jsdom no calcula layout, y un test de presencia de clases CSS comprobaría una cadena, no el comportamiento, dando cobertura falsa (docs/RULES.md). No se renombró el testid objective-override-comment (lo usan 8 tests de SPEC-050) pese a que la spec proponía objective-override-comment-textarea. Las suites de SPEC-045 sobre estos diálogos siguen vigentes y sin duplicar.",
+    "acceptance_criteria_coverage": {
+      "AC-05": "tests/unit/discoveries/InterviewGroupFormDialog.objective.test.tsx::InterviewGroupFormDialog · campo Objetivo (SPEC-056)::submits the whole objective when a multi-thousand-character text is pasted at once (integridad del valor) + tests/unit/discoveries/InterviewGroupFormDialog.objective.test.tsx::InterviewGroupFormDialog · campo Objetivo (SPEC-056)::exposes the objective textarea under the group-objective-textarea testid, bound to its label (locator estable)",
+      "AC-01": "MANUAL",
+      "AC-02": "MANUAL",
+      "AC-03": "MANUAL",
+      "AC-04": "MANUAL",
+      "AC-06": "MANUAL",
+      "AC-07": "MANUAL",
+      "AC-08": "MANUAL",
+      "AC-09": "MANUAL",
+      "AC-10": "MANUAL",
+      "AC-11": "MANUAL",
+      "AC-12": "MANUAL",
+      "AC-13": "MANUAL",
+      "AC-14": "MANUAL",
+      "AC-15": "MANUAL",
+      "AC-16": "MANUAL",
+      "AC-17": "MANUAL",
+      "AC-18": "MANUAL",
+      "AC-19": "MANUAL",
+      "AC-20": "MANUAL"
+    }
+  },
+  "SPEC-057-iter-1": {
+    "spec_file": "specs/SPEC-057-iter-1-altura-acotada-campo-objetivo.md",
+    "unit": [],
+    "unit_note": "Sin tests nuevos. La iteración es 100% layout y jsdom no compone; los 2 tests de SPEC-057 (locator estable + integridad del objetivo largo al guardar) siguen vigentes y cubren la no regresión de contrato. La red frente a regresiones del cambio grid→flex en DialogContent son las 137 suites existentes, que ejercitan todos los diálogos de la app: 924/924 PASS tras el cambio.",
+    "e2e": [],
+    "e2e_note": "e2e (Playwright) no aplica en este proyecto: app Electron local sin public link (decisión humana 2026-07-03). QA automatizado = Vitest unit.",
+    "manual_verification": {
+      "metodo": "Verificación por protocolo de depuración remota contra la app corriendo con datos reales (grupo «Exploratory» del discovery «Problem-Solution Fit - MDR»), midiendo geometría a 380, 500, 608, 700, 900 y 1100 px de alto de ventana.",
+      "resultado": "En los seis altos: título, Cancelar y Guardar visibles y dentro del panel; el cuerpo desplaza solo por debajo de ~900 px; el campo conserva su tope de 35 vh y su scroll propio; el diálogo respeta el 85 vh y se ajusta a su contenido cuando sobra altura. Nada se dibuja fuera del panel.",
+      "pendiente": "Comprobar a ojo que los diálogos cortos de la app (borrado, nueva entrevista, ajustes) no cambian de aspecto tras el paso de grid a flex en DialogContent."
+    },
+    "notes": "Iteración por defecto de código detectado en la verificación manual de SPEC-057, no por fallo de test. La base aplicaba max-h-[85vh] a DialogContent sin overflow y con display:grid: max-height recorta la caja pero no obliga a los hijos a encoger, y las filas grid `auto` no encogen aunque el contenedor tenga altura máxima, así que el formulario se pintaba fuera del panel y los botones se iban de pantalla por debajo de ~800 px (99 px de desborde a 608 px). Fix: DialogContent pasa a flex flex-col + overflow-hidden, DialogHeader y DialogFooter a shrink-0, y los tres formularios agrupan sus campos en un div min-h-0 flex-1 overflow-y-auto con el DialogFooter fuera de él pero dentro del form (Enter sigue enviando nativo). Deroga el bullet «Contenedor de diálogo» del UX Design de SPEC-057. Todos los ACs de la base siguen vigentes: esta iteración es lo que los hace cumplirse, en particular AC-03, AC-14 y AC-15, que estaban incumplidos en silencio.",
+    "acceptance_criteria_coverage": {
+      "DEFECTO": "MANUAL — criterio de layout. jsdom no calcula layout (sin motor de composición, vh y max-height sin resolver, getBoundingClientRect a cero), así que la corrección no es verificable en Vitest. Verificado por medición sobre la app real; ver manual_verification. Un test de presencia de clases daría cobertura falsa (docs/RULES.md)."
+    }
   }
 }
