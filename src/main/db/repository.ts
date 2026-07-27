@@ -1127,6 +1127,35 @@ export function setInterviewObjectiveOverride(
 }
 
 /**
+ * Marca la revisión de objetivos como confirmada (SPEC-058, paso 3 del banner
+ * de onboarding). Idempotente: reconfirmar refresca el timestamp. NO toca
+ * `updatedAt` (patrón setInterviewObjectiveResults: es una marca de guiado,
+ * no una edición de contenido — no debe reordenar el listado de capturas).
+ * Expuesta por su canal db:* dedicado; nunca escribible por patch.
+ */
+export function confirmInterviewObjectives(id: string): Interview {
+  return mutate((draft) => {
+    const interview = findOrThrow(draft.interviews, id, 'entrevista')
+    interview.objectivesConfirmedAt = nowIso()
+    return interview
+  })
+}
+
+/**
+ * Oculta el banner de onboarding de la entrevista (SPEC-058, solo alcanzable
+ * desde el paso final en UI). Idempotente. NO toca `updatedAt` (patrón
+ * setInterviewObjectiveResults). Expuesta por su canal db:* dedicado; nunca
+ * escribible por patch.
+ */
+export function hideInterviewOnboarding(id: string): Interview {
+  return mutate((draft) => {
+    const interview = findOrThrow(draft.interviews, id, 'entrevista')
+    interview.onboardingHiddenAt = nowIso()
+    return interview
+  })
+}
+
+/**
  * Persiste los desenlaces manuales de las preguntas del asistente (SPEC-039),
  * descartadas primero. NO toca `updatedAt` (patrón setInterviewObjectiveResults
  * /addInterviewAiUsage: no es una edición del usuario). No se expone por IPC

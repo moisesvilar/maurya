@@ -1,23 +1,28 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft, Building2 } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AssignCompanySheet } from '@/components/captures/AssignCompanySheet'
+import { EditCaptureDialog } from '@/components/captures/EditCaptureDialog'
 import { AssistantLiveSection } from '@/components/recording/AssistantLiveSection'
 import { AiCostInline } from '@/components/interviews/AiCostInline'
+import { InterviewOnboardingBanner } from '@/components/interviews/InterviewOnboardingBanner'
 import { NoteScriptSections } from '@/components/interviews/NoteScriptSections'
 import { ObjectivesSection } from '@/components/interviews/ObjectivesSection'
+import { OnboardingBridgeProvider } from '@/components/interviews/onboardingBridge'
 import { TopBarPortal } from '@/components/layout/TopBarSlot'
 import { RecordingTopBarControls } from '@/components/recording/RecordingTopBarControls'
 import { PermissionErrorAlert } from '@/components/recording/PermissionErrorAlert'
 import { RecordingSurface } from '@/components/recording/RecordingSurface'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
+import type { EditCaptureValues } from '@/hooks/useCaptures'
 import { useInterviewTemplates } from '@/hooks/useInterviewTemplates'
 import { useRecordingController } from '@/hooks/useRecordingController'
 import type { AssignCompanyResult } from '@/types/captures'
-import type { Company, Contact, Discovery, Interview } from '@/types/domain'
+import type { Company, Contact, Discovery, Interview, InterviewTemplate } from '@/types/domain'
 
 type CaptureDetailState =
   | { status: 'loading' }
@@ -122,6 +127,40 @@ export function CaptureDetailPage(): React.ReactElement {
     return 'Sin plantilla'
   }
 
+  /**
+   * Guardado del diálogo de edición abierto desde el banner (SPEC-058, paso
+   * 1): mismo patch que useCaptures.updateCapture; los contactos de la
+   * cabecera se re-resuelven porque el Dialog puede cambiarlos (SPEC-046).
+   */
+  const handleEditSubmit = async (values: EditCaptureValues): Promise<boolean> => {
+    if (state.status !== 'ready') {
+      return false
+    }
+    const result = await window.api.db.updateInterview(state.interview.id, {
+      title: values.title,
+      templateId: values.templateId,
+      ...(values.contactIds !== undefined ? { contactIds: values.contactIds } : {})
+    })
+    if (!result.ok) {
+      toast.error(result.error.message)
+      return false
+    }
+    const contactResults = await Promise.all(
+      result.data.contactIds.map((contactId) => window.api.db.getContact(contactId))
+    )
+    setState((previous) =>
+      previous.status === 'ready'
+        ? {
+            ...previous,
+            interview: result.data,
+            contacts: contactResults.filter((item) => item.ok).map((item) => item.data)
+          }
+        : previous
+    )
+    toast('Cambios guardados')
+    return true
+  }
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <div>
@@ -154,8 +193,10 @@ export function CaptureDetailPage(): React.ReactElement {
           company={state.company}
           contacts={state.contacts}
           templateLabel={templateLabel(state.interview)}
+          templates={templatesState.status === 'ready' ? templatesState.templates : []}
           onInterviewUpdated={handleInterviewUpdated}
           onAssigned={handleAssigned}
+          onEditSubmit={handleEditSubmit}
         />
       )}
     </div>
@@ -169,8 +210,12 @@ interface CaptureDetailContentProps {
   /** SPEC-043: contactos resueltos en el orden de contactIds (rotos se omiten). */
   contacts: Contact[]
   templateLabel: string
+  /** Templates para el select «Plantilla de preguntas» del diálogo (SPEC-058). */
+  templates: InterviewTemplate[]
   onInterviewUpdated: (interview: Interview) => void
   onAssigned: (result: AssignCompanyResult) => void
+  /** Guardado del diálogo de edición del paso 1 del banner (SPEC-058). */
+  onEditSubmit: (values: EditCaptureValues) => Promise<boolean>
 }
 
 /**
@@ -185,10 +230,15 @@ function CaptureDetailContent({
   company,
   contacts,
   templateLabel,
+  templates,
   onInterviewUpdated,
-  onAssigned
+  onAssigned,
+  onEditSubmit
 }: CaptureDetailContentProps): React.ReactElement {
   const [assignOpen, setAssignOpen] = useState(false)
+  // SPEC-058: «Asignar plantilla» (paso 1 del banner) abre el diálogo de
+  // edición aquí — hasta ahora solo existía en el listado de Capturas.
+  const [editOpen, setEditOpen] = useState(false)
   const controller = useRecordingController(interview, onInterviewUpdated)
 
   return (
@@ -241,14 +291,24 @@ function CaptureDetailContent({
         controller={controller}
       />
 
-      {/* Mismo orden que el detalle de entrevista: Objetivos (indicador de
-          progreso principal, SPEC-025) → panel del asistente (SPEC-041, solo
-          mientras se graba) → Nota/Guión */}
-      <ObjectivesSection interview={interview} onInterviewUpdated={onInterviewUpdated} />
+      {/* SPEC-058: el puente banner↔secciones envuelve el banner de
+          onboarding y las secciones cuyas acciones espeja. Mismo orden que el
+          detalle de entrevista: banner → Objetivos (SPEC-025) → panel del
+          asistente (SPEC-041, solo mientras se graba) → Nota/Guión */}
+      <OnboardingBridgeProvider>
+        <InterviewOnboardingBanner
+          interview={interview}
+          onInterviewUpdated={onInterviewUpdated}
+          controller={controller}
+          onAssignTemplate={() => setEditOpen(true)}
+        />
 
-      <AssistantLiveSection controller={controller} />
+        <ObjectivesSection interview={interview} onInterviewUpdated={onInterviewUpdated} />
 
-      <NoteScriptSections interview={interview} onInterviewUpdated={onInterviewUpdated} />
+        <AssistantLiveSection controller={controller} />
+
+        <NoteScriptSections interview={interview} onInterviewUpdated={onInterviewUpdated} />
+      </OnboardingBridgeProvider>
 
       <AssignCompanySheet
         open={assignOpen}
@@ -256,6 +316,14 @@ function CaptureDetailContent({
         interview={interview}
         discoveryName={discovery?.name ?? ''}
         onAssigned={onAssigned}
+      />
+
+      <EditCaptureDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        interview={editOpen ? interview : null}
+        templates={templates}
+        onSubmit={onEditSubmit}
       />
     </>
   )

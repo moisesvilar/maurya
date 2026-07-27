@@ -330,6 +330,22 @@ export interface Interview {
    * escribible por patch.
    */
   questionOutcomes?: InterviewQuestionOutcome[] | null
+  /**
+   * Confirmación humana de la revisión de objetivos (SPEC-058): cierra el
+   * paso 3 del banner de onboarding. Opcional y sin bump de schemaVersion
+   * (patrón aiUsage): ausente = sin confirmar. Solo lo escribe main vía
+   * `confirmInterviewObjectives`; nunca es escribible por patch. A diferencia
+   * de objectiveResults/objectiveOverrides, editar `objectives` NO lo
+   * descarta (el banner guía, no bloquea).
+   */
+  objectivesConfirmedAt?: string | null
+  /**
+   * Banner de onboarding ocultado por el usuario (SPEC-058, solo desde el
+   * paso final). Opcional y sin bump de schemaVersion (patrón aiUsage):
+   * ausente = visible. Solo lo escribe main vía `hideInterviewOnboarding`;
+   * nunca es escribible por patch.
+   */
+  onboardingHiddenAt?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -593,6 +609,10 @@ export interface DbApi {
   getInterview: (id: string) => Promise<DbResult<Interview>>
   updateInterview: (id: string, patch: UpdateInterviewPatch) => Promise<DbResult<Interview>>
   deleteInterview: (id: string) => Promise<DbResult<null>>
+  /** Marca la revisión de objetivos como confirmada (SPEC-058, paso 3 del onboarding). */
+  confirmInterviewObjectives: (id: string) => Promise<DbResult<Interview>>
+  /** Oculta el banner de onboarding de la entrevista (SPEC-058, paso final). */
+  hideInterviewOnboarding: (id: string) => Promise<DbResult<Interview>>
   /** Listado global de capturas (SPEC-020): contexto resuelto, updatedAt desc. */
   listAllInterviews: () => Promise<DbResult<CaptureListItem[]>>
   /**

@@ -69,6 +69,8 @@ const db: DbApi = {
   getInterview: (id) => ipcRenderer.invoke('db:interview:get', id),
   updateInterview: (id, patch) => ipcRenderer.invoke('db:interview:update', id, patch),
   deleteInterview: (id) => ipcRenderer.invoke('db:interview:delete', id),
+  confirmInterviewObjectives: (id) => ipcRenderer.invoke('db:interview:confirm-objectives', id),
+  hideInterviewOnboarding: (id) => ipcRenderer.invoke('db:interview:hide-onboarding', id),
   // Capture-first (SPEC-020): listado global + asignación compuesta atómica.
   listAllInterviews: () => ipcRenderer.invoke('db:interview:list-all'),
   assignInterviewCompany: (interviewId, input) =>
