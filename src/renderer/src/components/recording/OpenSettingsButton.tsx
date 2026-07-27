@@ -1,5 +1,6 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
+import { isDenied } from '@/lib/permissions'
 import { openPrivacySettings } from '@/services/permissionsService'
 import type { PermissionsSnapshot, PermissionTarget } from '@/types/audio'
 
@@ -8,22 +9,23 @@ interface OpenSettingsButtonProps {
 }
 
 /**
- * Botón «Abrir Ajustes del Sistema» junto a los badges de permisos (SPEC-049):
- * única fuente de la lógica de visibilidad/destino. Se muestra con el mismo
- * criterio con el que PermissionBadges pinta «No concedido» (estado distinto
- * de `granted`, incluido snapshot null) y desaparece con ambos permisos
- * concedidos. Un solo botón, no uno por permiso: su destino es el primer
- * permiso no concedido, micrófono con prioridad (primer paso del flujo).
+ * Botón «Abrir Ajustes del Sistema» junto a los badges de permisos (SPEC-049;
+ * criterio SPEC-055-iter-2): única fuente de la lógica de visibilidad/destino.
+ * Se muestra solo con algún permiso en denegación dura (denied/restricted) —
+ * con permisos pendientes (not-determined) no hay fila de Maurya en Ajustes
+ * que activar, y el prompt se dispara al iniciar la grabación. Un solo botón,
+ * no uno por permiso: su destino es el primer permiso denegado, micrófono con
+ * prioridad (primer paso del flujo).
  */
 export function OpenSettingsButton({
   permissions
 }: OpenSettingsButtonProps): React.ReactElement | null {
-  const microphoneGranted = permissions?.microphone === 'granted'
-  const systemAudioGranted = permissions?.systemAudio === 'granted'
-  if (microphoneGranted && systemAudioGranted) {
+  const microphoneDenied = isDenied(permissions?.microphone)
+  const systemAudioDenied = isDenied(permissions?.systemAudio)
+  if (!microphoneDenied && !systemAudioDenied) {
     return null
   }
-  const target: PermissionTarget = microphoneGranted ? 'systemAudio' : 'microphone'
+  const target: PermissionTarget = microphoneDenied ? 'microphone' : 'systemAudio'
   return (
     <Button
       variant="destructive"
