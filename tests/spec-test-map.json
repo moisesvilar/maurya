@@ -2593,5 +2593,47 @@
     },
     "manual_verification": "MANUAL: prompts TCC nativos de macOS al pulsar «Iniciar grabación» con permisos pendientes; tooltip real al hover del chip «?»; ejecución real del comando tccutil (Microphone + ScreenCapture) en Terminal vía osascript y prompt de Automatización. Pasos: tccutil reset Microphone com.maurya.app && tccutil reset ScreenCapture com.maurya.app → abrir detalle (chips ámbar, sin correctivos, Iniciar enabled) → Iniciar → prompts → conceder → chips verdes y grabación en curso; segunda pasada denegando el prompt → chip rojo + correctivos + Iniciar disabled.",
     "notes": "Iteración de cambio de comportamiento (semántica TCC ternaria). Deroga iter-1 AC-02/AC-04 y la mitad disabled-sin-permisos de AC-08: el gating pasa de «ambos granted» a «solo denied/restricted». Tests renombrados/actualizados respecto al criterio viejo: OpenSettingsButton.test.tsx (antes: visible con ≠granted incl. null → ahora: solo denied/restricted; los ids de SPEC-049 AC-04/05/06/08 cambian de nombre en este archivo) y MicWorkaroundButton.test.tsx (bugfix v0.6.1 fuera de pipeline, formalizado aquí; comando ahora con ScreenCapture). Las suites de página existentes (RecordingSection, CaptureDetailPage.*, InterviewDetailPage.permissionErrors) mockean denied y siguen válidas sin cambios. Suite nueva: PermissionBadges.test.tsx. usePermissions.test.tsx (refresh on-focus, bugfix v0.6.1) queda intacta."
+  },
+  "SPEC-056": {
+    "spec_file": "specs/SPEC-056-cli-json-validado.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición (19), en tres bloques: validación de claves de --json (AC-01..AC-10, incluye la paridad de trato con los flags sueltos y la garantía de cero escrituras), --interview-group-id en el update de interview (AC-11..AC-16, incluye las dos vías de fallo de la invariante grupo ∈ discovery) y sincronía del bundle (AC-17..AC-19). Cobertura 19/19 automatizada: el CLI es código Node puro sin UI, así que no hay ACs MANUAL.",
+    "unit": [
+      {
+        "file": "tests/unit/cli/cli.test.ts",
+        "test_count": 16,
+        "description": "Dos describes nuevos sobre la suite existente del CLI (runCli con --data-dir inyectado a un mkdtemp y electron mockeado con un guard que lanza). El primero cubre la validación de claves de --json en create/update/list de varias entidades, la comparación del db.json antes/después para acreditar cero escrituras, y la paridad de mensajes con un flag suelto desconocido. El segundo monta un escenario de discovery con dos grupos y ejercita el movimiento de entrevista: flag suelto, --json, null, grupo inexistente, grupo de otro discovery y la ayuda."
+      },
+      {
+        "file": "tests/unit/cli/bundle-freshness.test.ts",
+        "test_count": 3,
+        "description": "Detección de bundle desincronizado por CONTENIDO (no por mtime, que cambia con un git checkout sin que cambie el código): reconstruye out/cli/index.cjs a un temporal con el comando cli:build leído de package.json (única fuente de verdad; el --outfile añadido sobreescribe al del script) y compara byte a byte. Cubre los tres estados: fresh, stale y missing (clon limpio sin out/, donde no construye nada)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e (Playwright) no aplica en este proyecto: app Electron local sin public link. QA = Vitest unit. Además, esta spec es de CLI: la verificación end-to-end equivalente se hizo ejecutando ./bin/maurya-cli con --data-dir sobre una copia sandbox del db.json real (nunca sobre el userData de la app).",
+    "acceptance_criteria_coverage": {
+      "AC-01": "tests/unit/cli/cli.test.ts::runCli — validación de las claves de --json (SPEC-056)::AC-01 · una clave declarada en el FieldSpec se aplica con normalidad",
+      "AC-02": "tests/unit/cli/cli.test.ts::runCli — validación de las claves de --json (SPEC-056)::AC-02 · una clave mal escrita da usage y enumera las claves admitidas",
+      "AC-03": "tests/unit/cli/cli.test.ts::runCli — validación de las claves de --json (SPEC-056)::AC-03 · varias claves desconocidas se reportan todas y en orden alfabético",
+      "AC-04": "tests/unit/cli/cli.test.ts::runCli — validación de las claves de --json (SPEC-056)::AC-04 · discoveryId sigue siendo inmutable, pero ahora el intento falla",
+      "AC-05": "tests/unit/cli/cli.test.ts::runCli — validación de las claves de --json (SPEC-056)::AC-05 · la validación aplica a create: clave desconocida no crea nada",
+      "AC-06": "tests/unit/cli/cli.test.ts::runCli — validación de las claves de --json (SPEC-056)::AC-06 · la validación aplica a list, incluso cuando la acción no admite claves",
+      "AC-07": "tests/unit/cli/cli.test.ts::runCli — validación de las claves de --json (SPEC-056)::AC-07 · un --json inválido deja el db.json byte a byte idéntico",
+      "AC-08": "tests/unit/cli/cli.test.ts::runCli — validación de las claves de --json (SPEC-056)::AC-08 · las claves se validan sobre el acumulado de varios --json",
+      "AC-09": "tests/unit/cli/cli.test.ts::runCli — validación de las claves de --json (SPEC-056)::AC-09 · usar el nombre del flag como clave da usage y sugiere la clave real",
+      "AC-10": "tests/unit/cli/cli.test.ts::runCli — validación de las claves de --json (SPEC-056)::AC-10 · el --json recibe el mismo trato que un flag suelto desconocido",
+      "AC-11": "tests/unit/cli/cli.test.ts::runCli — mover una entrevista de grupo (SPEC-056)::AC-11 · --interview-group-id mueve la entrevista y lo persiste",
+      "AC-12": "tests/unit/cli/cli.test.ts::runCli — mover una entrevista de grupo (SPEC-056)::AC-12 · por --json el resultado es equivalente al del flag suelto",
+      "AC-13": "tests/unit/cli/cli.test.ts::runCli — mover una entrevista de grupo (SPEC-056)::AC-13 · un grupo inexistente da reference y no toca la entrevista",
+      "AC-14": "tests/unit/cli/cli.test.ts::runCli — mover una entrevista de grupo (SPEC-056)::AC-14 · un grupo de OTRO discovery da reference (invariante intacta)",
+      "AC-15": "tests/unit/cli/cli.test.ts::runCli — mover una entrevista de grupo (SPEC-056)::AC-15 · null desasigna el grupo sin error",
+      "AC-16": "tests/unit/cli/cli.test.ts::runCli — mover una entrevista de grupo (SPEC-056)::AC-16 · la ayuda de interview anuncia el flag",
+      "AC-17": "tests/unit/cli/bundle-freshness.test.ts::bundle del CLI — sincronía con el código fuente::AC-17 · un bundle con contenido distinto se detecta como desincronizado",
+      "AC-18": "tests/unit/cli/bundle-freshness.test.ts::bundle del CLI — sincronía con el código fuente::AC-18 · el bundle instalado coincide con lo que produce el código actual",
+      "AC-19": "tests/unit/cli/bundle-freshness.test.ts::bundle del CLI — sincronía con el código fuente::AC-19 · sin out/ el test pasa: el bundle es un artefacto opcional"
+    },
+    "notes": "Spec de tooling interno: maurya-cli no está en docs/prd.md ni en docs/checklist.md, así que no traza a ningún RF- y no hay ítem que marcar [x] al cerrar. Fuera de alcance por decisión humana y anotado en la spec como hallazgos derivados: (1) el repositorio no valida VALORES (--status acepta cualquier string, objectives acepta un string donde el dominio declara string[]) — va por flags declarados, así que la validación de claves no lo tapa, y corromper objectives afecta a la app; (2) el CLI no expone assignInterviewCompany, así que no puede asignar empresa a una entrevista. Observación de QA: en una de las cuatro corridas completas, dos suites de spike (transcriptionService) fallaron al colectar con «Electron failed to install correctly» — flaky de entorno sin relación con el CLI (el binario existe, aisladas pasan, y las tres corridas restantes dieron 941/941).",
+    "created_at": "2026-07-27",
+    "updated_at": "2026-07-27"
   }
 }

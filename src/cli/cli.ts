@@ -220,6 +220,9 @@ const ENTITIES: Record<string, EntitySpec> = {
       f('--title', 'title'),
       f('--status', 'status'),
       f('--contact-ids', 'contactIds', 'json'),
+      // El repositorio revalida la invariante grupo ∈ discovery de la entrevista
+      // (assertInterviewGroup) también en update desde c90523d.
+      f('--interview-group-id', 'interviewGroupId'),
       f('--template-id', 'templateId'),
       f('--script-markdown', 'scriptMarkdown'),
       f('--objectives', 'objectives', 'json'),
@@ -307,6 +310,29 @@ function extractDataDir(argv: string[]): { dataDir: string; rest: string[] } {
 }
 
 /**
+ * Contrasta las claves aportadas por `--json` contra el FieldSpec de la entidad
+ * y la acción. Sin esto el payload se fusionaba tal cual: aguas abajo el
+ * repositorio aplica solo las claves que conoce y el resto se evapora, con lo
+ * que el CLI devolvía `ok:true` sin haber escrito el cambio pedido (y aun así
+ * bumpeaba `updatedAt`). Los flags sueltos no pasan por aquí: se construyen a
+ * partir del propio FieldSpec, así que son correctos por construcción.
+ */
+function assertKnownJsonKeys(base: Payload, fields: FieldSpec[]): void {
+  const unknown = Object.keys(base)
+    .filter((key) => !fields.some((candidate) => candidate.key === key))
+    .sort()
+  if (unknown.length === 0) {
+    return
+  }
+  const known =
+    fields.length === 0
+      ? '(ninguna: esta acción no admite payload)'
+      : fields.map((candidate) => candidate.key).join(', ')
+  const label = unknown.length === 1 ? 'Clave desconocida' : 'Claves desconocidas'
+  throw new UsageError(`${label} en --json: ${unknown.join(', ')}. Claves soportadas: ${known}`)
+}
+
+/**
  * Parsea flags `--flag valor` contra un spec. `--json '<objeto>'` aporta el
  * payload base; los flags individuales lo sobreescriben clave a clave (para
  * valores null o estructuras complejas, usar --json).
@@ -355,6 +381,7 @@ function parsePayload(tokens: string[], fields: FieldSpec[], requireRequired: bo
       fromFlags[field.key] = value
     }
   }
+  assertKnownJsonKeys(base, fields)
   const payload = { ...base, ...fromFlags }
   if (requireRequired) {
     for (const field of fields) {

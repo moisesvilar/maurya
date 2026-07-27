@@ -226,3 +226,305 @@ describe('runCli — search, status y ayuda', () => {
     expect(stdout[0]).toContain('interview-group')
   })
 })
+
+// ---------------------------------------------------------------------------
+// SPEC-056 — el --json deja de mentir
+// ---------------------------------------------------------------------------
+
+/** Lee el db.json crudo para comparar el almacén antes/después de un comando. */
+function readDb(): string {
+  return readFileSync(join(dataDir, 'db.json'), 'utf-8')
+}
+
+describe('runCli — validación de las claves de --json (SPEC-056)', () => {
+  it('AC-01 · una clave declarada en el FieldSpec se aplica con normalidad', () => {
+    const discoveryId = createId('discovery', 'create', '--name', 'D')
+    const { code, payload } = run(
+      'discovery',
+      'update',
+      discoveryId,
+      '--json',
+      '{"objectives":"Validar el problema"}'
+    )
+    expect(code).toBe(0)
+    expect((payload.data as Record<string, unknown>).objectives).toBe('Validar el problema')
+  })
+
+  it('AC-02 · una clave mal escrita da usage y enumera las claves admitidas', () => {
+    const discoveryId = createId('discovery', 'create', '--name', 'D')
+    const interviewId = createId(
+      'interview',
+      'create',
+      '--discovery-id',
+      discoveryId,
+      '--title',
+      'Original'
+    )
+
+    const { code, payload } = run('interview', 'update', interviewId, '--json', '{"titel":"Nuevo"}')
+    expect(code).toBe(1)
+    expect(payload.error?.kind).toBe('usage')
+    expect(payload.error?.message).toContain('titel')
+    expect(payload.error?.message).toContain('title')
+    expect(payload.error?.message).toContain('interviewGroupId')
+
+    // El título no se tocó: el error precede a cualquier escritura.
+    const after = run('interview', 'get', interviewId)
+    expect((after.payload.data as Record<string, unknown>).title).toBe('Original')
+  })
+
+  it('AC-03 · varias claves desconocidas se reportan todas y en orden alfabético', () => {
+    const companyId = createId('company', 'create', '--name', 'Acme')
+    const { payload } = run(
+      'company',
+      'update',
+      companyId,
+      '--json',
+      '{"zeta":1,"alpha":2,"mid":3}'
+    )
+    expect(payload.error?.kind).toBe('usage')
+    expect(payload.error?.message).toContain('alpha, mid, zeta')
+  })
+
+  it('AC-04 · discoveryId sigue siendo inmutable, pero ahora el intento falla', () => {
+    const discoveryId = createId('discovery', 'create', '--name', 'D1')
+    const otherDiscoveryId = createId('discovery', 'create', '--name', 'D2')
+    const interviewId = createId(
+      'interview',
+      'create',
+      '--discovery-id',
+      discoveryId,
+      '--title',
+      'T'
+    )
+
+    const { code, payload } = run(
+      'interview',
+      'update',
+      interviewId,
+      '--json',
+      `{"discoveryId":"${otherDiscoveryId}"}`
+    )
+    expect(code).toBe(1)
+    expect(payload.error?.kind).toBe('usage')
+    expect(payload.error?.message).toContain('discoveryId')
+
+    const after = run('interview', 'get', interviewId)
+    expect((after.payload.data as Record<string, unknown>).discoveryId).toBe(discoveryId)
+  })
+
+  it('AC-05 · la validación aplica a create: clave desconocida no crea nada', () => {
+    const { code, payload } = run('discovery', 'create', '--json', '{"name":"X","foo":"bar"}')
+    expect(code).toBe(1)
+    expect(payload.error?.kind).toBe('usage')
+
+    const list = run('discovery', 'list')
+    expect(list.payload.data).toEqual([])
+  })
+
+  it('AC-06 · la validación aplica a list, incluso cuando la acción no admite claves', () => {
+    const withFields = run('interview', 'list', '--json', '{"foo":1}')
+    expect(withFields.payload.error?.kind).toBe('usage')
+    expect(withFields.payload.error?.message).toContain('companyId')
+
+    const withoutFields = run('discovery', 'list', '--json', '{"foo":1}')
+    expect(withoutFields.payload.error?.kind).toBe('usage')
+    expect(withoutFields.payload.error?.message).toContain('no admite payload')
+  })
+
+  it('AC-07 · un --json inválido deja el db.json byte a byte idéntico', () => {
+    const discoveryId = createId('discovery', 'create', '--name', 'D')
+    const interviewId = createId(
+      'interview',
+      'create',
+      '--discovery-id',
+      discoveryId,
+      '--title',
+      'T'
+    )
+    const before = readDb()
+
+    const { code } = run('interview', 'update', interviewId, '--json', '{"titel":"x"}')
+    expect(code).toBe(1)
+
+    // Ni entidades nuevas, ni patch parcial, ni bump de updatedAt.
+    expect(readDb()).toBe(before)
+  })
+
+  it('AC-08 · las claves se validan sobre el acumulado de varios --json', () => {
+    const companyId = createId('company', 'create', '--name', 'Acme')
+    const { payload } = run(
+      'company',
+      'update',
+      companyId,
+      '--json',
+      '{"name":"Beta"}',
+      '--json',
+      '{"foo":"bar"}'
+    )
+    expect(payload.error?.kind).toBe('usage')
+    expect(payload.error?.message).toContain('foo')
+  })
+
+  it('AC-09 · usar el nombre del flag como clave da usage y sugiere la clave real', () => {
+    const companyId = createId('company', 'create', '--name', 'Acme')
+    const { payload } = run(
+      'company',
+      'update',
+      companyId,
+      '--json',
+      '{"linkedin-url":"https://x.test"}'
+    )
+    expect(payload.error?.kind).toBe('usage')
+    expect(payload.error?.message).toContain('linkedin-url')
+    expect(payload.error?.message).toContain('linkedinUrl')
+  })
+
+  it('AC-10 · el --json recibe el mismo trato que un flag suelto desconocido', () => {
+    const companyId = createId('company', 'create', '--name', 'Acme')
+
+    const viaFlag = run('company', 'update', companyId, '--nope', 'x')
+    const viaJson = run('company', 'update', companyId, '--json', '{"nope":"x"}')
+
+    expect(viaFlag.code).toBe(1)
+    expect(viaJson.code).toBe(1)
+    expect(viaFlag.payload.error?.kind).toBe('usage')
+    expect(viaJson.payload.error?.kind).toBe('usage')
+    // Ambos enumeran lo admitido, cada uno en su vocabulario (flags vs claves).
+    expect(viaFlag.payload.error?.message).toContain('--linkedin-url')
+    expect(viaJson.payload.error?.message).toContain('linkedinUrl')
+  })
+})
+
+describe('runCli — mover una entrevista de grupo (SPEC-056)', () => {
+  /** Discovery con dos grupos + una entrevista en el primero. */
+  function scenario(): {
+    discoveryId: string
+    groupA: string
+    groupB: string
+    interviewId: string
+  } {
+    const discoveryId = createId('discovery', 'create', '--name', 'D')
+    const groupA = createId(
+      'interview-group',
+      'create',
+      '--discovery-id',
+      discoveryId,
+      '--name',
+      'Exploration'
+    )
+    const groupB = createId(
+      'interview-group',
+      'create',
+      '--discovery-id',
+      discoveryId,
+      '--name',
+      'Problem interview'
+    )
+    const interviewId = createId(
+      'interview',
+      'create',
+      '--discovery-id',
+      discoveryId,
+      '--title',
+      'Entrevista',
+      '--interview-group-id',
+      groupA
+    )
+    return { discoveryId, groupA, groupB, interviewId }
+  }
+
+  it('AC-11 · --interview-group-id mueve la entrevista y lo persiste', () => {
+    const { groupB, interviewId } = scenario()
+
+    const { code, payload } = run(
+      'interview',
+      'update',
+      interviewId,
+      '--interview-group-id',
+      groupB
+    )
+    expect(code).toBe(0)
+    expect((payload.data as Record<string, unknown>).interviewGroupId).toBe(groupB)
+
+    const persisted = JSON.parse(readDb()) as { interviews: Array<{ interviewGroupId: string }> }
+    expect(persisted.interviews[0].interviewGroupId).toBe(groupB)
+  })
+
+  it('AC-12 · por --json el resultado es equivalente al del flag suelto', () => {
+    const { groupB, interviewId } = scenario()
+    const { code, payload } = run(
+      'interview',
+      'update',
+      interviewId,
+      '--json',
+      `{"interviewGroupId":"${groupB}"}`
+    )
+    expect(code).toBe(0)
+    expect((payload.data as Record<string, unknown>).interviewGroupId).toBe(groupB)
+  })
+
+  it('AC-13 · un grupo inexistente da reference y no toca la entrevista', () => {
+    const { groupA, interviewId } = scenario()
+
+    const { code, payload } = run(
+      'interview',
+      'update',
+      interviewId,
+      '--interview-group-id',
+      'no-existe'
+    )
+    expect(code).toBe(1)
+    expect(payload.error?.kind).toBe('reference')
+
+    const after = run('interview', 'get', interviewId)
+    expect((after.payload.data as Record<string, unknown>).interviewGroupId).toBe(groupA)
+  })
+
+  it('AC-14 · un grupo de OTRO discovery da reference (invariante intacta)', () => {
+    const { groupA, interviewId } = scenario()
+    const otherDiscoveryId = createId('discovery', 'create', '--name', 'Otro discovery')
+    const foreignGroup = createId(
+      'interview-group',
+      'create',
+      '--discovery-id',
+      otherDiscoveryId,
+      '--name',
+      'Grupo ajeno'
+    )
+
+    const { code, payload } = run(
+      'interview',
+      'update',
+      interviewId,
+      '--interview-group-id',
+      foreignGroup
+    )
+    expect(code).toBe(1)
+    expect(payload.error?.kind).toBe('reference')
+
+    const after = run('interview', 'get', interviewId)
+    expect((after.payload.data as Record<string, unknown>).interviewGroupId).toBe(groupA)
+  })
+
+  it('AC-15 · null desasigna el grupo sin error', () => {
+    const { interviewId } = scenario()
+    const { code, payload } = run(
+      'interview',
+      'update',
+      interviewId,
+      '--json',
+      '{"interviewGroupId":null}'
+    )
+    expect(code).toBe(0)
+    expect((payload.data as Record<string, unknown>).interviewGroupId).toBeNull()
+  })
+
+  it('AC-16 · la ayuda de interview anuncia el flag', () => {
+    stdout = []
+    const code = runCli(['--data-dir', dataDir, 'interview', '--help'], io)
+    expect(code).toBe(0)
+    expect(stdout[0]).toContain('interview update')
+    expect(stdout[0]).toContain('[--interview-group-id <valor>]')
+  })
+})
