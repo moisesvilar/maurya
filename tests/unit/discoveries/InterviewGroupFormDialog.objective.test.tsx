@@ -14,7 +14,7 @@
  * el campo scrollea, no recorta. Frontera de mocking: ninguna; el Dialog
  * recibe `onSubmit` por prop, así que no interviene el bridge.
  */
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within, type RenderResult } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { InterviewGroupFormDialog } from '@/components/discoveries/InterviewGroupFormDialog'
@@ -26,7 +26,7 @@ const LONG_OBJECTIVE = Array.from(
     `Bloque ${index + 1}. Validar, mediante Entrevistas de Problemas, si existe un problema must-have en el segmento: fabricante de producto sanitario que es una PYME cuya función regulatoria no tiene capacidad senior experta dedicada.`
 ).join('\n\n')
 
-function renderDialog(onSubmit: (values: unknown) => Promise<boolean>) {
+function renderDialog(onSubmit: (values: unknown) => Promise<boolean>): RenderResult {
   return render(
     <InterviewGroupFormDialog
       open
