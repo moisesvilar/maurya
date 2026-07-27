@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
+import { EditInterviewDialog } from '@/components/interviews/EditInterviewDialog'
 import { GroupInterviewFormDialog } from '@/components/interviews/GroupInterviewFormDialog'
 import { InterviewGroupFormDialog } from '@/components/discoveries/InterviewGroupFormDialog'
 import { MoveInterviewDialog } from '@/components/interviews/MoveInterviewDialog'
@@ -44,11 +45,13 @@ import type { CaptureListItem } from '@/types/captures'
  * error state con enlace "Volver al discovery". El título de cada fila
  * navega a la ruta anidada de detalle de entrevista; si su empresa fue
  * borrada (companyId null), a /captures/:id (detalle universal, SPEC-020).
- * Cada fila lleva un menú ⋯ con "Mover a otro grupo" (Select con los grupos
- * del discovery sin el actual); el Dialog vive a nivel de página, FUERA del
- * DropdownMenu, gobernado por pendingMoveInterview, y la apertura desde
- * onSelect se difiere con setTimeout(0) (mitigador del incidente conocido de
- * Radix dropdown → dialog, patrón DiscoveryDetailPage).
+ * Cada fila lleva un menú ⋯ con "Editar" (Dialog con el Título de la
+ * entrevista, único campo editable por ahora), "Mover a otro grupo" (Select
+ * con los grupos del discovery sin el actual) y "Eliminar"; los Dialogs viven
+ * a nivel de página, FUERA del DropdownMenu, gobernados por
+ * pendingEditInterview / pendingMoveInterview / pendingDeleteInterview, y la
+ * apertura desde onSelect se difiere con setTimeout(0) (mitigador del
+ * incidente conocido de Radix dropdown → dialog, patrón DiscoveryDetailPage).
  */
 export function InterviewGroupDetailPage(): React.ReactElement {
   const { discoveryId, groupId } = useParams<{ discoveryId: string; groupId: string }>()
@@ -58,6 +61,7 @@ export function InterviewGroupDetailPage(): React.ReactElement {
     state: interviewsState,
     createInterview,
     moveInterview,
+    renameInterview,
     removeInterview
   } = useGroupInterviews(groupId ?? '')
   // UNA sola carga de cada catálogo de templates (patrón SPEC-045): alimenta
@@ -67,6 +71,7 @@ export function InterviewGroupDetailPage(): React.ReactElement {
   const { state: noteTemplatesState } = useNoteTemplates()
   const [editGroupOpen, setEditGroupOpen] = useState(false)
   const [createInterviewOpen, setCreateInterviewOpen] = useState(false)
+  const [pendingEditInterview, setPendingEditInterview] = useState<CaptureListItem | null>(null)
   const [pendingMoveInterview, setPendingMoveInterview] = useState<CaptureListItem | null>(null)
   const [pendingDeleteInterview, setPendingDeleteInterview] = useState<CaptureListItem | null>(null)
 
@@ -80,6 +85,10 @@ export function InterviewGroupDetailPage(): React.ReactElement {
     groupsState.status === 'ready'
       ? groupsState.groups.filter((candidate) => candidate.id !== groupId)
       : []
+
+  const openEditInterview = (item: CaptureListItem): void => {
+    setTimeout(() => setPendingEditInterview(item), 0)
+  }
 
   const openMoveInterview = (item: CaptureListItem): void => {
     setTimeout(() => setPendingMoveInterview(item), 0)
@@ -256,6 +265,10 @@ export function InterviewGroupDetailPage(): React.ReactElement {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => openEditInterview(item)}>
+                          <Pencil />
+                          Editar
+                        </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => openMoveInterview(item)}>
                           <FolderInput />
                           Mover a otro grupo
@@ -291,6 +304,22 @@ export function InterviewGroupDetailPage(): React.ReactElement {
             open={createInterviewOpen}
             onOpenChange={setCreateInterviewOpen}
             onSubmit={handleCreate}
+          />
+
+          <EditInterviewDialog
+            open={pendingEditInterview !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setPendingEditInterview(null)
+              }
+            }}
+            interviewTitle={pendingEditInterview?.interview.title ?? ''}
+            onSubmit={(title) => {
+              if (pendingEditInterview === null) {
+                return Promise.resolve(false)
+              }
+              return renameInterview(pendingEditInterview.interview.id, title)
+            }}
           />
 
           <MoveInterviewDialog
