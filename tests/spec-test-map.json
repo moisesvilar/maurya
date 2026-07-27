@@ -2707,5 +2707,49 @@
     "acceptance_criteria_coverage": {
       "DEFECTO": "MANUAL — criterio de layout. jsdom no calcula layout (sin motor de composición, vh y max-height sin resolver, getBoundingClientRect a cero), así que la corrección no es verificable en Vitest. Verificado por medición sobre la app real; ver manual_verification. Un test de presencia de clases daría cobertura falsa (docs/RULES.md)."
     }
+  },
+  "SPEC-058": {
+    "spec_file": "specs/SPEC-058-onboarding-detalle-entrevista.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición (29): Derivación del paso ×13 (AC-01..08 pasos 1-7 + degradado, AC-09 plantilla desasignada con guión no retrocede, AC-10 salto 5→7, AC-11 segmentos de progreso, AC-12 grabación en curso, AC-13 onboardingHiddenAt); Acciones ×13 (AC-14 abrir diálogo, AC-15 guardar plantilla → paso 2, AC-16 generar guión compartido, AC-17 disabled sin clave, AC-18 confirmar objetivos, AC-19 iniciar grabación por el controller, AC-20 disabled por permisos, AC-21 generar nota espejada, AC-22 escribir nota degradado, AC-23 evaluar espejada, AC-24 ocultar, AC-25 sin Ocultar en 1-6, AC-26 fallo del canal → Toast); Ubicación ×3 (AC-27 posición en entrevista, AC-28 posición en captura, AC-29 primary único).",
+    "unit": [
+      {
+        "file": "tests/unit/interviews/InterviewOnboardingBanner.test.tsx",
+        "test_count": 19,
+        "description": "Banner aislado con controller fabricado + mockApi: derivación de los 7 pasos con sus copys y acciones literales (AC-01..08), no-retroceso al paso 1 (AC-09), salto 5→7 (AC-10), 7 segmentos done/current/pending (AC-11, aserción por clase: el estado visual del elemento aria-hidden no tiene otro observable), oculto durante grabación (AC-12) y con onboardingHiddenAt (AC-13), sin «Ocultar» en 1-6 (AC-25); acciones propias: disparo del guión + estado por eventos (AC-16 mitad banner), tooltip sin clave (AC-17), confirmación persistida → paso 4 (AC-18), handleStart del controller (AC-19), disabled por denegación dura con tooltip (AC-20), ocultar persistido (AC-24) y fallo del canal → Toast sin avanzar (AC-26)."
+      },
+      {
+        "file": "tests/unit/interviews/OnboardingBannerBridge.test.tsx",
+        "test_count": 5,
+        "description": "Arnés con la composición real de las páginas (OnboardingBridgeProvider + banner + ObjectivesSection + NoteScriptSections, entrevista compartida en estado): generación del guión compartida con «Generando guión…» en ambos botones y avance al paso 3 (AC-16), generación de nota espejada vía NoteSection con «Generando nota…» en ambos y avance a paso 6 (AC-21), «Escribir nota» degradado crea la nota vacía y monta la sección Nota con el editor (AC-22, parte automatizable), evaluación espejada con «Evaluando objetivos…» en ambos y llegada al paso 7 (AC-23), y jerarquía primary del banner vs outline de «Evaluar objetivos» (AC-29)."
+      },
+      {
+        "file": "tests/unit/interviews/onboardingStep.test.ts",
+        "test_count": 4,
+        "description": "Complemento del helper puro deriveOnboardingStep (Notas técnicas de la spec): evaluación resuelta sin transcripción con nota manual y sin objetivos (decisión asumida: el banner guía, no bloquea), paso 5 desde wavPath antes del status, y null con capturing/oculto."
+      },
+      {
+        "file": "tests/unit/persistence/repository.onboarding.test.ts",
+        "test_count": 5,
+        "description": "Repositorio real sobre directorio temporal (@vitest-environment node): confirmInterviewObjectives/hideInterviewOnboarding fijan timestamp ISO persistido sin bump de updatedAt (AC-18/AC-24, persistencia), lanzan con id inexistente (origen del fallo de AC-26), el patch genérico de updateInterview NO escribe las marcas, y editar objectives conserva objectivesConfirmedAt (invariantes de Notas técnicas)."
+      },
+      {
+        "file": "tests/unit/interviews/InterviewDetailPage.onboarding.test.tsx",
+        "test_count": 3,
+        "description": "Contrato de página del detalle de entrevista: banner antes de la sección Objetivos (AC-27, mitad verificable del orden), «Asignar plantilla» abre el diálogo de edición con el select «Plantilla de preguntas» (AC-14 — la página monta InterviewFormDialog en modo edición: EditInterviewDialog solo edita el título) y guardar plantilla → updateInterview con templateId + banner en paso 2 sin recargar (AC-15)."
+      },
+      {
+        "file": "tests/unit/captures/CaptureDetailPage.onboarding.test.tsx",
+        "test_count": 2,
+        "description": "Contrato de página del detalle de captura: banner presente y antes de Objetivos (AC-28) y variante captura de AC-14/AC-15 con EditCaptureDialog («Plantilla de preguntas» + guardar → paso 2)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e (Playwright) no aplica en este proyecto: app Electron local sin public link (decisión humana 2026-07-03). QA automatizado = Vitest unit.",
+    "manual_verification": {
+      "AC-22": "La mitad de scroll suave hasta la sección Nota y foco real del caret en el editor TipTap: jsdom no compone (scrollIntoView es stub y el foco de ProseMirror no equivale al caret visible). La creación de la nota y el montaje de la sección sí están automatizados (OnboardingBannerBridge.test.tsx). Verificación visual en la app real.",
+      "AC-27": "La mitad «tras RecordingSurface» del orden: la superficie no pinta contenido observable en Preparación con permisos concedidos (fragment con showBlock false), así que el test solo puede fijar «antes de Objetivos». Verificación visual del orden completo en la app real.",
+      "AC-29": "Contradicción interna del AC detectada por QA Dev (gap, patrón SPEC-022-iter-1): los CTA primary de los empty states de Guión/Nota (SPEC-014/017) CONSERVAN su variante actual — que es primary — así que «único primary del contenido» no se cumple literalmente en los pasos 2 y 5 mientras esos CTA estén visibles. El test fija la parte consistente (banner primary + «Evaluar objetivos» outline). Si el humano quiere el primary único literal, hay que degradar esos CTA de sección a outline vía iteración.",
+      "visual": "Aspecto del banner (card, tinte verde del paso 7, responsive < md en columna): mockups del artifact enlazado en la spec; verificación visual en la app real."
+    }
   }
 }
