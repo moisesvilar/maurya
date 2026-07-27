@@ -402,9 +402,14 @@ describe('InterviewOnboardingBanner', () => {
       await screen.findByTestId('onboarding-step-action')
       await waitFor(() => expect(screen.getByTestId('onboarding-step-action')).toBeDisabled())
       await user.hover(screen.getByTestId('onboarding-step-action').parentElement as HTMLElement)
+      // findAll: Radix duplica el texto del tooltip (contenido + copia accesible)
       expect(
-        await screen.findByText('Configura tu clave de Anthropic en Ajustes para generar el guión')
-      ).toBeInTheDocument()
+        (
+          await screen.findAllByText(
+            'Configura tu clave de Anthropic en Ajustes para generar el guión'
+          )
+        ).length
+      ).toBeGreaterThanOrEqual(1)
     })
 
     // SPEC-058 · AC-18
@@ -455,11 +460,14 @@ describe('InterviewOnboardingBanner', () => {
       const action = await screen.findByTestId('onboarding-step-action')
       expect(action).toBeDisabled()
       await user.hover(action.parentElement as HTMLElement)
+      // findAll: Radix duplica el texto del tooltip (contenido + copia accesible)
       expect(
-        await screen.findByText(
-          'Hay permisos de audio denegados: concédelos en Ajustes del Sistema'
-        )
-      ).toBeInTheDocument()
+        (
+          await screen.findAllByText(
+            'Hay permisos de audio denegados: concédelos en Ajustes del Sistema'
+          )
+        ).length
+      ).toBeGreaterThanOrEqual(1)
       expect(controller.handleStart).not.toHaveBeenCalled()
     })
 

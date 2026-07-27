@@ -331,7 +331,11 @@ describe('NoteSection', () => {
     // el mock de getNoteByInterview)
     it('flips the badge to "Resumida", toasts "Nota generada" and shows the note on success', async () => {
       const user = userEvent.setup()
+      // SPEC-058 (adaptación): TRES lectores iniciales de la nota —
+      // NoteScriptSections + NoteSection + el banner de onboarding — antes de
+      // generar; después todos deben ver la nota
       vi.mocked(mockApi.api.db.getNoteByInterview)
+        .mockResolvedValueOnce({ ok: true, data: null })
         .mockResolvedValueOnce({ ok: true, data: null })
         .mockResolvedValueOnce({ ok: true, data: null })
         .mockResolvedValue({ ok: true, data: NOTE })

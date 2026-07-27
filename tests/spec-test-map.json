@@ -2714,7 +2714,7 @@
     "unit": [
       {
         "file": "tests/unit/interviews/InterviewOnboardingBanner.test.tsx",
-        "test_count": 19,
+        "test_count": 21,
         "description": "Banner aislado con controller fabricado + mockApi: derivación de los 7 pasos con sus copys y acciones literales (AC-01..08), no-retroceso al paso 1 (AC-09), salto 5→7 (AC-10), 7 segmentos done/current/pending (AC-11, aserción por clase: el estado visual del elemento aria-hidden no tiene otro observable), oculto durante grabación (AC-12) y con onboardingHiddenAt (AC-13), sin «Ocultar» en 1-6 (AC-25); acciones propias: disparo del guión + estado por eventos (AC-16 mitad banner), tooltip sin clave (AC-17), confirmación persistida → paso 4 (AC-18), handleStart del controller (AC-19), disabled por denegación dura con tooltip (AC-20), ocultar persistido (AC-24) y fallo del canal → Toast sin avanzar (AC-26)."
       },
       {

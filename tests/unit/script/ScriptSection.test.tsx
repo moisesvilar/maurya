@@ -87,6 +87,18 @@ function setHasKey(hasAnthropicKey: boolean): void {
   })
 }
 
+/**
+ * SPEC-058 (adaptación): el banner de onboarding añade a la página su propio
+ * botón «Generar guión»/«Generando guión…» (testid onboarding-step-action).
+ * Estas queries son de la SECCIÓN Guión — el botón del banner se excluye; los
+ * conteos y asserts originales (cabecera + empty state) no cambian.
+ */
+function sectionButtons(name: string): HTMLElement[] {
+  return screen
+    .getAllByRole('button', { name })
+    .filter((button) => button.dataset.testid !== 'onboarding-step-action')
+}
+
 function renderDetail(): RenderResult {
   return render(
     <TooltipProvider>
@@ -128,9 +140,9 @@ describe('ScriptSection', () => {
       // llm.getStatus resuelve, solo existe el de cabecera y está DISABLED →
       // esperar al estado habilitado (aparece el CTA del empty) antes de clicar
       await waitFor(() =>
-        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+        expect(sectionButtons('Generar guión')).toHaveLength(2)
       )
-      await user.click(screen.getAllByRole('button', { name: 'Generar guión' })[0])
+      await user.click(sectionButtons('Generar guión')[0])
 
       const loading = await screen.findByRole('button', { name: 'Generando guión…' })
       expect(loading).toBeDisabled()
@@ -182,7 +194,9 @@ describe('ScriptSection', () => {
         'href',
         '/settings'
       )
-      expect(screen.getByRole('button', { name: 'Generar guión' })).toBeDisabled()
+      const sectionOnly = sectionButtons('Generar guión')
+      expect(sectionOnly).toHaveLength(1)
+      expect(sectionOnly[0]).toBeDisabled()
     })
 
     // SPEC-014 · AC-05 (adaptado por SPEC-029: el "Regenerar" deshabilitado va
@@ -223,9 +237,9 @@ describe('ScriptSection', () => {
 
       // Esperar al estado habilitado (getStatus resuelto) antes de clicar
       await waitFor(() =>
-        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+        expect(sectionButtons('Generar guión')).toHaveLength(2)
       )
-      await user.click(screen.getAllByRole('button', { name: 'Generar guión' })[0])
+      await user.click(sectionButtons('Generar guión')[0])
 
       const toasts = await screen.findAllByText(
         'La clave de Anthropic no es válida. Revísala en Ajustes.'
@@ -269,11 +283,9 @@ describe('ScriptSection', () => {
       // Cabecera + CTA del empty state, ambos habilitados (el CTA aparece al
       // resolver getStatus: waitFor, no findAll — que resolvería con 1)
       await waitFor(() =>
-        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+        expect(sectionButtons('Generar guión')).toHaveLength(2)
       )
-      screen
-        .getAllByRole('button', { name: 'Generar guión' })
-        .forEach((button) => expect(button).toBeEnabled())
+      sectionButtons('Generar guión').forEach((button) => expect(button).toBeEnabled())
       // El secundario provisional de SPEC-013 está derogado
       expect(
         screen.queryByText('La generación con IA llegará en la siguiente fase')
@@ -543,7 +555,7 @@ describe('ScriptSection', () => {
     it('ignores script-generation events of another interview keeping the enabled generate buttons', async () => {
       renderDetail()
       await waitFor(() =>
-        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+        expect(sectionButtons('Generar guión')).toHaveLength(2)
       )
 
       act(() => {
@@ -551,7 +563,7 @@ describe('ScriptSection', () => {
       })
 
       expect(screen.queryByRole('button', { name: 'Generando guión…' })).not.toBeInTheDocument()
-      const buttons = screen.getAllByRole('button', { name: 'Generar guión' })
+      const buttons = sectionButtons('Generar guión')
       expect(buttons).toHaveLength(2)
       buttons.forEach((button) => expect(button).toBeEnabled())
     })
@@ -561,14 +573,14 @@ describe('ScriptSection', () => {
     it('shows the disabled "Generando guión…" indicator in the header and replacing the empty state CTA on its generating event', async () => {
       renderDetail()
       await waitFor(() =>
-        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+        expect(sectionButtons('Generar guión')).toHaveLength(2)
       )
 
       act(() => {
         mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })
       })
 
-      const indicators = screen.getAllByRole('button', { name: 'Generando guión…' })
+      const indicators = sectionButtons('Generando guión…')
       expect(indicators).toHaveLength(2)
       indicators.forEach((indicator) => expect(indicator).toBeDisabled())
       // «Generar guión» queda sustituido en ambas ubicaciones; el empty state
@@ -582,7 +594,7 @@ describe('ScriptSection', () => {
     it('renders the generated script, objectives and "Preparada" badge on the done event without a success toast', async () => {
       renderDetail()
       await waitFor(() =>
-        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+        expect(sectionButtons('Generar guión')).toHaveLength(2)
       )
 
       act(() => {
@@ -621,7 +633,7 @@ describe('ScriptSection', () => {
       )
       renderDetail()
       await waitFor(() =>
-        expect(screen.getAllByRole('button', { name: 'Generar guión' })).toHaveLength(2)
+        expect(sectionButtons('Generar guión')).toHaveLength(2)
       )
 
       act(() => {
@@ -642,7 +654,7 @@ describe('ScriptSection', () => {
       expect(toasts.length).toBeGreaterThanOrEqual(1)
       // La captura sigue intacta sin guión y con el botón disponible
       expect(screen.getByText('Aún no hay guión')).toBeInTheDocument()
-      const buttons = screen.getAllByRole('button', { name: 'Generar guión' })
+      const buttons = sectionButtons('Generar guión')
       expect(buttons).toHaveLength(2)
       buttons.forEach((button) => expect(button).toBeEnabled())
 

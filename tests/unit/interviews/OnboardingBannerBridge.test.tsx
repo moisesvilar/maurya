@@ -223,10 +223,19 @@ describe('InterviewOnboardingBanner bridge', () => {
     const banner = await screen.findByTestId('interview-onboarding-banner')
     expect(banner).toHaveAttribute('data-step', '5')
     // La sección Nota debe estar lista (registro del puente hecho) antes del
-    // click. Referencias SIEMPRE frescas: el botón se remonta al habilitarse
-    // (wrapper de Tooltip en disabled — lección SPEC-029).
-    await screen.findByRole('button', { name: 'Generar nota' })
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Generar nota' })).toBeEnabled())
+    // click. Referencias SIEMPRE frescas (remontaje al habilitarse, lección
+    // SPEC-029) y query de SECCIÓN: el botón espejado del banner también se
+    // llama «Generar nota» → se excluye por su testid.
+    const sectionGenerate = (): HTMLElement => {
+      const match = screen
+        .getAllByRole('button', { name: 'Generar nota' })
+        .find((button) => button.dataset.testid !== 'onboarding-step-action')
+      if (match === undefined) {
+        throw new Error('El botón «Generar nota» de la sección Nota no está montado')
+      }
+      return match
+    }
+    await waitFor(() => expect(sectionGenerate()).toBeEnabled())
     await waitFor(() => expect(within(banner).getByTestId('onboarding-step-action')).toBeEnabled())
     await user.click(within(banner).getByTestId('onboarding-step-action'))
 
