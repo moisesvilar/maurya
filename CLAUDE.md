@@ -105,6 +105,14 @@ abrir la app sin notarizar y para colocar la key en el userData empaquetado.
 
 ---
 
+## Release: bump de versión y notas
+
+**El bump de versión nunca se hace editando `package.json` a mano.** Se hace con `npm version <x.y.z> --no-git-tag-version`, que actualiza `package.json` **y** `package-lock.json` sin crear commit ni tag — el commit `chore(release): x.y.z` y el tag se siguen haciendo como hasta ahora (el tag se pone sobre `main` una vez mergeada la rama, no sobre el commit de bump). Editar solo `package.json` deja el lock desincronizado —pasó en 0.6.1 y 0.6.2, con el lock anclado en 0.6.0— y aunque no rompe el build (`electron-builder` lee la versión de `package.json`, y `npm ci` valida la sincronía de dependencias, no el campo `version` de la raíz), sí deja el lock sucio en el worktree tras cada `npm install`, con riesgo de colarse en commits ajenos. Si el bump ya se hizo a mano, se repara con `npm install --package-lock-only`.
+
+**Las notas de release viven solo en GitHub Releases**, no en el repo: no se crean ficheros `RELEASE_NOTES_*.md` (los de 0.5.0 y 0.6.0 se borraron por residuales — nadie los referenciaba y duplicaban el cuerpo ya publicado). Si algún día se quiere histórico versionado dentro del repo, la vía es un único `CHANGELOG.md` acumulativo, no un fichero suelto por versión.
+
+---
+
 ## Arquitectura
 
 Tres procesos Electron con **context isolation** (`electron.vite.config.ts`):
