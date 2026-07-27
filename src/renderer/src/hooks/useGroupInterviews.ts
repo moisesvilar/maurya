@@ -40,6 +40,12 @@ export interface UseGroupInterviewsResult {
    */
   moveInterview: (interviewId: string, targetGroupId: string) => Promise<boolean>
   /**
+   * Renombra la entrevista (por ahora, el único campo editable desde el menú
+   * ⋯ de la fila). Devuelve true si fue bien (cierra el Dialog del caller);
+   * los toasts viven en el hook y la lista se recarga con el título nuevo.
+   */
+  renameInterview: (interviewId: string, title: string) => Promise<boolean>
+  /**
    * Elimina la entrevista (cascada a sus notas en main; mismo canal que el
    * borrado de Capturas). La fila se quita del estado optimísticamente; los
    * toasts viven en el hook (patrón `removeCapture`).
@@ -125,6 +131,20 @@ export function useGroupInterviews(groupId: string): UseGroupInterviewsResult {
     [load]
   )
 
+  const renameInterview = useCallback(
+    async (interviewId: string, title: string): Promise<boolean> => {
+      const result = await window.api.db.updateInterview(interviewId, { title })
+      if (!result.ok) {
+        toast.error(result.error.message)
+        return false
+      }
+      toast('Entrevista actualizada')
+      load()
+      return true
+    },
+    [load]
+  )
+
   const removeInterview = useCallback(async (interviewId: string): Promise<void> => {
     const result = await window.api.db.deleteInterview(interviewId)
     if (!result.ok) {
@@ -142,5 +162,5 @@ export function useGroupInterviews(groupId: string): UseGroupInterviewsResult {
     toast('Entrevista eliminada')
   }, [])
 
-  return { state, createInterview, moveInterview, removeInterview }
+  return { state, createInterview, moveInterview, renameInterview, removeInterview }
 }
