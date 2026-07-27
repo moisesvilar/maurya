@@ -74,7 +74,7 @@ validaciones, integridad referencial y escritura atómica— sobre el mismo
 `db.json` de userData.
 
 ```bash
-npm run cli:build        # genera out/cli/index.cjs (una vez, o tras cambiar src/cli o src/main/db)
+npm run cli:build        # OBLIGATORIO tras cambiar src/cli o src/main/db: bin/maurya-cli ejecuta ese bundle, no los fuentes
 ./bin/maurya-cli --help  # ayuda general; también: npm run cli -- --help
 
 # Ejemplos
@@ -89,8 +89,7 @@ npm run cli:build        # genera out/cli/index.cjs (una vez, o tras cambiar src
 - Entidades: `discovery`, `company`, `contact`, `interview-group`, `interview`,
   `interview-template`, `note-template`, cada una con
   `create / list / get / update / delete`; además `search <consulta>` y `status`.
-- Campos por flags (`--name`, `--company-id`, …) o payload completo con
-  `--json '{...}'` (necesario para `null` y estructuras anidadas).
+- Campos por flags (`--name`, `--company-id`, …) o payload completo con `--json '{...}'` (necesario para `null` y estructuras anidadas). Las claves del `--json` se validan igual que los flags: una clave desconocida o no soportada da `error.kind: "usage"` y cero escrituras, nunca un `ok:true` parcial.
 - Directorio de datos: `--data-dir` > `$MAURYA_DATA_DIR` > userData de la app.
 - **Aviso**: con la app abierta, su siguiente escritura puede pisar los cambios
   del CLI — úsalo con la app cerrada o recárgala después.

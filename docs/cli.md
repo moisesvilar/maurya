@@ -16,8 +16,9 @@ npm run cli:build        # genera out/cli/index.cjs (esbuild, Node puro, sin Ele
 ./bin/maurya-cli --help  # o: npm run cli -- --help
 ```
 
-El bundle solo hay que regenerarlo cuando cambie el código de `src/cli/` o de
-`src/main/db/`.
+**`bin/maurya-cli` no ejecuta los fuentes: ejecuta ese bundle.** Hay que regenerarlo siempre que cambie el código de `src/cli/` o de `src/main/db/`; si no, el CLI corre una versión vieja en silencio y un comando puede devolver `ok:true` sin hacer lo que pide el código actual (fue la mitad del bug de SPEC-056). El artefacto no está versionado, así que un clon nuevo tampoco lo tiene.
+
+La suite lo vigila: `tests/unit/cli/bundle-freshness.test.ts` reconstruye el bundle a un temporal y lo compara byte a byte con `out/cli/index.cjs`, fallando si difieren. Sin `out/`, el test pasa sin construir nada.
 
 ## Contrato de salida (para agentes)
 
@@ -49,6 +50,8 @@ En `create`/`update` los campos se pasan como flags `--kebab-case`; además,
 o estructuras anidadas); los flags individuales sobreescriben las claves del
 `--json`. Los flags marcados `(JSON)` parsean su valor como JSON.
 
+**Las claves del `--json` se validan** contra los campos admitidos por esa entidad y esa acción (SPEC-056). Una clave mal escrita (`titel`) o no soportada (`discoveryId` en un `interview update`, que es inmutable) da `error.kind: "usage"` con la lista de claves admitidas y **cero escrituras** — nunca un `ok:true` parcial. Mismo trato que ya recibían los flags sueltos desconocidos.
+
 | Entidad | create (obligatorios en negrita) | list |
 | --- | --- | --- |
 | `discovery` | **`--name`**, `--objectives` | — |
@@ -59,9 +62,7 @@ o estructuras anidadas); los flags individuales sobreescriben las claves del
 | `interview` | **`--discovery-id`**, **`--title`**, `--company-id`, `--contact-ids` (JSON), `--interview-group-id`, `--template-id` | `--company-id` opcional (sin él: vista global de capturas) |
 | `note-template` | **`--name`**, `--context`, `--sections` (JSON) | — |
 
-`interview update` admite además: `--status` (`draft`\|`prepared`\|`recorded`\|`summarized`),
-`--contact-ids` (JSON), `--script-markdown`, `--objectives` (JSON array de strings),
-`--wav-path`, `--transcript-path`.
+`interview update` admite además: `--status` (`draft`\|`prepared`\|`recorded`\|`summarized`), `--contact-ids` (JSON), `--interview-group-id` (mover la entrevista a otro grupo **del mismo discovery**; otro grupo o uno inexistente da `reference`), `--script-markdown`, `--objectives` (JSON array de strings), `--wav-path`, `--transcript-path`. `--discovery-id` **no** está: el discovery de una entrevista es inmutable y el intento de cambiarlo falla con `usage`.
 
 Comandos adicionales:
 
