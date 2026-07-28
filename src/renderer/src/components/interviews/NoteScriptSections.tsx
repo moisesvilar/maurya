@@ -3,6 +3,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { NoteSection } from '@/components/interviews/NoteSection'
 import { ScriptSection } from '@/components/interviews/ScriptSection'
+import { useOnboardingRegistry } from '@/components/interviews/onboardingBridge'
 import type { Interview, Note } from '@/types/domain'
 
 type NotePresence = 'loading' | 'present' | 'absent'
@@ -45,6 +46,18 @@ export function NoteScriptSections({
   const handleNoteChange = useCallback((note: Note | null): void => {
     setNotePresence(note !== null ? 'present' : 'absent')
   }, [])
+
+  // SPEC-058: el banner puede crear la nota fuera de esta jerarquía (paso 5
+  // degradado, «Escribir nota»); el puente avisa para montar la sección Nota
+  // sin recargar.
+  const registry = useOnboardingRegistry()
+  useEffect(() => {
+    if (registry === null) {
+      return
+    }
+    registry.registerNoteCreatedListener(() => setNotePresence('present'))
+    return () => registry.registerNoteCreatedListener(null)
+  }, [registry])
 
   if (notePresence === 'loading') {
     return <Skeleton className="h-24 w-full" />

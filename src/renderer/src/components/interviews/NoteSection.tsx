@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Download, FileText, Loader2, RefreshCw, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -31,6 +31,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MarkdownEditor } from '@/components/markdown/MarkdownEditor'
 import { TranscriptSheet } from '@/components/interviews/TranscriptSheet'
+import { useOnboardingRegistry } from '@/components/interviews/onboardingBridge'
 import { useNoteTemplates } from '@/hooks/useNoteTemplates'
 import type { Interview, Note } from '@/types/domain'
 import type { NoteExportTarget } from '@/types/notes'
@@ -181,6 +182,28 @@ export function NoteSection({
       setGenerating(false)
     }
   }
+
+  // SPEC-058: la generación se espeja en el banner de onboarding (paso 5).
+  // La sección sigue siendo la dueña del estado y de la ejecución; el puente
+  // solo publica un reflejo {busy, disabled, motivo, run}. El run va por ref
+  // para que el efecto no dependa de la identidad de handleGenerate.
+  const registry = useOnboardingRegistry()
+  const handleGenerateRef = useRef(handleGenerate)
+  useEffect(() => {
+    handleGenerateRef.current = handleGenerate
+  })
+  useEffect(() => {
+    if (registry === null) {
+      return
+    }
+    registry.registerNoteAction({
+      busy: generating,
+      disabled: !canGenerate,
+      disabledReason,
+      run: () => void handleGenerateRef.current()
+    })
+    return () => registry.registerNoteAction(null)
+  }, [registry, generating, canGenerate, disabledReason])
 
   const handleSave = async (): Promise<void> => {
     if (note === null || draft === null) {

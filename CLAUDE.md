@@ -32,6 +32,14 @@ El artifact debe: renderizar **mockups visuales de cada estado/caso** (no ASCII:
 
 Guarda el **enlace del artifact** en la spec correspondiente (sección «Diseño / mockups»), como parte del registro de la decisión.
 
+### Iteraciones: el documento se reescribe como si siempre hubiera sido así (JAMÁS marcar los cambios)
+
+Cuando una ronda de peloteo (indicaciones, correcciones) añade o cambia algo, la siguiente versión del artifact es **EL MISMO documento con el cambio integrado de forma invisible**, como si se hubiera pensado así desde el principio. Componentes PROHIBIDOS dentro del documento (todos ocurrieron el 2026-07-27 y el humano los rechazó explícitamente): badges/pills «NUEVO» junto a filas de tabla, ítems o etiquetas de mockup; callouts o párrafos «RONDA N» que narran qué se añade respecto a la versión anterior («se añade el paso que faltaba…», «el flujo pasa de 5 a 6 pasos»); menciones a rondas/versiones en cabecera o pie. El documento es la propuesta vigente, no un changelog; el registro de qué cambió entre rondas va en la conversación (y en la spec), no en el artifact.
+
+### Colores en artifacts: fondo y texto SIEMPRE juntos (JAMÁS romper esto)
+
+En todo artifact HTML, el `body` debe declarar **a la vez** `background` y `color` desde los tokens del tema del documento. Nunca poner el fondo solo en `html` ni fiarse del fondo que herede el lienzo: el visor de artifacts puede imponer su propio fondo claro mientras la media query `prefers-color-scheme: dark` activa texto claro → texto ilegible (pasó en la ronda 1 del onboarding de entrevista, 2026-07-27). Patrón obligatorio: tokens en custom properties sobre `:root`, redefinidos bajo `@media (prefers-color-scheme: dark)` y bajo `:root[data-theme="dark"]` / `:root[data-theme="light"]` (el toggle del visor debe ganar en ambos sentidos), y `body { background: var(--paper); color: var(--ink); }` como pareja inseparable. Antes de publicar, verificar mentalmente las 4 combinaciones SO×visor (light/dark × light/dark): ninguna puede producir texto claro sobre fondo claro ni oscuro sobre oscuro.
+
 ---
 
 ## Flujo de desarrollo (orquestador del loop)

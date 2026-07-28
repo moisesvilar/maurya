@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ObjectiveOverrideDialog } from '@/components/interviews/ObjectiveOverrideDialog'
+import { useOnboardingRegistry } from '@/components/interviews/onboardingBridge'
 import { cn } from '@/lib/utils'
 import type { Interview } from '@/types/domain'
 
@@ -174,6 +175,30 @@ export function ObjectivesSection({
       setManualEvaluating(false)
     }
   }
+
+  // SPEC-058: la evaluación se espeja en el banner de onboarding (paso 6).
+  // La sección sigue siendo la dueña del estado y de la ejecución; el puente
+  // solo publica un reflejo {busy, disabled, motivo, run}. El run va por ref
+  // para que el efecto no dependa de la identidad de handleEvaluate.
+  const registry = useOnboardingRegistry()
+  const handleEvaluateRef = useRef(handleEvaluate)
+  useEffect(() => {
+    handleEvaluateRef.current = handleEvaluate
+  })
+  useEffect(() => {
+    if (registry === null) {
+      return
+    }
+    registry.registerObjectivesAction({
+      busy: evaluating,
+      disabled: !canEvaluate,
+      disabledReason: canEvaluate
+        ? null
+        : 'Configura tu clave de Anthropic en Ajustes para evaluar los objetivos',
+      run: () => void handleEvaluateRef.current()
+    })
+    return () => registry.registerObjectivesAction(null)
+  }, [registry, evaluating, canEvaluate])
 
   /**
    * Estado visual del objetivo `index` con la precedencia de SPEC-028:

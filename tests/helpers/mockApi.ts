@@ -192,6 +192,9 @@ function createMockDbApi(): DbApi {
     getInterview: vi.fn<DbApi['getInterview']>(),
     updateInterview: vi.fn<DbApi['updateInterview']>(),
     deleteInterview: vi.fn<DbApi['deleteInterview']>(),
+    // SPEC-058: marcas del banner de onboarding (se configuran por test)
+    confirmInterviewObjectives: vi.fn<DbApi['confirmInterviewObjectives']>(),
+    hideInterviewOnboarding: vi.fn<DbApi['hideInterviewOnboarding']>(),
     // SPEC-020: listado global de capturas (default vacío, se configura por
     // test) y asignación compuesta de empresa/contacto (se configura por test)
     listAllInterviews: vi

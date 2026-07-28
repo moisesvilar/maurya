@@ -1,12 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AiCostInline } from '@/components/interviews/AiCostInline'
+import { InterviewFormDialog } from '@/components/interviews/InterviewFormDialog'
+import { InterviewOnboardingBanner } from '@/components/interviews/InterviewOnboardingBanner'
 import { NoteScriptSections } from '@/components/interviews/NoteScriptSections'
 import { ObjectivesSection } from '@/components/interviews/ObjectivesSection'
+import { OnboardingBridgeProvider } from '@/components/interviews/onboardingBridge'
 import { TopBarPortal } from '@/components/layout/TopBarSlot'
 import { AssistantLiveSection } from '@/components/recording/AssistantLiveSection'
 import { RecordingTopBarControls } from '@/components/recording/RecordingTopBarControls'
@@ -14,9 +18,10 @@ import { PermissionErrorAlert } from '@/components/recording/PermissionErrorAler
 import { RecordingSurface } from '@/components/recording/RecordingSurface'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
 import { useContacts } from '@/hooks/useContacts'
+import type { InterviewFormValues } from '@/hooks/useInterviews'
 import { useInterviewTemplates } from '@/hooks/useInterviewTemplates'
 import { useRecordingController } from '@/hooks/useRecordingController'
-import type { Company, Interview } from '@/types/domain'
+import type { Company, Contact, Interview, InterviewTemplate } from '@/types/domain'
 
 type InterviewDetailState =
   | { status: 'loading' }
@@ -154,6 +159,8 @@ export function InterviewDetailPage(): React.ReactElement {
           company={state.company}
           contactLabel={contactLabel(state.interview)}
           templateLabel={templateLabel(state.interview)}
+          contacts={contactsState.status === 'ready' ? contactsState.contacts : []}
+          templates={templatesState.status === 'ready' ? templatesState.templates : []}
           onInterviewUpdated={handleInterviewUpdated}
         />
       )}
@@ -166,6 +173,10 @@ interface InterviewDetailContentProps {
   company: Company
   contactLabel: string
   templateLabel: string
+  /** Contactos de la empresa (para el diálogo de edición del paso 1, SPEC-058). */
+  contacts: Contact[]
+  /** Templates de entrevista (para el select «Plantilla de preguntas», SPEC-058). */
+  templates: InterviewTemplate[]
   onInterviewUpdated: (interview: Interview) => void
 }
 
@@ -187,9 +198,31 @@ function InterviewDetailContent({
   company,
   contactLabel,
   templateLabel,
+  contacts,
+  templates,
   onInterviewUpdated
 }: InterviewDetailContentProps): React.ReactElement {
   const controller = useRecordingController(interview, onInterviewUpdated)
+  // SPEC-058: «Asignar plantilla» (paso 1 del banner) abre el diálogo de
+  // edición aquí — hasta ahora solo existía en los listados de empresa/grupo.
+  const [editOpen, setEditOpen] = useState(false)
+
+  const handleEditSubmit = async (values: InterviewFormValues): Promise<boolean> => {
+    // Mismo patch que useInterviews.updateInterview (SPEC-044): solo título,
+    // contactos y template; nunca discoveryId ni status.
+    const result = await window.api.db.updateInterview(interview.id, {
+      title: values.title,
+      contactIds: values.contactIds,
+      templateId: values.templateId
+    })
+    if (!result.ok) {
+      toast.error(result.error.message)
+      return false
+    }
+    onInterviewUpdated(result.data)
+    toast('Cambios guardados')
+    return true
+  }
 
   return (
     <>
@@ -223,15 +256,42 @@ function InterviewDetailContent({
         controller={controller}
       />
 
-      {/* SPEC-025: los objetivos van arriba, tras la cabecera/superficie —
-          son el indicador de progreso principal */}
-      <ObjectivesSection interview={interview} onInterviewUpdated={onInterviewUpdated} />
+      {/* SPEC-058: el puente banner↔secciones envuelve el banner de
+          onboarding y las secciones cuyas acciones espeja */}
+      <OnboardingBridgeProvider>
+        {/* SPEC-058: banner de guía entre la superficie de grabación y
+            Objetivos — un único paso con una única acción */}
+        <InterviewOnboardingBanner
+          interview={interview}
+          onInterviewUpdated={onInterviewUpdated}
+          controller={controller}
+          onAssignTemplate={() => setEditOpen(true)}
+        />
 
-      {/* SPEC-041: el panel del asistente, entre objetivos y Nota/Guión,
-          solo mientras se graba */}
-      <AssistantLiveSection controller={controller} />
+        {/* SPEC-025: los objetivos van arriba, tras la cabecera/superficie —
+            son el indicador de progreso principal */}
+        <ObjectivesSection interview={interview} onInterviewUpdated={onInterviewUpdated} />
 
-      <NoteScriptSections interview={interview} onInterviewUpdated={onInterviewUpdated} />
+        {/* SPEC-041: el panel del asistente, entre objetivos y Nota/Guión,
+            solo mientras se graba */}
+        <AssistantLiveSection controller={controller} />
+
+        <NoteScriptSections interview={interview} onInterviewUpdated={onInterviewUpdated} />
+      </OnboardingBridgeProvider>
+
+      <InterviewFormDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        title="Editar entrevista"
+        submitLabel="Guardar"
+        companyName={company.name}
+        // En edición el Select «Discovery» no se renderiza (SPEC-044)
+        discoveries={[]}
+        contacts={contacts}
+        templates={templates}
+        interview={interview}
+        onSubmit={handleEditSubmit}
+      />
     </>
   )
 }

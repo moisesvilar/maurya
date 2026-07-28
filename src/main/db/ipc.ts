@@ -66,6 +66,9 @@ export function registerDbIpcHandlers(): void {
   handleDb('db:interview:get', repository.getInterview)
   handleDb('db:interview:update', repository.updateInterview)
   handleDb('db:interview:delete', repository.deleteInterview)
+  // SPEC-058: marcas del banner de onboarding (main-only, nunca por patch)
+  handleDb('db:interview:confirm-objectives', repository.confirmInterviewObjectives)
+  handleDb('db:interview:hide-onboarding', repository.hideInterviewOnboarding)
   // Capture-first (SPEC-020): listado global + asignación compuesta atómica.
   handleDb('db:interview:list-all', repository.listAllInterviews)
   handleDb('db:interview:assign-company', repository.assignInterviewCompany)
