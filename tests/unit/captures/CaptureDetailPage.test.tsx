@@ -23,6 +23,7 @@ import { listAudioInputDevices } from '@/services/captureService'
 import { getPermissionsStatus } from '@/services/permissionsService'
 import type { Company, Contact, Discovery, Interview } from '@/types/domain'
 import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
+import { expandTechInfo } from '../../helpers/recordingTechInfo'
 
 vi.mock('@/services/permissionsService', () => ({
   getPermissionsStatus: vi.fn(),
@@ -181,9 +182,11 @@ describe('CaptureDetailPage', () => {
       }
       expectBefore(title, guion)
       expectBefore(guion, nota)
-      // SPEC-055: ya no hay heading «Grabación» al final. El detalle de la
-      // captura grabada (ruta del WAV) vive en la superficie bajo la cabecera.
-      expect(await screen.findByText('/tmp/maurya-recordings/captura.wav')).toBeInTheDocument()
+      // SPEC-055: ya no hay heading «Grabación» al final. SPEC-059: el detalle
+      // de la captura grabada (ruta del WAV) tampoco está bajo la cabecera —
+      // vive al final, tras el desplegable de información técnica.
+      const techInfo = await expandTechInfo(userEvent.setup())
+      expect(within(techInfo).getByText('/tmp/maurya-recordings/captura.wav')).toBeInTheDocument()
     })
   })
 

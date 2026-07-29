@@ -101,7 +101,7 @@ export function registerDbIpcHandlers(): void {
   handleDb('db:linkedin-mcp-settings:get', repository.getLinkedinMcpSettings)
   handleDb('db:linkedin-mcp-settings:set', repository.setLinkedinMcpSettings)
 
-  // Onboarding de la app (SPEC-059): lectura agregada de los 8 pasos + las dos
+  // Onboarding de la app (SPEC-060): lectura agregada de los 8 pasos + las dos
   // marcas persistidas (main-only, nunca por patch genérico).
   handleDb('db:onboarding:get-status', repository.getAppOnboardingStatus)
   handleDb('db:onboarding:mark-prompts-reviewed', repository.markOnboardingPromptsReviewed)

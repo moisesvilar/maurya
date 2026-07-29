@@ -1,4 +1,4 @@
-# SPEC-059 — Onboarding de la app: primeros pasos guiados
+# SPEC-060 — Onboarding de la app: primeros pasos guiados
 
 > Origen: issue GitHub #35 «Onboarding de la app» (enhancement, petición humana directa). No traza a una fila del checklist (precedente SPEC-049/050/055/058: nada que marcar `[x]`). Cubre de forma natural RF-APP-005 (navegación/orientación) y apoya la puesta en marcha de RF-CFG-001 (claves y prompts), sin introducir requisitos nuevos de producto: los 8 pasos son los del issue.
 

@@ -1075,7 +1075,7 @@ export function setLinkedinMcpSettings(settings: LinkedinMcpSettings): LinkedinM
 }
 
 // ---------------------------------------------------------------------------
-// Onboarding de la app (SPEC-059)
+// Onboarding de la app (SPEC-060)
 // ---------------------------------------------------------------------------
 
 /** Marca ISO 8601 válida o null (normalización defensiva del singleton). */
@@ -1104,7 +1104,7 @@ export function getOnboardingSettings(): OnboardingSettings {
 }
 
 /**
- * Marca el paso 2 como revisado (SPEC-059): pulsar «Revisar prompts» navega Y
+ * Marca el paso 2 como revisado (SPEC-060): pulsar «Revisar prompts» navega Y
  * deja la marca en el mismo gesto, porque «revisar los prompts» no deja huella
  * en los datos. Idempotente: repetirlo solo refresca la fecha. Conserva
  * `hiddenAt` partiendo del singleton ya normalizado (nunca propaga uno corrupto).
@@ -1118,7 +1118,7 @@ export function markOnboardingPromptsReviewed(): OnboardingSettings {
 }
 
 /**
- * Oculta el banner de primeros pasos (SPEC-059) de forma permanente. Idempotente
+ * Oculta el banner de primeros pasos (SPEC-060) de forma permanente. Idempotente
  * y conserva `promptsReviewedAt`. Es la única marca que apaga el banner: los 8
  * pasos completados NO lo ocultan por sí solos (el usuario lo cierra a mano).
  */
@@ -1131,7 +1131,7 @@ export function hideAppOnboarding(): OnboardingSettings {
 }
 
 /**
- * Agregado de solo lectura del onboarding de la app (SPEC-059): resuelve en UNA
+ * Agregado de solo lectura del onboarding de la app (SPEC-060): resuelve en UNA
  * pasada sobre el snapshot los booleanos de los pasos 3-8 y los ids de destino
  * de sus CTA, evitando N listados desde el renderer y la carrera entre ellos.
  * Sin `mutate` → cero escrituras.

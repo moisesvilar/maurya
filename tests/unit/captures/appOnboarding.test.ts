@@ -1,5 +1,5 @@
 /**
- * SPEC-059: derivación pura de los 8 pasos del banner de primeros pasos
+ * SPEC-060: derivación pura de los 8 pasos del banner de primeros pasos
  * (lib/appOnboarding). Sin DOM: aquí se fijan la tabla del «Modelo de pasos»
  * (literales, condición de completado y destino de cada CTA), el paso actual
  * como primer no completado, el contador que cuenta también los completados
@@ -57,7 +57,7 @@ const ALL_DONE: Partial<AppOnboardingStatus> = {
 }
 
 describe('deriveAppOnboarding', () => {
-  // SPEC-059 · AC-01 (mitad derivada: paso 1 actual y contador 0)
+  // SPEC-060 · AC-01 (mitad derivada: paso 1 actual y contador 0)
   it('starts a fresh install with the 8 steps pending, step 1 as current and a 0 count', () => {
     const view = derive()
 
@@ -68,7 +68,7 @@ describe('deriveAppOnboarding', () => {
     expect(view.currentStep).toBe(1)
   })
 
-  // SPEC-059 · Modelo de pasos (literales normativos de la tabla y de los
+  // SPEC-060 · Modelo de pasos (literales normativos de la tabla y de los
   // textos de apoyo: son contrato de la spec, no decoración)
   it('exposes the literal label, support line and CTA of every step', () => {
     const view = derive()
@@ -105,7 +105,7 @@ describe('deriveAppOnboarding', () => {
     ])
   })
 
-  // SPEC-059 · AC-08 (una sola clave no completa el paso 1)
+  // SPEC-060 · AC-08 (una sola clave no completa el paso 1)
   it('keeps step 1 pending when only one of the two keys is configured', () => {
     for (const keys of [
       { anthropicConfigured: true, deepgramConfigured: false },
@@ -118,7 +118,7 @@ describe('deriveAppOnboarding', () => {
     }
   })
 
-  // SPEC-059 · AC-09 (ambas claves → paso 1 done y el actual pasa al 2)
+  // SPEC-060 · AC-09 (ambas claves → paso 1 done y el actual pasa al 2)
   it('completes step 1 with both keys configured and moves the current step to 2', () => {
     const view = derive({}, { anthropicConfigured: true, deepgramConfigured: true })
 
@@ -128,7 +128,7 @@ describe('deriveAppOnboarding', () => {
     expect(view.doneCount).toBe(1)
   })
 
-  // SPEC-059 · AC-11 (mitad derivada: la marca persistida completa el paso 2)
+  // SPEC-060 · AC-11 (mitad derivada: la marca persistida completa el paso 2)
   it('completes step 2 from the persisted promptsReviewedAt mark', () => {
     const view = derive({
       settings: { promptsReviewedAt: '2026-07-29T08:00:00.000Z', hiddenAt: null }
@@ -138,7 +138,7 @@ describe('deriveAppOnboarding', () => {
     expect(view.steps[1].target).toBe('/settings?tab=custom-prompts')
   })
 
-  // SPEC-059 · AC-12 (sin ninguna plantilla el CTA apunta a preguntas primero)
+  // SPEC-060 · AC-12 (sin ninguna plantilla el CTA apunta a preguntas primero)
   it('points step 3 at the interview templates tab when no template exists at all', () => {
     const view = derive()
 
@@ -146,7 +146,7 @@ describe('deriveAppOnboarding', () => {
     expect(view.steps[2].target).toBe('/settings?tab=interview-templates')
   })
 
-  // SPEC-059 · AC-13 (con las de preguntas cubiertas, el CTA salta a notas)
+  // SPEC-060 · AC-13 (con las de preguntas cubiertas, el CTA salta a notas)
   it('keeps step 3 pending with only interview templates and retargets it at the note tab', () => {
     const view = derive({ hasInterviewTemplate: true })
 
@@ -154,14 +154,14 @@ describe('deriveAppOnboarding', () => {
     expect(view.steps[2].target).toBe('/settings?tab=note-templates')
   })
 
-  // SPEC-059 · AC-14 (las dos familias completan el paso 3)
+  // SPEC-060 · AC-14 (las dos familias completan el paso 3)
   it('completes step 3 only with both template families', () => {
     const view = derive({ hasInterviewTemplate: true, hasNoteTemplate: true })
 
     expect(view.steps[2].done).toBe(true)
   })
 
-  // SPEC-059 · AC-06 (completado fuera de orden: check y suma al contador, sin
+  // SPEC-060 · AC-06 (completado fuera de orden: check y suma al contador, sin
   // mover el paso actual)
   it('checks an out-of-order completed step and counts it without moving the current step', () => {
     const view = derive({ hasCompany: true })
@@ -171,7 +171,7 @@ describe('deriveAppOnboarding', () => {
     expect(view.currentStep).toBe(1)
   })
 
-  // SPEC-059 · AC-16/AC-19/AC-20 (mitad derivada: destinos con id resueltos)
+  // SPEC-060 · AC-16/AC-19/AC-20 (mitad derivada: destinos con id resueltos)
   it('resolves the id-bearing targets of steps 5, 7 and 8 from the aggregate', () => {
     const view = derive({
       firstCompanyId: 'c-1',
@@ -185,7 +185,7 @@ describe('deriveAppOnboarding', () => {
     expect(view.steps[7].target).toBe('/discoveries/d-9/groups/g-1')
   })
 
-  // SPEC-059 · Notas técnicas: jamás se construye una URL con un id ausente
+  // SPEC-060 · Notas técnicas: jamás se construye una URL con un id ausente
   it('falls back to the list routes when the aggregate has no ids yet', () => {
     const view = derive()
 
@@ -197,7 +197,7 @@ describe('deriveAppOnboarding', () => {
     expect(view.steps[5].target).toBe('/discoveries')
   })
 
-  // SPEC-059 · AC-17/AC-22 (mitad derivada de los pasos 5 y 8)
+  // SPEC-060 · AC-17/AC-22 (mitad derivada de los pasos 5 y 8)
   it('completes steps 5 and 8 from the contact and grouped-interview flags', () => {
     expect(derive({ hasContact: true }).steps[4].done).toBe(true)
     expect(derive({ hasGroupedInterview: true }).steps[7].done).toBe(true)
@@ -207,7 +207,7 @@ describe('deriveAppOnboarding', () => {
     expect(withGroup.steps[7].done).toBe(false)
   })
 
-  // SPEC-059 · AC-05 (mitad derivada: los 8 completados → sin paso actual)
+  // SPEC-060 · AC-05 (mitad derivada: los 8 completados → sin paso actual)
   it('returns a null current step and a full count when the 8 conditions hold', () => {
     const view = derive(ALL_DONE, { anthropicConfigured: true, deepgramConfigured: true })
 
@@ -216,7 +216,7 @@ describe('deriveAppOnboarding', () => {
     expect(view.currentStep).toBeNull()
   })
 
-  // SPEC-059 · AC-23 (mitad derivada del retroceso: sin datos que lo sostengan,
+  // SPEC-060 · AC-23 (mitad derivada del retroceso: sin datos que lo sostengan,
   // el paso vuelve a estar pendiente — el paso NUNCA se persiste)
   it('walks back to step 4 when the company that sustained steps 4 and 5 disappears', () => {
     const before = derive(

@@ -110,7 +110,7 @@ const db: DbApi = {
   setLinkedinMcpSettings: (settings) =>
     ipcRenderer.invoke('db:linkedin-mcp-settings:set', settings),
 
-  // Onboarding de la app (SPEC-059): estado agregado de los 8 pasos + las dos
+  // Onboarding de la app (SPEC-060): estado agregado de los 8 pasos + las dos
   // marcas persistidas. `hideAppOnboarding` no es `hideInterviewOnboarding`
   // (SPEC-058, otro dominio): el banner de la home y el del detalle no comparten
   // ni estado ni canales.

@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * SPEC-059: capa de persistencia del onboarding de la app — singleton
+ * SPEC-060: capa de persistencia del onboarding de la app — singleton
  * `onboardingSettings` (normalización defensiva, dos marcas idempotentes que
  * se conservan entre sí) y el agregado de solo lectura `getAppOnboardingStatus`
  * (booleanos de los pasos 3-8 + ids de destino, sin escribir nada). Store JSON
@@ -54,15 +54,15 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('repository (onboarding de la app SPEC-059)', () => {
+describe('repository (onboarding de la app SPEC-060)', () => {
   describe('onboardingSettings', () => {
-    // SPEC-059 · Notas técnicas: singleton opcional, ausente = ambos null
+    // SPEC-060 · Notas técnicas: singleton opcional, ausente = ambos null
     it('defaults both marks to null when the singleton has never been written', () => {
       expect(getOnboardingSettings()).toEqual({ promptsReviewedAt: null, hiddenAt: null })
       expect(readDbFile().onboardingSettings).toBeUndefined()
     })
 
-    // SPEC-059 · Notas técnicas (normalización defensiva): un almacén raro
+    // SPEC-060 · Notas técnicas (normalización defensiva): un almacén raro
     // nunca deja la home sin banner NI crashea
     it('normalizes a corrupt or partially invalid singleton to nulls without crashing', () => {
       const base = readDbFile()
@@ -81,7 +81,7 @@ describe('repository (onboarding de la app SPEC-059)', () => {
       }
     })
 
-    // SPEC-059 · AC-10 (persistencia de la marca del paso 2)
+    // SPEC-060 · AC-10 (persistencia de la marca del paso 2)
     it('marks the prompts as reviewed with an ISO timestamp and persists it', () => {
       const settings = markOnboardingPromptsReviewed()
 
@@ -91,7 +91,7 @@ describe('repository (onboarding de la app SPEC-059)', () => {
       expect(readDbFile().onboardingSettings).toEqual(settings)
     })
 
-    // SPEC-059 · AC-24 (persistencia de la ocultación)
+    // SPEC-060 · AC-24 (persistencia de la ocultación)
     it('hides the banner with an ISO timestamp and persists it', () => {
       const settings = hideAppOnboarding()
 
@@ -101,7 +101,7 @@ describe('repository (onboarding de la app SPEC-059)', () => {
       expect(readDbFile().onboardingSettings).toEqual(settings)
     })
 
-    // SPEC-059 · AC-11/AC-25 (las dos marcas son independientes y sobreviven a
+    // SPEC-060 · AC-11/AC-25 (las dos marcas son independientes y sobreviven a
     // la otra: ocultar no borra la revisión ni al revés)
     it('keeps each mark when the other one is written', () => {
       const reviewed = markOnboardingPromptsReviewed().promptsReviewedAt
@@ -114,7 +114,7 @@ describe('repository (onboarding de la app SPEC-059)', () => {
       expect(readDbFile().onboardingSettings).toEqual(afterReview)
     })
 
-    // SPEC-059 · Notas técnicas: ambas marcas son idempotentes — repetirlas
+    // SPEC-060 · Notas técnicas: ambas marcas son idempotentes — repetirlas
     // solo refresca su fecha, nunca lanza ni toca la otra
     it('is idempotent on both marks, refreshing only the repeated timestamp', () => {
       vi.useFakeTimers()
@@ -133,7 +133,7 @@ describe('repository (onboarding de la app SPEC-059)', () => {
       expect(secondHide.promptsReviewedAt).toBe(second.promptsReviewedAt)
     })
 
-    // SPEC-059 · Notas técnicas: la escritura parte del singleton YA
+    // SPEC-060 · Notas técnicas: la escritura parte del singleton YA
     // normalizado, así que nunca propaga un valor corrupto al almacén
     it('never propagates a corrupt singleton when writing a mark', () => {
       const base = readDbFile()
@@ -152,7 +152,7 @@ describe('repository (onboarding de la app SPEC-059)', () => {
   })
 
   describe('getAppOnboardingStatus', () => {
-    // SPEC-059 · AC-01 (fuente de la instalación nueva: todo en false y sin ids)
+    // SPEC-060 · AC-01 (fuente de la instalación nueva: todo en false y sin ids)
     it('reports every condition as false with null targets on a fresh store', () => {
       expect(getAppOnboardingStatus()).toEqual({
         settings: { promptsReviewedAt: null, hiddenAt: null },
@@ -171,7 +171,7 @@ describe('repository (onboarding de la app SPEC-059)', () => {
       expect(readDbFile().onboardingSettings).toBeUndefined()
     })
 
-    // SPEC-059 · AC-14/AC-17/AC-22 (fuente de los booleanos) + AC-16/AC-19/AC-20
+    // SPEC-060 · AC-14/AC-17/AC-22 (fuente de los booleanos) + AC-16/AC-19/AC-20
     // (fuente de los ids de destino: «primero» = primero del listado)
     it('aggregates the 8 conditions and the first company / discovery / group ids', () => {
       createInterviewTemplate({ name: 'Guion MDR' })
@@ -204,7 +204,7 @@ describe('repository (onboarding de la app SPEC-059)', () => {
       })
     })
 
-    // SPEC-059 · AC-21 (una captura —entrevista sin grupo— no completa el paso 8)
+    // SPEC-060 · AC-21 (una captura —entrevista sin grupo— no completa el paso 8)
     it('does not count a group-less capture as a grouped interview', () => {
       const discovery = createDiscovery({ name: 'Vertical Sanidad' })
       createInterview({ discoveryId: discovery.id, title: 'Captura suelta' })
@@ -226,7 +226,7 @@ describe('repository (onboarding de la app SPEC-059)', () => {
       expect(getAppOnboardingStatus().hasGroupedInterview).toBe(true)
     })
 
-    // SPEC-059 · AC-23 (fuente del retroceso derivado: al borrar la última
+    // SPEC-060 · AC-23 (fuente del retroceso derivado: al borrar la última
     // empresa sus contactos caen en cascada y ambos pasos vuelven a false)
     it('walks the company and contact conditions back when the last company is deleted', () => {
       const company = createCompany({ name: 'Acme Corp' })
@@ -242,7 +242,7 @@ describe('repository (onboarding de la app SPEC-059)', () => {
       })
     })
 
-    // SPEC-059 · AC-03/AC-11 (el agregado transporta el singleton ya normalizado:
+    // SPEC-060 · AC-03/AC-11 (el agregado transporta el singleton ya normalizado:
     // es la fuente de «hidden» y del check del paso 2)
     it('carries the normalized singleton so the renderer reads the marks in one call', () => {
       markOnboardingPromptsReviewed()

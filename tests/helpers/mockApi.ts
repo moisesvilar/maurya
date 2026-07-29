@@ -247,7 +247,7 @@ function createMockDbApi(): DbApi {
       .mockResolvedValue({ ok: true, data: { url: null } }),
     setLinkedinMcpSettings: vi.fn<DbApi['setLinkedinMcpSettings']>(),
 
-    // SPEC-059: onboarding de la app. El default deja el banner OCULTO
+    // SPEC-060: onboarding de la app. El default deja el banner OCULTO
     // (`hiddenAt` persistido): es el único estado `ok: true` con el que
     // AppOnboardingBanner devuelve null, así que las suites de /captures (y las
     // de layout, que montan la home) no ven ni una fila ni un botón de más.

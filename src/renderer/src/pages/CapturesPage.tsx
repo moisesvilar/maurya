@@ -125,7 +125,7 @@ export function CapturesPage(): React.ReactElement {
         </Button>
       </div>
 
-      {/* SPEC-059: guía de primeros pasos, entre la cabecera y el listado (los
+      {/* SPEC-060: guía de primeros pasos, entre la cabecera y el listado (los
           chips de filtro son parte del listado). Se autogobierna y no renderiza
           nada mientras carga, si falla la derivación o si está oculta. */}
       <AppOnboardingBanner />

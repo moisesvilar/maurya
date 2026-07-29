@@ -1,5 +1,5 @@
 /**
- * SPEC-059: banner de primeros pasos montado en su página (`/captures`) —
+ * SPEC-060: banner de primeros pasos montado en su página (`/captures`) —
  * visibilidad (loading/error/hidden), paso actual y contador derivados,
  * checks fuera de orden, destino de los 8 CTA, persistencia del paso 2,
  * ocultación y retroceso derivado al re-montar. La derivación pura vive en
@@ -122,7 +122,7 @@ beforeEach(() => {
 
 describe('AppOnboardingBanner en /captures', () => {
   describe('visibilidad y derivación', () => {
-    // SPEC-059 · AC-01
+    // SPEC-060 · AC-01
     it('shows the banner on a fresh install with step 1 as current and a "0 de 8" counter', async () => {
       setOnboarding()
       renderCaptures()
@@ -155,7 +155,7 @@ describe('AppOnboardingBanner en /captures', () => {
       ).not.toBeInTheDocument()
     })
 
-    // SPEC-059 · AC-02 (sin skeleton ni placeholder mientras el estado no resuelve)
+    // SPEC-060 · AC-02 (sin skeleton ni placeholder mientras el estado no resuelve)
     it('renders nothing at all while the derivation is unresolved', async () => {
       vi.mocked(mockApi.api.db.getOnboardingStatus).mockReturnValue(new Promise<never>(() => {}))
       renderCaptures()
@@ -167,7 +167,7 @@ describe('AppOnboardingBanner en /captures', () => {
       expect(screen.queryByText('Primeros pasos con Maurya')).not.toBeInTheDocument()
     })
 
-    // SPEC-059 · AC-03
+    // SPEC-060 · AC-03
     it('does not render when hiddenAt is persisted', async () => {
       setOnboarding({ settings: { promptsReviewedAt: null, hiddenAt: '2026-07-29T09:00:00.000Z' } })
       renderCaptures()
@@ -176,7 +176,7 @@ describe('AppOnboardingBanner en /captures', () => {
       expect(screen.queryByTestId('app-onboarding-banner')).not.toBeInTheDocument()
     })
 
-    // SPEC-059 · AC-04 (fallo de cualquiera de las dos fuentes → sin banner y
+    // SPEC-060 · AC-04 (fallo de cualquiera de las dos fuentes → sin banner y
     // con la home intacta; una guía opcional no añade ruido de error)
     it('does not render when either source fails, leaving the page working', async () => {
       setOnboarding()
@@ -202,7 +202,7 @@ describe('AppOnboardingBanner en /captures', () => {
       expect(screen.queryByTestId('app-onboarding-banner')).not.toBeInTheDocument()
     })
 
-    // SPEC-059 · AC-05 + AC-22 (8 de 8: estado final con «¡Todo listo!», sin CTA
+    // SPEC-060 · AC-05 + AC-22 (8 de 8: estado final con «¡Todo listo!», sin CTA
     // de paso y con «Ocultar» como única acción)
     it('shows the "¡Todo listo!" final state with the 8 checks and only the hide button', async () => {
       setOnboarding({ ...upTo(9), ...COMPLETED[8] }, { anthropic: true, deepgram: true })
@@ -220,7 +220,7 @@ describe('AppOnboardingBanner en /captures', () => {
       expect(within(banner).getByTestId('app-onboarding-hide')).toHaveTextContent('Ocultar')
     })
 
-    // SPEC-059 · AC-06 (completado fuera de orden: check y contador, sin mover
+    // SPEC-060 · AC-06 (completado fuera de orden: check y contador, sin mover
     // el paso actual)
     it('checks a step completed out of order without moving the current step', async () => {
       setOnboarding(COMPLETED[4])
@@ -243,7 +243,7 @@ describe('AppOnboardingBanner en /captures', () => {
   })
 
   describe('pasos completados', () => {
-    // SPEC-059 · AC-08 (una sola clave no completa el paso 1)
+    // SPEC-060 · AC-08 (una sola clave no completa el paso 1)
     it('keeps step 1 current when only one key is configured', async () => {
       setOnboarding({}, { anthropic: true })
       renderCaptures()
@@ -253,7 +253,7 @@ describe('AppOnboardingBanner en /captures', () => {
       expect(within(banner).getByText('0 de 8')).toBeInTheDocument()
     })
 
-    // SPEC-059 · AC-09 (ambas claves → paso 1 con check y paso 2 actual)
+    // SPEC-060 · AC-09 (ambas claves → paso 1 con check y paso 2 actual)
     it('completes step 1 with both keys and promotes step 2 to current', async () => {
       setOnboarding({}, { anthropic: true, deepgram: true })
 
@@ -267,7 +267,7 @@ describe('AppOnboardingBanner en /captures', () => {
       )
     })
 
-    // SPEC-059 · AC-11 (la marca persistida completa el paso 2 sin volver a pedir revisión)
+    // SPEC-060 · AC-11 (la marca persistida completa el paso 2 sin volver a pedir revisión)
     it('shows step 2 as done from the persisted mark without asking for a review again', async () => {
       setOnboarding(upTo(3), { anthropic: true, deepgram: true })
       renderCaptures()
@@ -280,7 +280,7 @@ describe('AppOnboardingBanner en /captures', () => {
       expect(mockApi.api.db.markOnboardingPromptsReviewed).not.toHaveBeenCalled()
     })
 
-    // SPEC-059 · AC-13 (una sola familia de plantillas no completa el paso 3)
+    // SPEC-060 · AC-13 (una sola familia de plantillas no completa el paso 3)
     it('keeps step 3 current with interview templates but no note templates', async () => {
       setOnboarding({ ...upTo(3), hasInterviewTemplate: true }, { anthropic: true, deepgram: true })
       renderCaptures()
@@ -290,7 +290,7 @@ describe('AppOnboardingBanner en /captures', () => {
       expect(within(banner).getByText('2 de 8')).toBeInTheDocument()
     })
 
-    // SPEC-059 · AC-14 + AC-17 (las dos familias completan el paso 3; el
+    // SPEC-060 · AC-14 + AC-17 (las dos familias completan el paso 3; el
     // contacto completa el paso 5)
     it('completes step 3 with both template families and step 5 with a contact', async () => {
       setOnboarding(upTo(6), { anthropic: true, deepgram: true })
@@ -310,7 +310,7 @@ describe('AppOnboardingBanner en /captures', () => {
       expect(within(banner).getByText('5 de 8')).toBeInTheDocument()
     })
 
-    // SPEC-059 · AC-21 (una captura —entrevista sin grupo— no completa el paso 8)
+    // SPEC-060 · AC-21 (una captura —entrevista sin grupo— no completa el paso 8)
     it('keeps step 8 pending when only a group-less capture exists', async () => {
       setOnboarding(upTo(8), { anthropic: true, deepgram: true })
       renderCaptures()
@@ -343,7 +343,7 @@ describe('AppOnboardingBanner en /captures', () => {
       { step: 8, cta: 'Crear entrevista', target: '/discoveries/d-9/groups/g-1', ac: 'AC-20' }
     ]
 
-    // SPEC-059 · AC-07/10/12/15/16/18/19/20 (cada CTA navega a su destino)
+    // SPEC-060 · AC-07/10/12/15/16/18/19/20 (cada CTA navega a su destino)
     it.each(CASES)(
       'navigates from step $step ($ac) with "$cta" to $target',
       async ({ step, cta, target }) => {
@@ -363,7 +363,7 @@ describe('AppOnboardingBanner en /captures', () => {
       }
     )
 
-    // SPEC-059 · AC-13 (con las plantillas de preguntas ya creadas, el CTA del
+    // SPEC-060 · AC-13 (con las plantillas de preguntas ya creadas, el CTA del
     // paso 3 apunta a la familia que falta)
     it('retargets the step 3 CTA at the note templates tab when only note templates are missing', async () => {
       setOnboarding({ ...upTo(3), hasInterviewTemplate: true }, { anthropic: true, deepgram: true })
@@ -380,7 +380,7 @@ describe('AppOnboardingBanner en /captures', () => {
   })
 
   describe('marca del paso 2 y ocultación', () => {
-    // SPEC-059 · AC-10 (navegar a los prompts ES el gesto de revisión: navega Y persiste)
+    // SPEC-060 · AC-10 (navegar a los prompts ES el gesto de revisión: navega Y persiste)
     it('persists promptsReviewedAt in the same gesture that navigates to the prompts', async () => {
       setOnboarding(upTo(2), { anthropic: true, deepgram: true })
       vi.mocked(mockApi.api.db.markOnboardingPromptsReviewed).mockResolvedValue({
@@ -399,7 +399,7 @@ describe('AppOnboardingBanner en /captures', () => {
       })
     })
 
-    // SPEC-059 · AC-24 (ocultar: el banner desaparece y persiste hiddenAt, sin Toast)
+    // SPEC-060 · AC-24 (ocultar: el banner desaparece y persiste hiddenAt, sin Toast)
     it('hides the banner and persists hiddenAt when "Ocultar" is pressed', async () => {
       setOnboarding()
       vi.mocked(mockApi.api.db.hideAppOnboarding).mockResolvedValue({
@@ -420,7 +420,7 @@ describe('AppOnboardingBanner en /captures', () => {
       expect(screen.getByText('Aún no hay capturas')).toBeInTheDocument()
     })
 
-    // SPEC-059 · AC-25 (tras ocultar, recargar la app no lo trae de vuelta)
+    // SPEC-060 · AC-25 (tras ocultar, recargar la app no lo trae de vuelta)
     it('does not bring the banner back when the app reloads after hiding it', async () => {
       setOnboarding()
       vi.mocked(mockApi.api.db.hideAppOnboarding).mockResolvedValue({
@@ -445,7 +445,7 @@ describe('AppOnboardingBanner en /captures', () => {
     })
   })
 
-  // SPEC-059 · AC-23 (el paso NUNCA se persiste: al volver a /captures sin la
+  // SPEC-060 · AC-23 (el paso NUNCA se persiste: al volver a /captures sin la
   // empresa, el banner retrocede solo)
   describe('retroceso derivado', () => {
     it('walks back to step 4 with steps 4 and 5 unchecked after the last company is deleted', async () => {

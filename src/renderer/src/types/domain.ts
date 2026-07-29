@@ -215,7 +215,7 @@ export interface LinkedinMcpSettings {
 }
 
 /**
- * Marcas del onboarding de la app (SPEC-059), singleton en db.json (patrón
+ * Marcas del onboarding de la app (SPEC-060), singleton en db.json (patrón
  * aiCostSettings/assistantSettings: opcional y sin bump de schemaVersion,
  * ausente = ambos null). Son las DOS únicas cosas que el onboarding persiste;
  * los 8 pasos se derivan siempre del estado real. `promptsReviewedAt` marca el
@@ -228,7 +228,7 @@ export interface OnboardingSettings {
 }
 
 /**
- * Payload de `db:onboarding:get-status` (SPEC-059): todo lo que el banner de
+ * Payload de `db:onboarding:get-status` (SPEC-060): todo lo que el banner de
  * primeros pasos necesita del almacén en UNA sola llamada — los booleanos
  * derivados de los pasos 3-8, los ids de destino de sus CTA y el singleton ya
  * normalizado. Evita N listados desde el renderer y la carrera entre ellos. El
@@ -705,7 +705,7 @@ export interface DbApi {
   setLinkedinMcpSettings: (settings: LinkedinMcpSettings) => Promise<DbResult<LinkedinMcpSettings>>
 
   /**
-   * Onboarding de la app (SPEC-059): lectura agregada de los 8 pasos y las dos
+   * Onboarding de la app (SPEC-060): lectura agregada de los 8 pasos y las dos
    * marcas persistidas. `hideAppOnboarding` (no `hideOnboarding`) para no
    * confundirse con `hideInterviewOnboarding`, que es de SPEC-058 y otro dominio.
    */

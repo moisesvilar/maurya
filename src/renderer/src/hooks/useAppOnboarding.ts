@@ -4,7 +4,7 @@ import { deriveAppOnboarding, type AppOnboardingView } from '@/lib/appOnboarding
 import type { AppOnboardingStatus } from '@/types/domain'
 
 /**
- * Estado del banner de primeros pasos (SPEC-059). Solo `ready` renderiza: ni
+ * Estado del banner de primeros pasos (SPEC-060). Solo `ready` renderiza: ni
  * `loading` ni `error` ni `hidden` pintan nada (ni skeleton ni placeholder).
  */
 export type AppOnboardingState =
@@ -22,7 +22,7 @@ export interface UseAppOnboardingResult {
 }
 
 /**
- * Resuelve las dos fuentes del onboarding de la app (SPEC-059): el agregado del
+ * Resuelve las dos fuentes del onboarding de la app (SPEC-060): el agregado del
  * almacén (`db:onboarding:get-status`) y el estado de las claves
  * (`secrets:get-status`), y deriva la vista de los 8 pasos. Se recalcula al
  * MONTAR la página: volver de Ajustes o de Empresas re-monta `/captures` y

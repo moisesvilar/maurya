@@ -10,7 +10,7 @@ import type { AppOnboardingStepView } from '@/lib/appOnboarding'
 const TOTAL_STEPS = 8
 
 /**
- * Banner de primeros pasos de la app (SPEC-059), en la home (`/captures`) entre
+ * Banner de primeros pasos de la app (SPEC-060), en la home (`/captures`) entre
  * la cabecera de la página y el listado. Es una checklist de 8 pasos DERIVADA
  * del estado real (claves + almacén), no un wizard: cada paso se completa en su
  * superficie nativa y el CTA solo navega hasta allí — el banner nunca duplica

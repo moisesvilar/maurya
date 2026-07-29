@@ -1,6 +1,6 @@
 import type { AppOnboardingStatus } from '@/types/domain'
 
-/** Los 8 pasos del onboarding de la app (SPEC-059), en su orden fijo. */
+/** Los 8 pasos del onboarding de la app (SPEC-060), en su orden fijo. */
 export type AppOnboardingStepNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
 
 export interface AppOnboardingInput {
@@ -83,7 +83,7 @@ const STEP_TEXTS: Record<
 }
 
 /**
- * Deriva las 8 filas del banner de primeros pasos (SPEC-059) del estado real de
+ * Deriva las 8 filas del banner de primeros pasos (SPEC-060) del estado real de
  * la app — el paso NUNCA se persiste (patrón SPEC-058): si los datos cambian
  * (p. ej. se borra la última empresa), el banner avanza o retrocede solo en la
  * siguiente carga.
