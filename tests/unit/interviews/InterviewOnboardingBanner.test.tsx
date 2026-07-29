@@ -370,47 +370,12 @@ describe('InterviewOnboardingBanner', () => {
   })
 
   describe('step actions', () => {
-    // SPEC-058 · AC-16 (disparo; el reflejo en ScriptSection se verifica en
-    // OnboardingBannerBridge.test.tsx) — reutiliza la autogeneración SPEC-033
-    it('fires the shared script generation and shows "Generando guión…" disabled while the events report progress', async () => {
-      grantAnthropicKey()
-      renderBanner(STEP_FIXTURES[2])
-      const user = userEvent.setup()
-
-      // Referencias frescas: el botón se remonta al alternar disabled/enabled
-      // (wrapper de Tooltip — lección SPEC-029)
-      await screen.findByTestId('onboarding-step-action')
-      await waitFor(() => expect(screen.getByTestId('onboarding-step-action')).toBeEnabled())
-      await user.click(screen.getByTestId('onboarding-step-action'))
-      expect(mockApi.api.llm.autoGenerateScript).toHaveBeenCalledWith('i-1')
-
-      act(() => {
-        mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })
-      })
-      const busyAction = screen.getByTestId('onboarding-step-action')
-      expect(busyAction).toHaveTextContent('Generando guión…')
-      expect(busyAction).toBeDisabled()
-    })
-
-    // SPEC-058 · AC-17 (mismo motivo que ScriptSection; 1 solo hover por it —
-    // lección Radix grace area en jsdom)
-    it('disables "Generar guión" with the key tooltip when no Anthropic key is configured', async () => {
-      renderBanner(STEP_FIXTURES[2])
-      const user = userEvent.setup()
-
-      // Referencias frescas: el botón se remonta al pasar a disabled+Tooltip
-      await screen.findByTestId('onboarding-step-action')
-      await waitFor(() => expect(screen.getByTestId('onboarding-step-action')).toBeDisabled())
-      await user.hover(screen.getByTestId('onboarding-step-action').parentElement as HTMLElement)
-      // findAll: Radix duplica el texto del tooltip (contenido + copia accesible)
-      expect(
-        (
-          await screen.findAllByText(
-            'Configura tu clave de Anthropic en Ajustes para generar el guión'
-          )
-        ).length
-      ).toBeGreaterThanOrEqual(1)
-    })
+    // SPEC-058 AC-16 y AC-17 viven ahora en OnboardingBannerBridge.test.tsx:
+    // SPEC-058-iter-1 pasa el paso 2 al espejo del puente, así que el disparo
+    // y el motivo de deshabilitado los aporta la sección Guión y NO son
+    // observables con el banner montado en solitario (aquí no hay sección que
+    // registre la acción). Cobertura equivalente o mayor: el arnés del puente
+    // usa la composición real de las páginas y verifica los dos sentidos.
 
     // SPEC-058 · AC-18
     it('persists objectivesConfirmedAt on "Objetivos revisados" and moves to step 4 without reloading', async () => {
