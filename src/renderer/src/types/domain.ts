@@ -650,6 +650,14 @@ export interface DbApi {
   getInterview: (id: string) => Promise<DbResult<Interview>>
   updateInterview: (id: string, patch: UpdateInterviewPatch) => Promise<DbResult<Interview>>
   deleteInterview: (id: string) => Promise<DbResult<null>>
+  /**
+   * Entrevista persistida por un camino que toca el guión (SPEC-062): guardado
+   * manual del editor y generación manual. Lo escucha SOLO la ventana
+   * desacoplada del guión, para reflejar la versión nueva sin reabrirla; la
+   * ventana principal no se suscribe (evento nuevo y dedicado, sin
+   * deduplicación de toasts ni remontajes de editor que proteger).
+   */
+  onInterviewUpdated: (callback: (interview: Interview) => void) => () => void
   /** Marca la revisión de objetivos como confirmada (SPEC-058, paso 3 del onboarding). */
   confirmInterviewObjectives: (id: string) => Promise<DbResult<Interview>>
   /** Oculta el banner de onboarding de la entrevista (SPEC-058, paso final). */

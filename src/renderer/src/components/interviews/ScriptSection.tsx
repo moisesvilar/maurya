@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { DetachWindowButton } from '@/components/detached/DetachWindowButton'
 import { MarkdownEditor } from '@/components/markdown/MarkdownEditor'
 import { useOnboardingRegistry } from '@/components/interviews/onboardingBridge'
 import { isOnboardingBannerVisible } from '@/lib/onboardingStep'
@@ -27,9 +28,11 @@ interface ScriptSectionProps {
   interview: Interview
   onInterviewUpdated: (interview: Interview) => void
   /**
-   * Grabación en curso en la página (SPEC-061): entra en el criterio de
+   * Grabación en curso en la página. SPEC-061: entra en el criterio de
    * «banner de onboarding visible», que decide si el empty state necesita su
-   * CTA de respaldo.
+   * CTA de respaldo. SPEC-062: gobierna la presencia del botón que abre el
+   * guión en su propia ventana — el desacople solo tiene sentido durante la
+   * llamada.
    */
   capturing: boolean
 }
@@ -226,28 +229,43 @@ export function ScriptSection({
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold">Guión</h3>
-        {/* SPEC-061: sin guión la cabecera no lleva botón — «Generar guión»
-            vivía aquí duplicando el paso 2 del banner */}
-        {hasScript &&
-          (isGenerating ? (
-            <Button variant="outline" disabled data-testid="script-regenerate-button">
-              <Loader2 className="animate-spin" />
-              Generando guión…
-            </Button>
-          ) : (
-            withTooltip(
-              <Button
-                variant="outline"
-                disabled={!hasTemplate || keyStatus !== 'ok'}
-                data-testid="script-regenerate-button"
-                onClick={() => setConfirmRegenerate(true)}
-              >
-                <RefreshCw />
-                Regenerar
-              </Button>,
-              disabledReason
-            )
-          ))}
+        {/* SPEC-061: sin guión la cabecera no lleva botón de generación —
+            «Generar guión» vivía aquí duplicando el paso 2 del banner.
+            SPEC-062: los controles de la derecha se agrupan para que el botón
+            de desacople no rompa el justify-between con el <h3> */}
+        <div className="flex items-center gap-2">
+          {hasScript &&
+            (isGenerating ? (
+              <Button variant="outline" disabled data-testid="script-regenerate-button">
+                <Loader2 className="animate-spin" />
+                Generando guión…
+              </Button>
+            ) : (
+              withTooltip(
+                <Button
+                  variant="outline"
+                  disabled={!hasTemplate || keyStatus !== 'ok'}
+                  data-testid="script-regenerate-button"
+                  onClick={() => setConfirmRegenerate(true)}
+                >
+                  <RefreshCw />
+                  Regenerar
+                </Button>,
+                disabledReason
+              )
+            ))}
+          {/* SPEC-062: solo durante la grabación. Sin disabledReason: consultar
+              el guión no depende de la clave de Anthropic */}
+          {capturing && (
+            <DetachWindowButton
+              component="script"
+              interviewId={interview.id}
+              testId="detach-script-button"
+              ariaLabel="Abrir guión en ventana"
+              tooltip="Guión en una ventana aparte"
+            />
+          )}
+        </div>
       </div>
 
       {keyStatus === 'missing' && (

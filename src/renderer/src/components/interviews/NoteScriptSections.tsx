@@ -11,7 +11,10 @@ type NotePresence = 'loading' | 'present' | 'absent'
 interface NoteScriptSectionsProps {
   interview: Interview
   onInterviewUpdated: (interview: Interview) => void
-  /** Grabación en curso: la sección Guión la necesita para el criterio de banner visible (SPEC-061). */
+  /**
+   * Grabación en curso: la sección Guión la necesita para el criterio de
+   * banner visible (SPEC-061) y para el botón de desacople (SPEC-062).
+   */
   capturing: boolean
 }
 
@@ -108,6 +111,8 @@ export function NoteScriptSections({
     />
   ) : null
 
+  // Rama compartida por las dos composiciones apiladas (nota primero y guión
+  // primero): un único punto de cableado de `capturing` para las dos.
   const scriptSection = (
     <ScriptSection
       interview={interview}

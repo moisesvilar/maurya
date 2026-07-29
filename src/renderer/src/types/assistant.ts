@@ -99,6 +99,12 @@ export interface AssistantSessionSummary {
 /** API expuesta por el preload en `window.api.assistant`. */
 export interface AssistantApi {
   onUpdate: (callback: (event: AssistantUpdateEvent) => void) => () => void
+  /**
+   * Último evento emitido por la sesión (SPEC-062): hidratación de la ventana
+   * desacoplada del asistente, que abre a mitad de sesión y no puede esperar
+   * al siguiente análisis. `null` si no hay sesión o aún no emitió nada.
+   */
+  getSnapshot: () => Promise<AssistantUpdateEvent | null>
   /** Ancla/desancla una pregunta de la cola (SPEC-036); fire-and-forget. */
   setPinned: (itemId: string, pinned: boolean) => Promise<void>
   /** Descarta o marca respondida una pregunta (SPEC-039); fire-and-forget. */

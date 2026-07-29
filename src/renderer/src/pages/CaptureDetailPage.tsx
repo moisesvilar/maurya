@@ -303,7 +303,7 @@ function CaptureDetailContent({
 
         <ObjectivesSection interview={interview} onInterviewUpdated={onInterviewUpdated} />
 
-        <AssistantLiveSection controller={controller} />
+        <AssistantLiveSection controller={controller} interviewId={interview.id} />
 
         {/* SPEC-061: `capturing` llega hasta la sección Guión — con el banner
             oculto por la grabación, su empty state recupera el CTA */}

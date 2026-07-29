@@ -10,7 +10,8 @@ import type {
   TranscriptResultEvent,
   TranscriptionStatusEvent
 } from '../renderer/src/types/audio'
-import type { DbApi } from '../renderer/src/types/domain'
+import type { DetachedComponent } from '../renderer/src/types/detached'
+import type { DbApi, Interview } from '../renderer/src/types/domain'
 import type { SecretsApi } from '../renderer/src/types/secrets'
 import type {
   LlmApi,
@@ -67,6 +68,15 @@ const db: DbApi = {
   createInterview: (input) => ipcRenderer.invoke('db:interview:create', input),
   listInterviews: (companyId) => ipcRenderer.invoke('db:interview:list', companyId),
   getInterview: (id) => ipcRenderer.invoke('db:interview:get', id),
+  // Difusión de la entrevista persistida por los caminos que tocan el guión
+  // (SPEC-062): la escucha SOLO la ventana desacoplada del guión.
+  onInterviewUpdated: (callback: (interview: Interview) => void): (() => void) => {
+    const listener = (_event: IpcRendererEvent, payload: Interview): void => callback(payload)
+    ipcRenderer.on('db:interview-updated', listener)
+    return (): void => {
+      ipcRenderer.removeListener('db:interview-updated', listener)
+    }
+  },
   updateInterview: (id, patch) => ipcRenderer.invoke('db:interview:update', id, patch),
   deleteInterview: (id) => ipcRenderer.invoke('db:interview:delete', id),
   confirmInterviewObjectives: (id) => ipcRenderer.invoke('db:interview:confirm-objectives', id),
@@ -202,6 +212,9 @@ const assistant: AssistantApi = {
       ipcRenderer.removeListener('assistant:update', listener)
     }
   },
+  // Hidratación de la ventana desacoplada del asistente (SPEC-062): consulta
+  // puntual del último evento emitido, sin efectos sobre las demás ventanas
+  getSnapshot: () => ipcRenderer.invoke('assistant:get-snapshot'),
   // Anclar/desanclar una pregunta de la cola (SPEC-036), fire-and-forget
   setPinned: (itemId, pinned) => ipcRenderer.invoke('assistant:set-pinned', itemId, pinned),
   // Descartar / marcar respondida una pregunta (SPEC-039), fire-and-forget
@@ -280,6 +293,11 @@ const api: MauryaApi & {
     // Tema (dark mode): fire-and-forget para que nativeTheme acompañe
     setTheme: (theme: ThemePreference): void => {
       ipcRenderer.send('window:set-theme', theme)
+    },
+    // Ventanas desacopladas del asistente y del guión (SPEC-062): main crea
+    // (o enfoca) la BrowserWindow; fire-and-forget, patrón setTheme
+    openDetached: (component: DetachedComponent, interviewId: string): void => {
+      ipcRenderer.send('window:open-detached', component, interviewId)
     }
   },
   db,

@@ -4,6 +4,7 @@
  * asociada a una entrevista (SPEC-015).
  * Este módulo NO debe depender del DOM: lo importan (type-only) main y preload.
  */
+import type { DetachedComponent } from './detached'
 import type { Interview } from './domain'
 import type { ThemePreference } from './theme'
 
@@ -190,5 +191,12 @@ export interface MauryaApi {
      * chrome nativo (nativeTheme: barra de título, diálogos) acompañe.
      */
     setTheme: (theme: ThemePreference) => void
+    /**
+     * Abre (o enfoca, si ya existe) la ventana desacoplada del componente para
+     * esa entrevista (SPEC-062). Fire-and-forget, patrón `setTheme`: abrir una
+     * ventana no tiene fallo accionable para el renderer, y main ignora en
+     * silencio un payload inesperado.
+     */
+    openDetached: (component: DetachedComponent, interviewId: string) => void
   }
 }

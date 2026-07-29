@@ -1,9 +1,16 @@
 import React from 'react'
+import { DetachWindowButton } from '@/components/detached/DetachWindowButton'
 import { AssistantPanel } from '@/components/recording/AssistantPanel'
 import type { RecordingController } from '@/hooks/useRecordingController'
 
 interface AssistantLiveSectionProps {
   controller: RecordingController
+  /**
+   * Entrevista a la que pertenece la sesión (SPEC-062): la necesita el botón
+   * de desacople y el controller no la expone. REQUERIDA a propósito: un
+   * olvido de cableado debe romper el typecheck, no esconder el botón.
+   */
+  interviewId: string
 }
 
 /**
@@ -14,16 +21,35 @@ interface AssistantLiveSectionProps {
  * renderiza, como hasta ahora. Componente compartido para no duplicar el
  * cableado en las dos páginas: el AssistantPanel recibe EXACTAMENTE las mismas
  * props que recibía dentro de RecordingSectionView (controller.assistant.*).
+ * SPEC-062: la sección gana una fila de cabecera con el botón que abre el
+ * asistente en su propia ventana. En `no-key` va deshabilitado con Tooltip
+ * explicativo: una ventana solo-asistente sin clave únicamente mostraría el
+ * aviso de clave.
  */
 export function AssistantLiveSection({
-  controller
+  controller,
+  interviewId
 }: AssistantLiveSectionProps): React.ReactElement | null {
   if (!controller.capturing) {
     return null
   }
   const { assistant } = controller
   return (
-    <section data-testid="assistant-live-section">
+    <section data-testid="assistant-live-section" className="flex flex-col gap-2">
+      <div className="flex items-center justify-end">
+        <DetachWindowButton
+          component="assistant"
+          interviewId={interviewId}
+          testId="detach-assistant-button"
+          ariaLabel="Abrir asistente en ventana"
+          tooltip="Asistente en una ventana aparte"
+          disabledReason={
+            assistant.state === 'no-key'
+              ? 'Configura tu clave de Anthropic en Ajustes para abrir el asistente en una ventana'
+              : null
+          }
+        />
+      </div>
       <AssistantPanel
         state={assistant.state}
         queue={assistant.queue}

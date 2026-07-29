@@ -272,7 +272,7 @@ function InterviewDetailContent({
 
         {/* SPEC-041: el panel del asistente, entre objetivos y Nota/Guión,
             solo mientras se graba */}
-        <AssistantLiveSection controller={controller} />
+        <AssistantLiveSection controller={controller} interviewId={interview.id} />
 
         {/* SPEC-061: `capturing` llega hasta la sección Guión — con el banner
             oculto por la grabación, su empty state recupera el CTA */}
