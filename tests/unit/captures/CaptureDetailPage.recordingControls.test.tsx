@@ -40,6 +40,7 @@ import { getPermissionsStatus } from '@/services/permissionsService'
 import type { Company, Contact, Discovery, Interview } from '@/types/domain'
 import { createFakeAudioStream } from '../../helpers/fakeMediaStream'
 import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
+import { expandTechInfo } from '../../helpers/recordingTechInfo'
 
 vi.mock('@/services/permissionsService', () => ({
   getPermissionsStatus: vi.fn(),
@@ -343,10 +344,14 @@ describe('CaptureDetailPage (SPEC-034 recording controls)', () => {
     // — «Grabada» + «Mostrar en Finder» + «Nueva grabación» — y el detalle de
     // archivo (rutas) vive en la superficie bajo la cabecera)
     it('shows the recorded controls in the top bar and the file detail below the header in Grabada', async () => {
+      const user = userEvent.setup()
       setInterview(RECORDED)
       renderAt('/captures/i-1')
 
-      expect(await screen.findByText(WAV_PATH)).toBeInTheDocument()
+      // SPEC-059: el detalle de archivo baja al desplegable del final de la
+      // página; la top bar conserva sus acciones intactas
+      const techInfo = await expandTechInfo(user)
+      expect(within(techInfo).getByText(WAV_PATH)).toBeInTheDocument()
       // Sin controles de preparación ni de grabación en curso
       expect(screen.queryByTestId('topbar-capture-controls')).not.toBeInTheDocument()
       expect(screen.queryByTestId('topbar-recording-controls')).not.toBeInTheDocument()
@@ -360,8 +365,8 @@ describe('CaptureDetailPage (SPEC-034 recording controls)', () => {
       ).toBeInTheDocument()
       expect(within(recorded).getByRole('combobox', { name: 'Micrófono' })).toBeInTheDocument()
       expect(within(recorded).getByRole('button', { name: 'Nueva grabación' })).toBeInTheDocument()
-      // Y el detalle de archivo (transcript) bajo la cabecera
-      expect(screen.getByText(TRANSCRIPT_PATH)).toBeInTheDocument()
+      // Y el detalle de archivo (transcript) dentro del desplegable (SPEC-059)
+      expect(within(techInfo).getByText(TRANSCRIPT_PATH)).toBeInTheDocument()
     })
 
     // SPEC-034 · AC-09
