@@ -175,8 +175,11 @@ function topBarRecordingControls(): HTMLElement {
 }
 
 /** El detalle de captura se monta BAJO <Layout/> (top bar portal, SPEC-034). */
-function renderCaptureDetail(): RenderResult {
-  vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({ ok: true, data: capture() })
+function renderCaptureDetail(captureOverrides: Partial<Interview> = {}): RenderResult {
+  vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({
+    ok: true,
+    data: capture(captureOverrides)
+  })
   vi.mocked(mockApi.api.db.getDiscovery).mockResolvedValue({ ok: true, data: DISCOVERY })
   return render(
     <TooltipProvider>
@@ -241,6 +244,13 @@ describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
     // SPEC-034: la sesión en vivo vive en la top bar y el heading desaparece)
     it('renders the assistant panel after the Objetivos section and before the Nota/Guión sections while recording', async () => {
       const user = userEvent.setup()
+      // SPEC-059 (adaptación): «Objetivos» solo se pinta con guión u objetivos.
+      // El AC es POSICIONAL → entrevista con objetivos; el panel y la zona
+      // Nota/Guión no cambian.
+      vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({
+        ok: true,
+        data: interview({ objectives: ['Objetivo cero'] })
+      })
       renderInterviewDetail()
       await startRecording(user)
 
@@ -402,7 +412,9 @@ describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
     // SPEC-041 · AC-05 (captura grabando: el panel encima de Nota/Guión)
     it('renders the assistant panel right above the Nota/Guión sections while recording a capture', async () => {
       const user = userEvent.setup()
-      renderCaptureDetail()
+      // SPEC-059 (adaptación): «Objetivos» solo se pinta con guión u objetivos
+      // y este AC es POSICIONAL (misma razón que su gemelo de entrevista).
+      renderCaptureDetail({ objectives: ['Objetivo cero'] })
       await startFromHeader(user)
 
       const title = await screen.findByRole('heading', { name: 'Captura sin empresa', level: 1 })

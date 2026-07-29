@@ -117,6 +117,13 @@ describe('CaptureDetailPage onboarding', () => {
   // SPEC-058 · AC-28: mismo banner y misma posición que en el detalle de
   // entrevista (antes de la sección Objetivos)
   it('renders the onboarding banner before the Objetivos section', async () => {
+    // SPEC-059 (adaptación): «Objetivos» solo se pinta con guión u objetivos.
+    // El AC es POSICIONAL: se ejercita con objetivos manuales, que además
+    // conservan el paso 1 del banner (sin plantilla y sin guión).
+    vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({
+      ok: true,
+      data: capture({ objectives: ['Objetivo cero'] })
+    })
     renderDetail()
 
     const banner = await screen.findByTestId('interview-onboarding-banner')
