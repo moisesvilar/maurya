@@ -6,7 +6,7 @@
 import { vi } from 'vitest'
 import type { AssistantApi, AssistantUpdateEvent } from '@/types/assistant'
 import type { MauryaApi, TranscriptResultEvent, TranscriptionStatusEvent } from '@/types/audio'
-import type { DbApi } from '@/types/domain'
+import type { DbApi, Interview } from '@/types/domain'
 import { DEFAULT_AI_TASK_SETTINGS } from '@/types/domain'
 import type { LlmApi, ObjectiveEvaluationEvent, ScriptGenerationEvent } from '@/types/llm'
 import type { NotesApi } from '@/types/notes'
@@ -131,6 +131,11 @@ export interface MockApiHandle {
   emitObjectiveEvaluation: (event: ObjectiveEvaluationEvent) => void
   /** Simula un evento de la autogeneración del guión (SPEC-033). */
   emitScriptGeneration: (event: ScriptGenerationEvent) => void
+  /**
+   * Simula la difusión de una entrevista persistida por un camino que toca el
+   * guión (SPEC-059): la escucha la ventana desacoplada del guión.
+   */
+  emitInterviewUpdated: (interview: Interview) => void
 }
 
 /**
@@ -138,7 +143,7 @@ export interface MockApiHandle {
  * de solo-lectura seguros (getStatus, listados y getNoteByInterview): la UI
  * CRUD llega en H2 y cada test configurará lo que necesite con vi.mocked(...).
  */
-function createMockDbApi(): DbApi {
+function createMockDbApi(interviewUpdatedCallbacks: Array<(interview: Interview) => void>): DbApi {
   return {
     getStatus: vi
       .fn<DbApi['getStatus']>()
@@ -192,6 +197,18 @@ function createMockDbApi(): DbApi {
     getInterview: vi.fn<DbApi['getInterview']>(),
     updateInterview: vi.fn<DbApi['updateInterview']>(),
     deleteInterview: vi.fn<DbApi['deleteInterview']>(),
+    // SPEC-059: difusión de la entrevista persistida por los caminos que tocan
+    // el guión; registra el callback para inyectar eventos con
+    // emitInterviewUpdated (gemelo de emitScriptGeneration).
+    onInterviewUpdated: vi.fn<DbApi['onInterviewUpdated']>((callback) => {
+      interviewUpdatedCallbacks.push(callback)
+      return () => {
+        const index = interviewUpdatedCallbacks.indexOf(callback)
+        if (index >= 0) {
+          interviewUpdatedCallbacks.splice(index, 1)
+        }
+      }
+    }),
     // SPEC-058: marcas del banner de onboarding (se configuran por test)
     confirmInterviewObjectives: vi.fn<DbApi['confirmInterviewObjectives']>(),
     hideInterviewOnboarding: vi.fn<DbApi['hideInterviewOnboarding']>(),
@@ -266,9 +283,10 @@ export function createMockApi(): MockApiHandle {
   const assistantCallbacks: Array<(event: AssistantUpdateEvent) => void> = []
   const objectiveEvaluationCallbacks: Array<(event: ObjectiveEvaluationEvent) => void> = []
   const scriptGenerationCallbacks: Array<(event: ScriptGenerationEvent) => void> = []
+  const interviewUpdatedCallbacks: Array<(interview: Interview) => void> = []
 
   const api: BridgeApi = {
-    db: createMockDbApi(),
+    db: createMockDbApi(interviewUpdatedCallbacks),
     secrets: createMockSecretsApi(),
     llm: createMockLlmApi(objectiveEvaluationCallbacks, scriptGenerationCallbacks),
     notes: createMockNotesApi(),
@@ -282,6 +300,9 @@ export function createMockApi(): MockApiHandle {
           }
         }
       }),
+      // SPEC-059: snapshot del asistente para hidratar la ventana desacoplada;
+      // por defecto SIN estado previo (criterio conservador, como llm.getStatus)
+      getSnapshot: vi.fn<AssistantApi['getSnapshot']>().mockResolvedValue(null),
       // SPEC-036 (deroga el feedback 👍/👎 de SPEC-016): anclar/desanclar una
       // pregunta de la cola, fire-and-forget
       setPinned: vi.fn<AssistantApi['setPinned']>().mockResolvedValue(undefined),
@@ -358,7 +379,9 @@ export function createMockApi(): MockApiHandle {
       }),
       confirmClose: vi.fn<MauryaApi['window']['confirmClose']>(),
       // Tema (dark mode): fire-and-forget hacia main, sin retorno que configurar
-      setTheme: vi.fn<MauryaApi['window']['setTheme']>()
+      setTheme: vi.fn<MauryaApi['window']['setTheme']>(),
+      // SPEC-059: apertura de la ventana desacoplada, fire-and-forget
+      openDetached: vi.fn<MauryaApi['window']['openDetached']>()
     }
   }
 
@@ -384,6 +407,9 @@ export function createMockApi(): MockApiHandle {
     },
     emitScriptGeneration: (event: ScriptGenerationEvent): void => {
       scriptGenerationCallbacks.slice().forEach((callback) => callback(event))
+    },
+    emitInterviewUpdated: (interview: Interview): void => {
+      interviewUpdatedCallbacks.slice().forEach((callback) => callback(interview))
     }
   }
 }

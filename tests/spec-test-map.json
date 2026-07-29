@@ -2774,5 +2774,73 @@
       "pendiente": "(1) Generar desde el botón de la sección Guión → ambos botones en «Generando guión…» deshabilitados y ambos de vuelta al terminar, con el banner en paso 3; (2) mismo resultado disparando desde el botón del banner, incluido el Toast «Guión generado» que ahora aparece también en ese camino; (3) crear una captura con plantilla y clave (autogeneración SPEC-033) → ambos botones en «Generando guión…»; (4) sin clave → botón del banner deshabilitado con el mismo Tooltip que la sección."
     },
     "notes": "Iteración de corrección de defecto detectado por el humano en QA manual (2026-07-29): la generación disparada desde la sección Guión dejaba el botón del banner habilitado. Causa raíz: dos caminos IPC (llm:generate-script con estado local en ScriptSection vs llm:auto-generate-script con eventos) y el banner solo observaba el segundo. Fix: el paso 2 pasa al espejo del puente onboardingBridge (patrón ya usado por los pasos 5 y 6), con la sección como única dueña del estado. Solo renderer; cero cambios de IPC, main, preload o persistencia."
+  },
+  "SPEC-059": {
+    "spec_file": "specs/SPEC-059-desacoplar-asistente-guion.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición (27): Botones de desacople ×7 (AC-01 botón del asistente durante la grabación, AC-02 botón del guión junto a los controles existentes, AC-03 ambos en el detalle de captura, AC-04 sin grabación no hay botón del guión, AC-05 asistente en no-key deshabilitado con Tooltip, AC-06 clic → apertura de la ventana del asistente, AC-07 clic → apertura de la ventana del guión); Ventana del asistente ×9 (AC-08 solo el panel a ventana completa con scroll, AC-09 hidratación de la cola al abrir a mitad de sesión, AC-10 ítems idénticos a los de la página, AC-11 pregunta nueva sin interacción en ambas superficies, AC-12 acciones desde la ventana con el mismo efecto, AC-13 acciones desde la página reflejadas en la ventana, AC-14 cola vacía con su literal, AC-15 pausa por coste con «Reanudar asistente», AC-16 línea discreta de fallo sin ocultar la cola); Ventana del guión ×4 (AC-17 markdown de solo lectura, AC-18 empty state sin CTA, AC-19 actualización en vivo al guardar/regenerar desde la principal, AC-20 error state con «Reintentar»); Independencia y ciclo de vida ×4 (AC-21 coexistencia de las tres ventanas, AC-22 cierre manual sin efectos colaterales y reapertura, AC-23 cierre automático al terminar la grabación, AC-24 close-guard de la principal sin cambios); Ventanas nativas ×3 (AC-25 ventana normal 420×640 con mínimos 360×480 y título compuesto, AC-26 dedup con foco a la existente, AC-27 posición y tamaño independientes).",
+    "unit": [
+      {
+        "file": "tests/unit/detached/DetachWindowButtons.test.tsx",
+        "test_count": 8,
+        "description": "Botones de desacople sobre las páginas de detalle reales bajo <Layout/> (arnés de AssistantLiveSection.test.tsx: servicios del spike mockeados + bridge window.api): botón icon-only del asistente en la cabecera de su sección durante la grabación (AC-01), botón del guión en la fila de cabecera junto al control de generación —filtrado por contenedor, sin contar botones (AC-02)—, ambos en el detalle de captura (AC-03), ausencia de ambos sin grabación en entrevista y en captura (AC-04), deshabilitado con Tooltip explicativo en no-key sin llamar a openDetached (AC-05) y las dos llamadas a window.openDetached con componente e interviewId correctos (AC-06, AC-07)."
+      },
+      {
+        "file": "tests/unit/detached/AssistantWindowPage.test.tsx",
+        "test_count": 10,
+        "description": "Vista de la ventana del asistente en su ruta real (DETACHED_ROUTES.assistant) con el AssistantPanel REAL: solo el panel sin chrome ni otras secciones (AC-08, parte DOM), hidratación por assistant:getSnapshot sin evento push (AC-09) y protección de la hidratación tardía frente a un push previo (AC-09), ítems con badge/chips/pregunta/porqué/acciones y sección «Ancladas» (AC-10), pregunta nueva por push sin interacción (AC-11), acciones inline delegando en resolveItem/setPinned (AC-12), cola re-emitida tras resolver desde la página principal (AC-13), literal de cola vacía (AC-14), Alert de pausa con «Reanudar asistente» llamando a resume (AC-15) y línea «No se pudo analizar (se reintentará): …» sin ocultar la cola (AC-16)."
+      },
+      {
+        "file": "tests/unit/detached/ScriptWindowPage.test.tsx",
+        "test_count": 7,
+        "description": "Vista de la ventana del guión en su ruta real con MarkdownView REAL (polyfills de ProseMirror): markdown renderizado de solo lectura sin editor, toolbar ni botones (AC-17), Skeletons mientras carga, empty state «Esta entrevista no tiene guión.» sin CTA (AC-18), actualización en vivo con db:interview-updated usando el payload sin re-consultar y filtrado por id de entrevista (AC-19), error state con mensaje y «Reintentar» que recarga con éxito (AC-20) y salida del error cuando llega una versión nueva difundida (AC-19+AC-20)."
+      },
+      {
+        "file": "tests/unit/detached/detachedRoutes.test.tsx",
+        "test_count": 2,
+        "description": "Router real (<App/> con el hash puesto a mano, como hace la ventana secundaria al cargar): el hash que main construye con detachedWindowHash resuelve a cada vista y FUERA del Layout —sin navigation ni banner y sin caer en el splat 404— para las dos rutas (AC-08 y AC-17, mitad de enrutado; cubre el riesgo de fallo mudo por rutas desincronizadas)."
+      },
+      {
+        "file": "tests/unit/detached/detachedWindowRegistry.test.ts",
+        "test_count": 7,
+        "description": "Registro puro de ventanas desacopladas (@vitest-environment node, sin mock de electron: sus imports son type-only): lookup vacío, una ventana por componente con ambas vivas a la vez (AC-21, parte de registro), reemplazo por componente —clave = componente, base de la deduplicación (AC-26)—, baja idempotente (AC-22), filtrado de ventanas destruidas y de un webContents destruido de ventana viva (destinatarios de la difusión) y vaciado del registro."
+      },
+      {
+        "file": "tests/unit/detached/detachedWindows.test.ts",
+        "test_count": 14,
+        "description": "Ciclo de vida con electron mockeado (clase BrowserWindow falsa que registra opciones, listeners y llamadas): opciones de creación 420×640 / mínimos 360×480, show:false, autoHideMenuBar, sin alwaysOnTop y sin parent, preload y sandbox (AC-25, parte de la petición), título compuesto por componente y fallback al prefijo con entrevista ilegible (AC-25), carga por hash compartido en prod (loadFile) y en dev (loadURL), page-title-updated con preventDefault, show solo en ready-to-show, segunda petición sin construir ventana nueva con restore() si estaba minimizada y focus() (AC-26), coexistencia de las dos ventanas (AC-21), unregister en closed que permite reabrir (AC-22), enlaces externos al navegador, closeDetachedWindows cerrando todo y vaciando el registro de forma idempotente (AC-23) y no reutilización de una ventana destruida."
+      },
+      {
+        "file": "tests/unit/detached/assistantDetachedBroadcast.test.ts",
+        "test_count": 5,
+        "description": "Difusión de assistant:update desde assistantService con electron mockeado SIN BrowserWindow (lo que protege la decisión de usar el registro puro) y store/repository reales: el mismo evento llega al dueño de la sesión y a cada espejo registrado exactamente una vez (AC-11, AC-12, AC-13, mitad de main), sin doble entrega cuando el sender también está en el registro, saltando un webContents destruido, difusión del evento no-key por el mismo despachador (AC-05, origen del estado) y getAssistantSnapshot devolviendo el último evento y null tras stopAssistant (AC-09, lado de main)."
+      },
+      {
+        "file": "tests/unit/detached/interviewUpdatedBroadcast.test.ts",
+        "test_count": 4,
+        "description": "Señal db:interview-updated en main (registerDbIpcHandlers con ipcMain y BrowserWindow.getAllWindows mockeados, store y repository reales): el guardado manual (db:interview:update) difunde la entrevista persistida a todas las ventanas (AC-19), una mutación que lanza devuelve el envelope de error sin difundir, los demás canales que mutan la entrevista (confirm-objectives) no amplían la superficie, y el disparo AUTOMÁTICO de SPEC-033 sigue emitiendo solo llm:script-generation sin db:interview-updated (invariante «nada duplicado»)."
+      },
+      {
+        "file": "tests/unit/detached/mainIpcDetached.test.ts",
+        "test_count": 7,
+        "description": "Canales de src/main/ipc.ts con electron y los servicios invocados mockeados: window:open-detached delega en openDetachedWindow con el componente y la entrevista (AC-06, AC-07, lado de main) e ignora en silencio un payload inesperado (componente desconocido, interviewId vacío o no-string, undefined), assistant:get-snapshot devuelve el último evento y null sin sesión (AC-09), llm:generate-script difunde db:interview-updated tras la generación manual y no difunde si la generación rechaza (AC-19) y recording:stop cierra las ventanas desacopladas (AC-23, cableado en main)."
+      }
+    ],
+    "e2e": [],
+    "e2e_note": "e2e (Playwright) no aplica en este proyecto: app Electron local sin public link (decisión humana 2026-07-03). QA automatizado = Vitest unit.",
+    "manual_verification": {
+      "AC-08": "La mitad de layout: scroll vertical real, ausencia de scroll horizontal a 360 px de ancho y ocupación de toda la ventana. jsdom no calcula layout y asertar clases CSS sería cobertura falsa (precedente SPEC-057). El DOM de la vista (solo el panel, sin chrome) sí está automatizado.",
+      "AC-09": "Gap detectado por QA Dev (patrón SPEC-022-iter-1, sin arreglar): `stopAssistant()` limpia `lastEvent` SOLO cuando hubo sesión; tras un arranque en `no-key` (que no crea sesión) el snapshot residual sobrevive a la parada y `assistant:get-snapshot` sigue devolviendo el evento `no-key` de la grabación anterior. Impacto práctico nulo (el botón está deshabilitado en no-key y el siguiente startAssistant reemite de inmediato), por eso no hay test que fije la conducta actual; si el humano quiere la invariante literal «el snapshot muere con la sesión», la corrección es limpiar `lastEvent` también en el retorno temprano de stopAssistant, vía iteración.",
+      "AC-11": "La simultaneidad REAL de las dos superficies (la misma pregunta apareciendo a la vez en la página principal y en la ventana) exige dos ventanas vivas de la app; unit cubre sus dos mitades: la difusión de main a sender + espejos y el render de la ventana ante el evento.",
+      "AC-12": "Ídem: que la acción disparada desde la ventana desacoplada actualice también la página principal se verifica en la app real; unit cubre que la ventana delega en el mismo canal y que main re-emite la cola a todas las superficies.",
+      "AC-13": "Ídem en el sentido inverso (acción en la página principal reflejada en la ventana).",
+      "AC-21": "Coexistencia visual de las tres ventanas a la vez con su contenido: unit fija que main mantiene una ventana por componente en el registro, pero la comprobación visual es manual.",
+      "AC-22": "Que cerrar manualmente una ventana desacoplada no afecte a la grabación, la transcripción, la página principal ni a la otra ventana: no observable sin la app real (las ventanas desacopladas no participan en la captura por construcción, sin close-guard).",
+      "AC-23": "El cableado end-to-end del cierre automático en la app real (Detener, auto-stop y cierre confirmado de la principal). Automatizado: closeDetachedWindows en sí y su invocación desde recording:stop; el camino de `mainWindow.on('closed')` vive en el bootstrap de src/main/index.ts (no montable en unit) y queda MANUAL.",
+      "AC-24": "Close-guard de la ventana principal sin cambios (AlertDialog «Detener captura» con ventanas desacopladas abiertas): comportamiento de proceso principal ya cubierto por sus suites, verificación visual en la app real.",
+      "AC-25": "Comportamiento nativo (precedente SPEC-054/057): geometría real 420×640 y mínimos 360×480 aplicados por macOS, redimensionabilidad, ausencia efectiva de always-on-top y título visible en la barra nativa (la neutralización de page-title-updated solo se comprueba de verdad en la app). Automatizado: las opciones con las que main pide la ventana y el título compuesto.",
+      "AC-26": "Foco efectivo de la ventana existente al repetir el clic (que la ventana suba al frente). Automatizado: que no se construya una segunda ventana y que se llame a restore()/focus().",
+      "AC-27": "Mover y redimensionar cada ventana conservando posición y tamaño con independencia de la principal y de la otra: comportamiento nativo, no automatizable sin e2e.",
+      "tooltips": "Los Tooltips reales al hover (posicionamiento de Radix) se verifican en la app; en jsdom sí quedan cubiertos los aria-label de ambos botones y el texto del Tooltip del deshabilitado por no-key."
+    }
   }
 }
