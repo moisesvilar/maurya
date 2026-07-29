@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { LOOPBACK_FEATURE_FLAGS, registerLoopbackHandler } from './loopbackHandler'
 import { registerIpcHandlers } from './ipc'
+import { closeDetachedWindows } from './detachedWindows'
 import { isRecordingActive } from './wavFileService'
 import { loadLocalEnv } from './env'
 
@@ -50,6 +51,14 @@ function createWindow(): void {
   })
 
   mainWindow.on('closed', () => {
+    // SPEC-059: las ventanas desacopladas mueren con la principal. Se elige
+    // 'closed' y no 'window:confirm-close' porque domina estrictamente (cierre
+    // confirmado, cierre sin grabación, Cmd+Q). Además evita el escenario de
+    // "app viva solo por ventanas huérfanas": en macOS `window-all-closed` no
+    // cierra la app, y con desacopladas abiertas el guard
+    // `getAllWindows().length === 0` de `activate` nunca recrearía la
+    // principal — la app quedaría inusable desde el Dock.
+    closeDetachedWindows()
     ipcMain.removeListener('window:confirm-close', onConfirmClose)
   })
 

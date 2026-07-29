@@ -274,9 +274,13 @@ function InterviewDetailContent({
 
         {/* SPEC-041: el panel del asistente, entre objetivos y Nota/Guión,
             solo mientras se graba */}
-        <AssistantLiveSection controller={controller} />
+        <AssistantLiveSection controller={controller} interviewId={interview.id} />
 
-        <NoteScriptSections interview={interview} onInterviewUpdated={onInterviewUpdated} />
+        <NoteScriptSections
+          interview={interview}
+          onInterviewUpdated={onInterviewUpdated}
+          capturing={controller.capturing}
+        />
       </OnboardingBridgeProvider>
 
       <InterviewFormDialog

@@ -19,6 +19,7 @@ import { getAnthropicKey, mapSdkError, toLlmError, LlmOperationError } from './l
 import { computeCostUsd, extractUsage, roundUpUsd } from './aiCost'
 import { resolveTaskConfig, supportsEffort, thinkingParamFor } from './aiModels'
 import { setFinalLineListener } from './transcriptionService'
+import { listDetachedWebContents } from './detachedWindowRegistry'
 import * as repository from './db/repository'
 import { buildPersonaBlock } from './prompts'
 import { REASON_MAX_CHARS, SUGGESTED_QUESTION_MAX_CHARS } from './prompts/defaults'
@@ -277,10 +278,49 @@ function refreshSessionUsage(target: AssistantSession): void {
 
 let session: AssistantSession | null = null
 
-function emitUpdate(target: AssistantSession, event: AssistantUpdateEvent): void {
-  if (!target.sender.isDestroyed()) {
-    target.sender.send('assistant:update', event)
+/**
+ * Último evento emitido (SPEC-059): lo consulta la ventana desacoplada del
+ * asistente al abrir a mitad de sesión. Guardar el evento —en lugar de
+ * recomponerlo desde la sesión— garantiza que el snapshot sea EL MISMO estado
+ * que vieron las demás superficies, incluidos `state` (derivado por evento, no
+ * vive en la sesión), `usage`, `error` y `pauseLimitUsd`.
+ */
+let lastEvent: AssistantUpdateEvent | null = null
+
+/**
+ * Punto ÚNICO de emisión de los eventos del asistente (SPEC-059): el dueño de
+ * la sesión (`primary`) y, además, las ventanas desacopladas registradas — que
+ * son espejos y deben ver exactamente la misma cola.
+ *
+ * La fan-out va por `listDetachedWebContents()` y NO por
+ * `BrowserWindow.getAllWindows()`: la semántica es más precisa (los eventos
+ * van al dueño de la sesión y a sus espejos, no a ventanas arbitrarias) y este
+ * módulo no importa `electron` en runtime — el registro es puro. El guard
+ * `webContents !== primary` hace imposible la doble entrega a la principal.
+ */
+function dispatchAssistantEvent(primary: WebContents, event: AssistantUpdateEvent): void {
+  lastEvent = event
+  if (!primary.isDestroyed()) {
+    primary.send('assistant:update', event)
   }
+  for (const webContents of listDetachedWebContents()) {
+    if (webContents !== primary) {
+      webContents.send('assistant:update', event)
+    }
+  }
+}
+
+function emitUpdate(target: AssistantSession, event: AssistantUpdateEvent): void {
+  dispatchAssistantEvent(target.sender, event)
+}
+
+/**
+ * Último evento emitido por la sesión (SPEC-059) o null si no hay sesión ni
+ * evento previo. Lo consume `assistant:get-snapshot` para hidratar la ventana
+ * desacoplada del asistente sin esperar al siguiente análisis.
+ */
+export function getAssistantSnapshot(): AssistantUpdateEvent | null {
+  return lastEvent
 }
 
 function sortedObjectivesMet(target: AssistantSession): number[] {
@@ -470,14 +510,14 @@ export function startAssistant(sender: WebContents, interviewId: string): void {
   }
   const apiKey = getAnthropicKey()
   if (apiKey === null) {
-    if (!sender.isDestroyed()) {
-      const event: AssistantUpdateEvent = {
-        state: 'no-key',
-        queue: { pending: [], pinned: [] },
-        objectivesMet: []
-      }
-      sender.send('assistant:update', event)
-    }
+    // SPEC-059: también por el despachador único — 'no-key' es un evento del
+    // asistente como cualquier otro y debe llegar a los espejos y quedar como
+    // snapshot.
+    dispatchAssistantEvent(sender, {
+      state: 'no-key',
+      queue: { pending: [], pinned: [] },
+      objectivesMet: []
+    })
     return
   }
 
@@ -1466,6 +1506,9 @@ export function stopAssistant(): AssistantSessionSummary | null {
   }
   const target = session
   session = null
+  // SPEC-059: el snapshot muere con la sesión — una ventana desacoplada que
+  // abriese después nunca debe hidratarse con la cola de la sesión anterior.
+  lastEvent = null
   setFinalLineListener(null)
   if (target.fallbackTimer !== null) {
     clearInterval(target.fallbackTimer)

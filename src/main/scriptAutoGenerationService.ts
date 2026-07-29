@@ -1,7 +1,7 @@
-import { BrowserWindow } from 'electron'
 import type { ScriptGenerationEvent } from '../renderer/src/types/llm'
 import { generateInterviewScript, getAnthropicKey, toLlmError } from './llmService'
 import * as repository from './db/repository'
+import { broadcastToAllWindows } from './windowBroadcast'
 
 /**
  * Autogeneración del guión al crear la captura (SPEC-033). Vive SOLO en main
@@ -21,11 +21,9 @@ import * as repository from './db/repository'
  */
 
 function emitScriptGenerationEvent(event: ScriptGenerationEvent): void {
-  for (const window of BrowserWindow.getAllWindows()) {
-    if (!window.webContents.isDestroyed()) {
-      window.webContents.send('llm:script-generation', event)
-    }
-  }
+  // SPEC-059: el bucle sobre todas las ventanas vive ahora en windowBroadcast,
+  // compartido con la señal `db:interview-updated`. Mismo comportamiento.
+  broadcastToAllWindows('llm:script-generation', event)
 }
 
 /**
@@ -69,6 +67,11 @@ export function autoGenerateInterviewScript(interviewId: string): void {
   generateInterviewScript(interviewId)
     .then((updated) => {
       emitScriptGenerationEvent({ interviewId, status: 'done', interview: updated })
+      // SPEC-059: este camino NO emite `db:interview-updated`. La ventana
+      // desacoplada del guión solo puede existir durante la grabación (su botón
+      // vive tras `capturing`) y la autogeneración dispara al CREAR la captura,
+      // así que no hay espejo que hidratar; emitirlo aquí solo añadiría un
+      // envío que la invariante «nada duplicado» de SPEC-033 no admite.
     })
     .catch((error: unknown) => {
       emitScriptGenerationEvent({

@@ -305,9 +305,13 @@ function CaptureDetailContent({
 
         <ObjectivesSection interview={interview} onInterviewUpdated={onInterviewUpdated} />
 
-        <AssistantLiveSection controller={controller} />
+        <AssistantLiveSection controller={controller} interviewId={interview.id} />
 
-        <NoteScriptSections interview={interview} onInterviewUpdated={onInterviewUpdated} />
+        <NoteScriptSections
+          interview={interview}
+          onInterviewUpdated={onInterviewUpdated}
+          capturing={controller.capturing}
+        />
       </OnboardingBridgeProvider>
 
       <AssignCompanySheet

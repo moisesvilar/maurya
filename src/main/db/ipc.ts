@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
-import type { DbResult } from '../../renderer/src/types/domain'
+import type { DbResult, UpdateInterviewPatch } from '../../renderer/src/types/domain'
+import { broadcastInterviewUpdated } from '../windowBroadcast'
 import { toDbError } from './errors'
 import { getStatus, initStore } from './store'
 import * as repository from './repository'
@@ -64,7 +65,15 @@ export function registerDbIpcHandlers(): void {
   handleDb('db:interview:create', repository.createInterview)
   handleDb('db:interview:list', repository.listInterviews)
   handleDb('db:interview:get', repository.getInterview)
-  handleDb('db:interview:update', repository.updateInterview)
+  // SPEC-059: el guardado manual del guión (ScriptSection) pasa por aquí, así
+  // que la mutación se envuelve para difundir la entrevista persistida a la
+  // ventana desacoplada del guión. El try/catch de handleDb sigue gobernando
+  // el envelope: si la mutación lanza, no hay difusión.
+  handleDb('db:interview:update', (id: string, patch: UpdateInterviewPatch) => {
+    const updated = repository.updateInterview(id, patch)
+    broadcastInterviewUpdated(updated)
+    return updated
+  })
   handleDb('db:interview:delete', repository.deleteInterview)
   // SPEC-058: marcas del banner de onboarding (main-only, nunca por patch)
   handleDb('db:interview:confirm-objectives', repository.confirmInterviewObjectives)

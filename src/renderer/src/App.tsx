@@ -4,6 +4,7 @@ import { Layout } from '@/components/layout/Layout'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { AssistantWindowPage } from '@/pages/AssistantWindowPage'
 import { CaptureDetailPage } from '@/pages/CaptureDetailPage'
 import { CapturesPage } from '@/pages/CapturesPage'
 import { CompaniesPage } from '@/pages/CompaniesPage'
@@ -15,7 +16,9 @@ import { InterviewGroupDetailPage } from '@/pages/InterviewGroupDetailPage'
 import { InterviewTemplateEditorPage } from '@/pages/InterviewTemplateEditorPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { NoteTemplateEditorPage } from '@/pages/NoteTemplateEditorPage'
+import { ScriptWindowPage } from '@/pages/ScriptWindowPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { DETACHED_ROUTES } from '@/types/detached'
 
 /**
  * SPEC-044: la ruta anidada legada de empresa redirige al detalle global.
@@ -51,6 +54,11 @@ function LegacyInterviewTemplateRedirect(): React.ReactElement {
  * SPEC-051: la gestión de plantillas se unifica en Ajustes (deroga el hub
  * /templates de SPEC-009/012); el editor de plantilla de entrevista cuelga de
  * /settings/interview-templates/* y las rutas /templates* redirigen (replace).
+ * SPEC-059: primera excepción al «todas las rutas bajo el Layout» — las vistas
+ * de las ventanas desacopladas (/detached/*) son hermanas de la ruta del
+ * Layout, sin sidebar ni top bar. Siguen bajo ThemeProvider (el tema se
+ * comparte por el localStorage del mismo origen), TooltipProvider (las
+ * acciones inline del panel lo necesitan) y Toaster.
  */
 function App(): React.ReactElement {
   return (
@@ -108,6 +116,15 @@ function App(): React.ReactElement {
               />
               <Route path="*" element={<NotFoundPage />} />
             </Route>
+            {/* SPEC-059: las vistas de las ventanas desacopladas son HERMANAS
+                de la ruta del Layout — no cuelgan de él (nada de sidebar ni
+                top bar: la ventana secundaria es una vista dedicada de
+                consulta). El splat 404 del Layout no las captura: React Router
+                ordena por especificidad y los segmentos estáticos ganan. La
+                ruta la declara DETACHED_ROUTES, el mismo módulo con el que
+                main construye el hash de carga. */}
+            <Route path={DETACHED_ROUTES.assistant} element={<AssistantWindowPage />} />
+            <Route path={DETACHED_ROUTES.script} element={<ScriptWindowPage />} />
           </Routes>
         </HashRouter>
         <Toaster />

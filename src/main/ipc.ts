@@ -47,6 +47,7 @@ import {
   toNoteExportError
 } from './noteService'
 import {
+  getAssistantSnapshot,
   peekAssistantObjectivesMet,
   resolveAssistantItem,
   resumeAssistantLimit,
@@ -54,6 +55,9 @@ import {
   startAssistant,
   stopAssistant
 } from './assistantService'
+import { closeDetachedWindows, openDetachedWindow } from './detachedWindows'
+import { isDetachedComponent } from '../renderer/src/types/detached'
+import { broadcastInterviewUpdated } from './windowBroadcast'
 import type { AssistantQuestionOutcome } from '../renderer/src/types/assistant'
 import {
   evaluateInterviewObjectives,
@@ -129,7 +133,15 @@ export function registerIpcHandlers(): void {
   handleSecrets('secrets:remove', (kind: SecretKind) => removeSecret(kind))
 
   handleLlm('llm:get-status', getLlmStatus)
-  handleLlm('llm:generate-script', (interviewId: string) => generateInterviewScript(interviewId))
+  // SPEC-059: la generación manual difunde la entrevista persistida para que
+  // la ventana desacoplada del guión muestre la versión nueva sin reabrirla.
+  // El envelope lo sigue gobernando handleLlm: si la generación rechaza, no
+  // hay difusión.
+  handleLlm('llm:generate-script', async (interviewId: string) => {
+    const updated = await generateInterviewScript(interviewId)
+    broadcastInterviewUpdated(updated)
+    return updated
+  })
   // Nota de resumen (SPEC-017): mismo envelope LlmResult que el guión
   handleLlm('llm:generate-note', (interviewId: string, noteTemplateId: string) =>
     generateInterviewNote(interviewId, noteTemplateId)
@@ -185,6 +197,21 @@ export function registerIpcHandlers(): void {
   ipcMain.on('window:set-theme', (_event, theme: unknown) => {
     if (theme === 'light' || theme === 'dark' || theme === 'system') {
       nativeTheme.themeSource = theme
+    }
+  })
+
+  /**
+   * Ventanas desacopladas del asistente y del guión (SPEC-059): fire-and-forget
+   * con el mismo criterio que `window:set-theme` — un payload inesperado se
+   * ignora en silencio. Sin envelope: abrir una ventana no tiene fallo
+   * accionable para el renderer. Sin guard de `isRecordingActive()`: el gate
+   * «solo durante la grabación» es una regla de UI (los botones no existen
+   * fuera de ella) y una ventana abierta sin grabación moriría igualmente con
+   * la principal.
+   */
+  ipcMain.on('window:open-detached', (_event, component: unknown, interviewId: unknown) => {
+    if (isDetachedComponent(component) && typeof interviewId === 'string' && interviewId !== '') {
+      openDetachedWindow(component, interviewId)
     }
   })
 
@@ -247,6 +274,12 @@ export function registerIpcHandlers(): void {
     // Deepgram ni la parada del WAV pueden disparar más análisis; una
     // respuesta aún en vuelo se descarta en el servicio.
     const assistantSummary = stopAssistant()
+    // Las ventanas desacopladas (SPEC-059) también se cierran SÍNCRONO y
+    // primero, con el mismo criterio que el asistente: ni el flush de Deepgram
+    // ni la parada del WAV pueden dejar una ventana espejo congelada. Este es
+    // el punto único de parada, así que cubre Detener, auto-stop y cualquier
+    // otra vía.
+    closeDetachedWindows()
     // Después el flush de Deepgram (CloseStream + últimos finales), luego el WAV
     await finishTranscription()
     let result: ReturnType<typeof stopRecording>
@@ -358,4 +391,10 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('assistant:resume', () => {
     resumeAssistantLimit()
   })
+
+  // Snapshot del asistente (SPEC-059): hidratación de la ventana desacoplada,
+  // que abre a mitad de sesión y no puede esperar al siguiente análisis. Sin
+  // envelope (no puede fallar): sin sesión devuelve null, precedente
+  // `permissions:get-status` / `recording:get-transcript-stats`.
+  ipcMain.handle('assistant:get-snapshot', () => getAssistantSnapshot())
 }

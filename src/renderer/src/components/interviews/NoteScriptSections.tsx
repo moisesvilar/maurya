@@ -11,6 +11,11 @@ type NotePresence = 'loading' | 'present' | 'absent'
 interface NoteScriptSectionsProps {
   interview: Interview
   onInterviewUpdated: (interview: Interview) => void
+  /**
+   * Grabación en curso (SPEC-059): se reenvía a ScriptSection, que la usa para
+   * mostrar el botón de desacople del guión. OPCIONAL con default false.
+   */
+  capturing?: boolean
 }
 
 /**
@@ -31,7 +36,8 @@ interface NoteScriptSectionsProps {
  */
 export function NoteScriptSections({
   interview,
-  onInterviewUpdated
+  onInterviewUpdated,
+  capturing = false
 }: NoteScriptSectionsProps): React.ReactElement {
   const [notePresence, setNotePresence] = useState<NotePresence>('loading')
 
@@ -82,7 +88,11 @@ export function NoteScriptSections({
           />
         </TabsContent>
         <TabsContent value="script" forceMount className="data-[state=inactive]:hidden">
-          <ScriptSection interview={interview} onInterviewUpdated={onInterviewUpdated} />
+          <ScriptSection
+            interview={interview}
+            onInterviewUpdated={onInterviewUpdated}
+            capturing={capturing}
+          />
         </TabsContent>
       </Tabs>
     )
@@ -101,8 +111,14 @@ export function NoteScriptSections({
     />
   ) : null
 
+  // Rama compartida por las dos composiciones apiladas (nota primero y guión
+  // primero): un único punto de cableado de `capturing` para las dos.
   const scriptSection = (
-    <ScriptSection interview={interview} onInterviewUpdated={onInterviewUpdated} />
+    <ScriptSection
+      interview={interview}
+      onInterviewUpdated={onInterviewUpdated}
+      capturing={capturing}
+    />
   )
 
   return (
