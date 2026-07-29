@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { MarkdownEditor } from '@/components/markdown/MarkdownEditor'
+import { useOnboardingRegistry } from '@/components/interviews/onboardingBridge'
 import type { Interview } from '@/types/domain'
 import { SCRIPT_MAX_CHARS } from '@/types/llm'
 
@@ -143,6 +144,28 @@ export function ScriptSection({
       setGenerating(false)
     }
   }
+
+  // Espejo de la acción en el banner de onboarding (SPEC-058-iter-1, patrón de
+  // NoteSection/ObjectivesSection): la sección es la ÚNICA dueña del estado de
+  // generación, así que el banner refleja tanto la manual (invoke) como la
+  // automática (eventos SPEC-033), se dispare desde donde se dispare.
+  const registry = useOnboardingRegistry()
+  const handleGenerateRef = useRef(handleGenerate)
+  useEffect(() => {
+    handleGenerateRef.current = handleGenerate
+  })
+  useEffect(() => {
+    if (registry === null) {
+      return
+    }
+    registry.registerScriptAction({
+      busy: isGenerating,
+      disabled: disabledReason !== null,
+      disabledReason,
+      run: () => void handleGenerateRef.current()
+    })
+    return () => registry.registerScriptAction(null)
+  }, [registry, isGenerating, disabledReason])
 
   const handleSave = async (): Promise<void> => {
     setSaving(true)

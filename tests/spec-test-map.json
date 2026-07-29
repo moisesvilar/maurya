@@ -2714,12 +2714,12 @@
     "unit": [
       {
         "file": "tests/unit/interviews/InterviewOnboardingBanner.test.tsx",
-        "test_count": 21,
-        "description": "Banner aislado con controller fabricado + mockApi: derivación de los 7 pasos con sus copys y acciones literales (AC-01..08), no-retroceso al paso 1 (AC-09), salto 5→7 (AC-10), 7 segmentos done/current/pending (AC-11, aserción por clase: el estado visual del elemento aria-hidden no tiene otro observable), oculto durante grabación (AC-12) y con onboardingHiddenAt (AC-13), sin «Ocultar» en 1-6 (AC-25); acciones propias: disparo del guión + estado por eventos (AC-16 mitad banner), tooltip sin clave (AC-17), confirmación persistida → paso 4 (AC-18), handleStart del controller (AC-19), disabled por denegación dura con tooltip (AC-20), ocultar persistido (AC-24) y fallo del canal → Toast sin avanzar (AC-26)."
+        "test_count": 19,
+        "description": "Banner aislado con controller fabricado + mockApi: derivación de los 7 pasos con sus copys y acciones literales (AC-01..08), no-retroceso al paso 1 (AC-09), salto 5→7 (AC-10), 7 segmentos done/current/pending (AC-11, aserción por clase: el estado visual del elemento aria-hidden no tiene otro observable), oculto durante grabación (AC-12) y con onboardingHiddenAt (AC-13), sin «Ocultar» en 1-6 (AC-25); acciones propias: confirmación persistida → paso 4 (AC-18), handleStart del controller (AC-19), disabled por denegación dura con tooltip (AC-20), ocultar persistido (AC-24) y fallo del canal → Toast sin avanzar (AC-26). AC-16 y AC-17 se verifican en OnboardingBannerBridge.test.tsx desde SPEC-058-iter-1: con el paso 2 espejado del puente, el disparo y el motivo de deshabilitado los aporta la sección Guión y no son observables con el banner en solitario."
       },
       {
         "file": "tests/unit/interviews/OnboardingBannerBridge.test.tsx",
-        "test_count": 5,
+        "test_count": 8,
         "description": "Arnés con la composición real de las páginas (OnboardingBridgeProvider + banner + ObjectivesSection + NoteScriptSections, entrevista compartida en estado): generación del guión compartida con «Generando guión…» en ambos botones y avance al paso 3 (AC-16), generación de nota espejada vía NoteSection con «Generando nota…» en ambos y avance a paso 6 (AC-21), «Escribir nota» degradado crea la nota vacía y monta la sección Nota con el editor (AC-22, parte automatizable), evaluación espejada con «Evaluando objetivos…» en ambos y llegada al paso 7 (AC-23), y jerarquía primary del banner vs outline de «Evaluar objetivos» (AC-29)."
       },
       {
@@ -2751,5 +2751,28 @@
       "AC-29": "Contradicción interna del AC detectada por QA Dev (gap, patrón SPEC-022-iter-1): los CTA primary de los empty states de Guión/Nota (SPEC-014/017) CONSERVAN su variante actual — que es primary — así que «único primary del contenido» no se cumple literalmente en los pasos 2 y 5 mientras esos CTA estén visibles. El test fija la parte consistente (banner primary + «Evaluar objetivos» outline). Si el humano quiere el primary único literal, hay que degradar esos CTA de sección a outline vía iteración.",
       "visual": "Aspecto del banner (card, tinte verde del paso 7, responsive < md en columna): mockups del artifact enlazado en la spec; verificación visual en la app real."
     }
+  },
+  "SPEC-058-iter-1": {
+    "spec_file": "specs/SPEC-058-iter-1-onboarding-detalle-entrevista.md",
+    "unit": [
+      {
+        "file": "tests/unit/interviews/OnboardingBannerBridge.test.tsx",
+        "test_count": 4,
+        "description": "Composición real (banner + secciones dentro de OnboardingBridgeProvider): AC-16 reescrito — el botón del banner ejecuta la generación MANUAL de la sección (llm.generateScript, nunca autoGenerateScript) y ambos botones muestran «Generando guión…» hasta terminar; el defecto corregido en su sentido roto — disparo desde el botón de la SECCIÓN y el banner pasa a «Generando guión…» deshabilitado y vuelve al terminar; la autogeneración de SPEC-033 (eventos llm:script-generation) sigue espejándose en el banner sin invocar la generación manual; AC-17 reubicado — sin clave el botón espejado queda deshabilitado con el mismo motivo que la sección."
+      },
+      {
+        "file": "tests/unit/script/ScriptSection.test.tsx",
+        "test_count": 1,
+        "description": "Regresión del defecto en la página real (InterviewDetailPage): al generar desde la sección Guión el botón del banner muestra «Generando guión…» y está deshabilitado. Adaptación del test de SPEC-014 AC-01, cuyo locator global de «Generando guión…» dejó de ser único justo por el fix."
+      }
+    ],
+    "unit_note": "Los 4 tests del arnés del puente sustituyen (no debilitan) a los 2 que vivían en InterviewOnboardingBanner.test.tsx con el banner en solitario: SPEC-058-iter-1 pasa el paso 2 al espejo, así que el disparo y el motivo de deshabilitado los aporta la sección Guión y no son observables sin ella. La cobertura de AC-16/AC-17 crece: se verifica en la composición real de las páginas y en los dos sentidos del estado compartido.",
+    "e2e": [],
+    "e2e_note": "e2e (Playwright) no aplica en este proyecto: app Electron local sin public link (decisión humana 2026-07-03). QA automatizado = Vitest unit.",
+    "manual_verification": {
+      "metodo": "Verificación manual en la app con clave de Anthropic configurada, sobre una entrevista con plantilla y sin guión (paso 2 del banner).",
+      "pendiente": "(1) Generar desde el botón de la sección Guión → ambos botones en «Generando guión…» deshabilitados y ambos de vuelta al terminar, con el banner en paso 3; (2) mismo resultado disparando desde el botón del banner, incluido el Toast «Guión generado» que ahora aparece también en ese camino; (3) crear una captura con plantilla y clave (autogeneración SPEC-033) → ambos botones en «Generando guión…»; (4) sin clave → botón del banner deshabilitado con el mismo Tooltip que la sección."
+    },
+    "notes": "Iteración de corrección de defecto detectado por el humano en QA manual (2026-07-29): la generación disparada desde la sección Guión dejaba el botón del banner habilitado. Causa raíz: dos caminos IPC (llm:generate-script con estado local en ScriptSection vs llm:auto-generate-script con eventos) y el banner solo observaba el segundo. Fix: el paso 2 pasa al espejo del puente onboardingBridge (patrón ya usado por los pasos 5 y 6), con la sección como única dueña del estado. Solo renderer; cero cambios de IPC, main, preload o persistencia."
   }
 }

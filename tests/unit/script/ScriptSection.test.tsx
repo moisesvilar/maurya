@@ -139,14 +139,18 @@ describe('ScriptSection', () => {
       // Dos botones "Generar guión" (cabecera + empty state). OJO: hasta que
       // llm.getStatus resuelve, solo existe el de cabecera y está DISABLED →
       // esperar al estado habilitado (aparece el CTA del empty) antes de clicar
-      await waitFor(() =>
-        expect(sectionButtons('Generar guión')).toHaveLength(2)
-      )
+      await waitFor(() => expect(sectionButtons('Generar guión')).toHaveLength(2))
       await user.click(sectionButtons('Generar guión')[0])
 
-      const loading = await screen.findByRole('button', { name: 'Generando guión…' })
-      expect(loading).toBeDisabled()
+      // SPEC-058-iter-1: el botón del banner también pasa a «Generando guión…»
+      // al disparar desde la sección → la query de sección deja de ser única
+      await waitFor(() => expect(sectionButtons('Generando guión…')[0]).toBeDisabled())
       expect(vi.mocked(mockApi.api.llm.generateScript)).toHaveBeenCalledWith('i-1')
+      // El defecto que corrige la iteración: el banner NO se quedaba habilitado
+      // con «Generar guión» mientras la sección generaba
+      const bannerAction = screen.getByTestId('onboarding-step-action')
+      expect(bannerAction).toHaveTextContent('Generando guión…')
+      expect(bannerAction).toBeDisabled()
 
       resolveGeneration({ ok: true, data: GENERATED })
 
@@ -236,9 +240,7 @@ describe('ScriptSection', () => {
       renderDetail()
 
       // Esperar al estado habilitado (getStatus resuelto) antes de clicar
-      await waitFor(() =>
-        expect(sectionButtons('Generar guión')).toHaveLength(2)
-      )
+      await waitFor(() => expect(sectionButtons('Generar guión')).toHaveLength(2))
       await user.click(sectionButtons('Generar guión')[0])
 
       const toasts = await screen.findAllByText(
@@ -282,9 +284,7 @@ describe('ScriptSection', () => {
       expect(await screen.findByText('Aún no hay guión')).toBeInTheDocument()
       // Cabecera + CTA del empty state, ambos habilitados (el CTA aparece al
       // resolver getStatus: waitFor, no findAll — que resolvería con 1)
-      await waitFor(() =>
-        expect(sectionButtons('Generar guión')).toHaveLength(2)
-      )
+      await waitFor(() => expect(sectionButtons('Generar guión')).toHaveLength(2))
       sectionButtons('Generar guión').forEach((button) => expect(button).toBeEnabled())
       // El secundario provisional de SPEC-013 está derogado
       expect(
@@ -554,9 +554,7 @@ describe('ScriptSection', () => {
     // no enciende el indicador de esta
     it('ignores script-generation events of another interview keeping the enabled generate buttons', async () => {
       renderDetail()
-      await waitFor(() =>
-        expect(sectionButtons('Generar guión')).toHaveLength(2)
-      )
+      await waitFor(() => expect(sectionButtons('Generar guión')).toHaveLength(2))
 
       act(() => {
         mockApi.emitScriptGeneration({ interviewId: 'i-otra', status: 'generating' })
@@ -572,9 +570,7 @@ describe('ScriptSection', () => {
     // y sustituyendo al botón del empty state
     it('shows the disabled "Generando guión…" indicator in the header and replacing the empty state CTA on its generating event', async () => {
       renderDetail()
-      await waitFor(() =>
-        expect(sectionButtons('Generar guión')).toHaveLength(2)
-      )
+      await waitFor(() => expect(sectionButtons('Generar guión')).toHaveLength(2))
 
       act(() => {
         mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })
@@ -593,9 +589,7 @@ describe('ScriptSection', () => {
     // «Preparada» vía onInterviewUpdated, sin acción del usuario ni Toast de éxito
     it('renders the generated script, objectives and "Preparada" badge on the done event without a success toast', async () => {
       renderDetail()
-      await waitFor(() =>
-        expect(sectionButtons('Generar guión')).toHaveLength(2)
-      )
+      await waitFor(() => expect(sectionButtons('Generar guión')).toHaveLength(2))
 
       act(() => {
         mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })
@@ -632,9 +626,7 @@ describe('ScriptSection', () => {
         })
       )
       renderDetail()
-      await waitFor(() =>
-        expect(sectionButtons('Generar guión')).toHaveLength(2)
-      )
+      await waitFor(() => expect(sectionButtons('Generar guión')).toHaveLength(2))
 
       act(() => {
         mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })
