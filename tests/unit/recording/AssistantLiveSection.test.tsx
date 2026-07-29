@@ -35,6 +35,7 @@ import type { StopResult } from '@/types/audio'
 import type { Company, Discovery, Interview } from '@/types/domain'
 import { createFakeAudioStream } from '../../helpers/fakeMediaStream'
 import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
+import { expandTechInfo } from '../../helpers/recordingTechInfo'
 
 vi.mock('@/services/permissionsService', () => ({
   getPermissionsStatus: vi.fn(),
@@ -293,14 +294,16 @@ describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
 
     // SPEC-041 · AC-04 (estado Grabada: el panel no aparece)
     it('does not render the assistant panel on an already recorded interview', async () => {
+      const user = userEvent.setup()
       vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({
         ok: true,
         data: interview({ wavPath: WAV_PATH, status: 'recorded' })
       })
       renderInterviewDetail()
 
-      // Estado 3 — Grabada (resumen persistente con la ruta del WAV)
-      expect(await screen.findByText(WAV_PATH)).toBeInTheDocument()
+      // Estado 3 — Grabada, acreditado por la ruta del WAV; desde SPEC-059 vive
+      // tras el desplegable de información técnica del final de la página
+      expect(within(await expandTechInfo(user)).getByText(WAV_PATH)).toBeInTheDocument()
       expect(screen.queryByTestId('assistant-live-section')).not.toBeInTheDocument()
     })
 

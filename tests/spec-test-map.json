@@ -2774,5 +2774,28 @@
       "pendiente": "(1) Generar desde el botón de la sección Guión → ambos botones en «Generando guión…» deshabilitados y ambos de vuelta al terminar, con el banner en paso 3; (2) mismo resultado disparando desde el botón del banner, incluido el Toast «Guión generado» que ahora aparece también en ese camino; (3) crear una captura con plantilla y clave (autogeneración SPEC-033) → ambos botones en «Generando guión…»; (4) sin clave → botón del banner deshabilitado con el mismo Tooltip que la sección."
     },
     "notes": "Iteración de corrección de defecto detectado por el humano en QA manual (2026-07-29): la generación disparada desde la sección Guión dejaba el botón del banner habilitado. Causa raíz: dos caminos IPC (llm:generate-script con estado local en ScriptSection vs llm:auto-generate-script con eventos) y el banner solo observaba el segundo. Fix: el paso 2 pasa al espejo del puente onboardingBridge (patrón ya usado por los pasos 5 y 6), con la sección como única dueña del estado. Solo renderer; cero cambios de IPC, main, preload o persistencia."
+  },
+  "SPEC-059": {
+    "spec_file": "specs/SPEC-059-ocultar-metricas-tecnicas.md",
+    "unit": [
+      {
+        "file": "tests/unit/recording/RecordingTechInfo.test.tsx",
+        "test_count": 16,
+        "description": "Suite propia de la spec sobre las DOS páginas de detalle reales bajo <Layout/>. AC-01 el trigger «Mostrar información técnica de la grabación» cierra la página, después de Guión y Nota (compareDocumentPosition); AC-02 plegado por defecto, sin latencia ni rutas; AC-03 al pulsar despliega con la fila «Latencia STT» completa (mediana/p95/máx/N + Badge OK) y las dos rutas; AC-04 el segundo click pliega y las métricas dejan de existir, con el literal del trigger constante; AC-05 latencia y rutas aparecen UNA sola vez en el documento y por debajo de la cabecera (ya no en la superficie); AC-06/AC-07 mismo trigger plegado y mismo contenido en el detalle de captura; AC-08 Preparación y AC-09 Grabando no renderizan la sección; AC-10 «Nueva grabación» confirmada la hace desaparecer; AC-11 sin estadísticas de latencia solo las dos rutas (sin fila y sin hueco: exactamente 2 párrafos monoespaciados); AC-12 con transcriptPath nulo solo la ruta del WAV (1 párrafo) y ni siquiera se consulta getTranscriptStats; AC-13/AC-14 los avisos de modo degradado y «Falta la key» siguen bajo la cabecera mientras se graba, cuando el desplegable ni existe; AC-15 el único estado donde alerta y desplegable coexisten (parada por desconexión del dispositivo): la alerta queda fuera del Collapsible y antes que él; AC-17 tras desmontar y volver a montar la página el desplegable reaparece plegado."
+      },
+      {
+        "file": "tests/unit/recording/DiscardReasonsDialog.test.tsx",
+        "test_count": 4,
+        "description": "AC-16 (no regresión): el diálogo «Preguntas descartadas» se sigue abriendo igual tras la parada, y su caso negativo acredita el estado Grabada a través del desplegable nuevo. Suite de SPEC-039 adaptada a la ubicación nueva."
+      }
+    ],
+    "unit_note": "La cobertura del contenido (formato de LatencyRow, umbral OK/Lenta) NO se duplica: sigue en las suites de SPEC-003/015 — esta spec no cambia el bloque, solo lo reubica. Cuatro suites heredadas asertaban las métricas bajo la cabecera y se han ADAPTADO a la ubicación nueva (derogación posicional, cero tests borrados o debilitados): RecordingSection.test.tsx (SPEC-015 AC-05/AC-08/AC-11/AC-13, más un assert NUEVO en AC-12: al volver a Preparación el desplegable deja de existir), CaptureDetailPage.test.tsx (SPEC-020 AC-15), CaptureDetailPage.recordingControls.test.tsx (SPEC-034 AC-08) y AssistantLiveSection.test.tsx (SPEC-041 AC-04). Todas pasan por el helper compartido tests/helpers/recordingTechInfo.ts.",
+    "e2e": [],
+    "e2e_note": "e2e (Playwright) no aplica en este proyecto: app Electron local sin public link (decisión humana 2026-07-03). QA automatizado = Vitest unit.",
+    "manual_verification": {
+      "metodo": "Verificación visual en la app real sobre una entrevista y una captura ya grabadas.",
+      "pendiente": "(1) Aspecto del trigger ghost con tipografía secundaria y la rotación del chevron a 90° al desplegar (jsdom no compone transform ni clases Tailwind); (2) que el desplegable quede efectivamente al final de la pantalla, por debajo de Nota/Guión, con scroll real; (3) comportamiento responsive en ventana estrecha (< md): rutas rompiendo por break-all y la fila de latencia envolviendo a varias líneas."
+    },
+    "notes": "Origen: issue de GitHub #39 (no venía del checklist — precedente SPEC-020/049: nada que marcar [x]). Reubicación 100% renderer: cero cambios de main, preload, persistencia, canales IPC o tipos compartidos, y cero dependencias nuevas (Collapsible sale del paquete unificado radix-ui ya instalado, patrón SPEC-028). RecordingSurface pierde el bloque de Grabada, el import de LatencyRow y la prop `interview`, y `recorded` sale de showBlock para no reservar espacio. Deroga POSICIONALMENTE el detalle de archivo de SPEC-015/030/055; los avisos y diálogos de la superficie no se mueven. /capture (ResultSection) y LatencyRow intactos."
   }
 }
