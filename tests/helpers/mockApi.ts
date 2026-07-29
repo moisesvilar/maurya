@@ -247,6 +247,40 @@ function createMockDbApi(): DbApi {
       .mockResolvedValue({ ok: true, data: { url: null } }),
     setLinkedinMcpSettings: vi.fn<DbApi['setLinkedinMcpSettings']>(),
 
+    // SPEC-059: onboarding de la app. El default deja el banner OCULTO
+    // (`hiddenAt` persistido): es el único estado `ok: true` con el que
+    // AppOnboardingBanner devuelve null, así que las suites de /captures (y las
+    // de layout, que montan la home) no ven ni una fila ni un botón de más.
+    // Los tests del banner sobreescriben el estado con vi.mocked(...).
+    getOnboardingStatus: vi.fn<DbApi['getOnboardingStatus']>().mockResolvedValue({
+      ok: true,
+      data: {
+        settings: { promptsReviewedAt: null, hiddenAt: '2026-07-29T09:00:00.000Z' },
+        hasInterviewTemplate: false,
+        hasNoteTemplate: false,
+        hasCompany: false,
+        hasContact: false,
+        hasDiscovery: false,
+        hasInterviewGroup: false,
+        hasGroupedInterview: false,
+        firstCompanyId: null,
+        firstDiscoveryId: null,
+        firstGroup: null
+      }
+    }),
+    // Las dos marcas resuelven ok por defecto (coherentes con el estado oculto
+    // de arriba); los tests que las observan las reconfiguran.
+    markOnboardingPromptsReviewed: vi
+      .fn<DbApi['markOnboardingPromptsReviewed']>()
+      .mockResolvedValue({
+        ok: true,
+        data: { promptsReviewedAt: '2026-07-29T09:00:00.000Z', hiddenAt: null }
+      }),
+    hideAppOnboarding: vi.fn<DbApi['hideAppOnboarding']>().mockResolvedValue({
+      ok: true,
+      data: { promptsReviewedAt: null, hiddenAt: '2026-07-29T09:00:00.000Z' }
+    }),
+
     // SPEC-026: prompts de IA personalizables (default de solo-lectura seguro:
     // catálogo vacío; save/reset se configuran por test)
     listCustomPrompts: vi.fn<DbApi['listCustomPrompts']>().mockResolvedValue({
