@@ -110,6 +110,14 @@ const db: DbApi = {
   setLinkedinMcpSettings: (settings) =>
     ipcRenderer.invoke('db:linkedin-mcp-settings:set', settings),
 
+  // Onboarding de la app (SPEC-059): estado agregado de los 8 pasos + las dos
+  // marcas persistidas. `hideAppOnboarding` no es `hideInterviewOnboarding`
+  // (SPEC-058, otro dominio): el banner de la home y el del detalle no comparten
+  // ni estado ni canales.
+  getOnboardingStatus: () => ipcRenderer.invoke('db:onboarding:get-status'),
+  markOnboardingPromptsReviewed: () => ipcRenderer.invoke('db:onboarding:mark-prompts-reviewed'),
+  hideAppOnboarding: () => ipcRenderer.invoke('db:onboarding:hide'),
+
   // Prompts de IA personalizables (SPEC-026): catálogo fijo, override→default.
   listCustomPrompts: () => ipcRenderer.invoke('db:custom-prompt:list'),
   saveCustomPrompt: (id, body) => ipcRenderer.invoke('db:custom-prompt:save', id, body),

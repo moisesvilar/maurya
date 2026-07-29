@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AppOnboardingBanner } from '@/components/captures/AppOnboardingBanner'
 import { AssignCompanySheet } from '@/components/captures/AssignCompanySheet'
 import { EditCaptureDialog } from '@/components/captures/EditCaptureDialog'
 import { NewCaptureDialog } from '@/components/captures/NewCaptureDialog'
@@ -123,6 +124,11 @@ export function CapturesPage(): React.ReactElement {
           Nueva captura
         </Button>
       </div>
+
+      {/* SPEC-059: guía de primeros pasos, entre la cabecera y el listado (los
+          chips de filtro son parte del listado). Se autogobierna y no renderiza
+          nada mientras carga, si falla la derivación o si está oculta. */}
+      <AppOnboardingBanner />
 
       <div className="flex items-center gap-2">
         <Button
