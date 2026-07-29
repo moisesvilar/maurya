@@ -11,6 +11,8 @@ type NotePresence = 'loading' | 'present' | 'absent'
 interface NoteScriptSectionsProps {
   interview: Interview
   onInterviewUpdated: (interview: Interview) => void
+  /** Grabación en curso: la sección Guión la necesita para el criterio de banner visible (SPEC-059). */
+  capturing: boolean
 }
 
 /**
@@ -31,7 +33,8 @@ interface NoteScriptSectionsProps {
  */
 export function NoteScriptSections({
   interview,
-  onInterviewUpdated
+  onInterviewUpdated,
+  capturing
 }: NoteScriptSectionsProps): React.ReactElement {
   const [notePresence, setNotePresence] = useState<NotePresence>('loading')
 
@@ -82,7 +85,11 @@ export function NoteScriptSections({
           />
         </TabsContent>
         <TabsContent value="script" forceMount className="data-[state=inactive]:hidden">
-          <ScriptSection interview={interview} onInterviewUpdated={onInterviewUpdated} />
+          <ScriptSection
+            interview={interview}
+            onInterviewUpdated={onInterviewUpdated}
+            capturing={capturing}
+          />
         </TabsContent>
       </Tabs>
     )
@@ -102,7 +109,11 @@ export function NoteScriptSections({
   ) : null
 
   const scriptSection = (
-    <ScriptSection interview={interview} onInterviewUpdated={onInterviewUpdated} />
+    <ScriptSection
+      interview={interview}
+      onInterviewUpdated={onInterviewUpdated}
+      capturing={capturing}
+    />
   )
 
   return (

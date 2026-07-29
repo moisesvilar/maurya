@@ -55,11 +55,15 @@ const EVALUATION_ERROR_TOAST = 'No se pudieron evaluar los objetivos'
  * PERSISTIDO y toleran índices nuevos del draft. La invalidación de
  * evaluación/marcas al cambiar la lista la hace el repositorio (SPEC-025/028),
  * no el renderer. El bloque de edición del Guión queda derogado.
+ * SPEC-059: la sección deja de ser incondicional — sin guión y sin objetivos
+ * no aporta nada y compite con el banner de onboarding, así que no se pinta.
+ * En cuanto hay guión (que propone objetivos) u objetivos añadidos a mano,
+ * vuelve: nunca se ocultan datos creados por el usuario.
  */
 export function ObjectivesSection({
   interview,
   onInterviewUpdated
-}: ObjectivesSectionProps): React.ReactElement {
+}: ObjectivesSectionProps): React.ReactElement | null {
   const [keyStatus, setKeyStatus] = useState<KeyStatus>('loading')
   /** Índices cubiertos por el seguimiento en vivo (acumulativo, lo mantiene main). */
   const [liveMet, setLiveMet] = useState<number[]>([])
@@ -262,6 +266,13 @@ export function ObjectivesSection({
         </TooltipContent>
       </Tooltip>
     )
+  }
+
+  // SPEC-059: estado limpio previo al guión — la única acción que importa
+  // entonces es generarlo desde el banner. Se decide sobre lo PERSISTIDO (no
+  // sobre el draft): así la sección nunca se desmonta a media edición.
+  if (interview.scriptMarkdown === null && objectives.length === 0) {
+    return null
   }
 
   return (
