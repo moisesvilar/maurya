@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * SPEC-059: señal `db:interview-updated` — main difunde la entrevista
+ * SPEC-062: señal `db:interview-updated` — main difunde la entrevista
  * persistida por los caminos que tocan el guión para que la ventana
  * desacoplada muestre la versión nueva sin reabrirla. Aquí se cubre el camino
  * del GUARDADO MANUAL (`db:interview:update`, src/main/db/ipc.ts), que no
@@ -103,7 +103,7 @@ beforeEach(() => {
   }).id
 })
 
-describe('db:interview-updated (SPEC-059)', () => {
+describe('db:interview-updated (SPEC-062)', () => {
   it('broadcasts the persisted interview to every window after a manual script save', () => {
     const result = callHandler<DbResult<Interview>>('db:interview:update', interviewId, {
       scriptMarkdown: '# Guión editado a mano'

@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * SPEC-059: ciclo de vida de las ventanas desacopladas
+ * SPEC-062: ciclo de vida de las ventanas desacopladas
  * (src/main/detachedWindows.ts) con `electron` mockeado — clase BrowserWindow
  * falsa que registra opciones de construcción, listeners y llamadas. Cubre la
  * parte automatizable de los ACs de «Ventanas nativas» (opciones con las que
@@ -146,7 +146,7 @@ beforeEach(() => {
   } as ReturnType<typeof repository.getInterview>)
 })
 
-describe('detachedWindows (SPEC-059)', () => {
+describe('detachedWindows (SPEC-062)', () => {
   it('creates a normal resizable window with the spec geometry and the composed title', () => {
     openDetachedWindow('assistant', 'i-1')
 

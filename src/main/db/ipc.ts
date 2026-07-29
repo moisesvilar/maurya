@@ -65,7 +65,7 @@ export function registerDbIpcHandlers(): void {
   handleDb('db:interview:create', repository.createInterview)
   handleDb('db:interview:list', repository.listInterviews)
   handleDb('db:interview:get', repository.getInterview)
-  // SPEC-059: el guardado manual del guión (ScriptSection) pasa por aquí, así
+  // SPEC-062: el guardado manual del guión (ScriptSection) pasa por aquí, así
   // que la mutación se envuelve para difundir la entrevista persistida a la
   // ventana desacoplada del guión. El try/catch de handleDb sigue gobernando
   // el envelope: si la mutación lanza, no hay difusión.
@@ -109,6 +109,12 @@ export function registerDbIpcHandlers(): void {
   // Ajustes del MCP de LinkedIn: URL del servidor (el token va por secrets:*).
   handleDb('db:linkedin-mcp-settings:get', repository.getLinkedinMcpSettings)
   handleDb('db:linkedin-mcp-settings:set', repository.setLinkedinMcpSettings)
+
+  // Onboarding de la app (SPEC-060): lectura agregada de los 8 pasos + las dos
+  // marcas persistidas (main-only, nunca por patch genérico).
+  handleDb('db:onboarding:get-status', repository.getAppOnboardingStatus)
+  handleDb('db:onboarding:mark-prompts-reviewed', repository.markOnboardingPromptsReviewed)
+  handleDb('db:onboarding:hide', repository.hideAppOnboarding)
 
   // Prompts de IA personalizables (SPEC-026): catálogo fijo, override→default.
   handleDb('db:custom-prompt:list', listCustomPrompts)

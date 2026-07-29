@@ -21,7 +21,7 @@ import { broadcastToAllWindows } from './windowBroadcast'
  */
 
 function emitScriptGenerationEvent(event: ScriptGenerationEvent): void {
-  // SPEC-059: el bucle sobre todas las ventanas vive ahora en windowBroadcast,
+  // SPEC-062: el bucle sobre todas las ventanas vive ahora en windowBroadcast,
   // compartido con la señal `db:interview-updated`. Mismo comportamiento.
   broadcastToAllWindows('llm:script-generation', event)
 }
@@ -67,7 +67,7 @@ export function autoGenerateInterviewScript(interviewId: string): void {
   generateInterviewScript(interviewId)
     .then((updated) => {
       emitScriptGenerationEvent({ interviewId, status: 'done', interview: updated })
-      // SPEC-059: este camino NO emite `db:interview-updated`. La ventana
+      // SPEC-062: este camino NO emite `db:interview-updated`. La ventana
       // desacoplada del guión solo puede existir durante la grabación (su botón
       // vive tras `capturing`) y la autogeneración dispara al CREAR la captura,
       // así que no hay espejo que hidratar; emitirlo aquí solo añadiría un

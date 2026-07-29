@@ -13,7 +13,7 @@ import * as repository from './db/repository'
 
 /**
  * Ciclo de vida de las ventanas desacopladas del asistente y del guión
- * (SPEC-059): creación, deduplicación por componente, título nativo y cierre.
+ * (SPEC-062): creación, deduplicación por componente, título nativo y cierre.
  * El registro de quién está vivo vive aparte (`detachedWindowRegistry.ts`),
  * puro y sin `electron`, para que el asistente pueda difundir sus eventos sin
  * importar este módulo.
@@ -28,7 +28,7 @@ import * as repository from './db/repository'
  *   registró la principal; estas ventanas nunca llaman a `getDisplayMedia`).
  */
 
-/** Geometría por defecto y mínimos (SPEC-059), idénticos para ambos componentes. */
+/** Geometría por defecto y mínimos (SPEC-062), idénticos para ambos componentes. */
 const WINDOW_WIDTH = 420
 const WINDOW_HEIGHT = 640
 const WINDOW_MIN_WIDTH = 360
@@ -119,7 +119,7 @@ export function openDetachedWindow(component: DetachedComponent, interviewId: st
 }
 
 /**
- * Cierra todas las ventanas desacopladas y vacía el registro (SPEC-059).
+ * Cierra todas las ventanas desacopladas y vacía el registro (SPEC-062).
  * Idempotente y tolerante a ventanas ya destruidas: se llama al parar la
  * grabación (síncrono y antes de cualquier await) y al cerrarse la principal.
  */

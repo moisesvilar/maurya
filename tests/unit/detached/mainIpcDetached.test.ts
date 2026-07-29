@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * SPEC-059: canales de main que sostienen las ventanas desacopladas
+ * SPEC-062: canales de main que sostienen las ventanas desacopladas
  * (src/main/ipc.ts) — `window:open-detached` con validación en frontera
  * (fire-and-forget, patrón `window:set-theme`), `assistant:get-snapshot` para
  * la hidratación, la difusión de `db:interview-updated` desde la generación
@@ -138,7 +138,7 @@ beforeEach(() => {
   registerIpcHandlers()
 })
 
-describe('canales de main de las ventanas desacopladas (SPEC-059)', () => {
+describe('canales de main de las ventanas desacopladas (SPEC-062)', () => {
   describe('window:open-detached', () => {
     it('asks the lifecycle module to open the window of the requested component', () => {
       send('window:open-detached', 'assistant', 'i-1')

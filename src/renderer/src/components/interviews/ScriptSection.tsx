@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { DetachWindowButton } from '@/components/detached/DetachWindowButton'
 import { MarkdownEditor } from '@/components/markdown/MarkdownEditor'
 import { useOnboardingRegistry } from '@/components/interviews/onboardingBridge'
+import { isOnboardingBannerVisible } from '@/lib/onboardingStep'
 import type { Interview } from '@/types/domain'
 import { SCRIPT_MAX_CHARS } from '@/types/llm'
 
@@ -27,11 +28,13 @@ interface ScriptSectionProps {
   interview: Interview
   onInterviewUpdated: (interview: Interview) => void
   /**
-   * Grabación en curso (SPEC-059): gobierna la presencia del botón que abre el
+   * Grabación en curso en la página. SPEC-061: entra en el criterio de
+   * «banner de onboarding visible», que decide si el empty state necesita su
+   * CTA de respaldo. SPEC-062: gobierna la presencia del botón que abre el
    * guión en su propia ventana — el desacople solo tiene sentido durante la
-   * llamada. OPCIONAL con default false: sin grabación el botón no existe.
+   * llamada.
    */
-  capturing?: boolean
+  capturing: boolean
 }
 
 /**
@@ -52,11 +55,18 @@ interface ScriptSectionProps {
  * Prerrequisitos de generación (template asignado y clave de Anthropic)
  * deshabilitan los botones con Tooltip/Alert; regenerar y descartar cambios
  * piden confirmación con AlertDialog.
+ * SPEC-061: sin guión, la sección NO ofrece «Generar guión» en la cabecera —
+ * duplicaba el paso 2 del banner de onboarding, que es el único primary de la
+ * página. El CTA del empty state solo reaparece como respaldo cuando el banner
+ * no está visible (oculto por el usuario o grabación en curso): entonces es la
+ * única superficie de generación que queda. La sección sigue montada y sigue
+ * siendo la dueña única del estado de generación — el banner la espeja por el
+ * puente (SPEC-058-iter-1), así que retirar botones no retira la acción.
  */
 export function ScriptSection({
   interview,
   onInterviewUpdated,
-  capturing = false
+  capturing
 }: ScriptSectionProps): React.ReactElement {
   const [keyStatus, setKeyStatus] = useState<KeyStatus>('loading')
   const [generating, setGenerating] = useState(false)
@@ -121,6 +131,9 @@ export function ScriptSection({
   // automática (eventos, SPEC-033).
   const isGenerating = generating || autoGenerating
   const canGenerate = hasTemplate && keyStatus === 'ok' && !isGenerating
+  // SPEC-061: mismo criterio que el banner (lib/onboardingStep), nunca uno
+  // paralelo — con el banner visible su paso 2 ya ofrece la generación.
+  const bannerVisible = isOnboardingBannerVisible({ interview, capturing })
 
   // SPEC-042: el dirty de la sección depende SOLO del markdown (los objetivos
   // se editan y guardan en ObjectivesSection).
@@ -212,24 +225,15 @@ export function ScriptSection({
     )
   }
 
-  /** Botón Generar/estado de carga; con Tooltip cuando está deshabilitado por prerrequisito. */
-  const generateButton = (label: string): React.ReactElement =>
-    withTooltip(
-      <Button disabled={!canGenerate} onClick={() => void handleGenerate()}>
-        {isGenerating ? <Loader2 className="animate-spin" /> : <Sparkles />}
-        {isGenerating ? 'Generando guión…' : label}
-      </Button>,
-      disabledReason
-    )
-
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold">Guión</h3>
-        {/* SPEC-059: los controles de la derecha se agrupan para que el botón
+        {/* SPEC-061: sin guión la cabecera no lleva botón de generación —
+            «Generar guión» vivía aquí duplicando el paso 2 del banner.
+            SPEC-062: los controles de la derecha se agrupan para que el botón
             de desacople no rompa el justify-between con el <h3> */}
         <div className="flex items-center gap-2">
-          {!hasScript && generateButton('Generar guión')}
           {hasScript &&
             (isGenerating ? (
               <Button variant="outline" disabled data-testid="script-regenerate-button">
@@ -250,7 +254,7 @@ export function ScriptSection({
                 disabledReason
               )
             ))}
-          {/* SPEC-059: solo durante la grabación. Sin disabledReason: consultar
+          {/* SPEC-062: solo durante la grabación. Sin disabledReason: consultar
               el guión no depende de la clave de Anthropic */}
           {capturing && (
             <DetachWindowButton
@@ -281,16 +285,20 @@ export function ScriptSection({
         <div className="flex flex-col items-center gap-3 py-12 text-center">
           <FileText className="size-8 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">Aún no hay guión</p>
-          {autoGenerating ? (
-            // Autogeneración en curso (SPEC-033): el indicador sustituye al
-            // botón del empty state (mismo Loader2 que la generación manual).
-            // Solo para la automática: en la manual el CTA del empty state
-            // desaparece (canGenerate), exactamente igual que hasta ahora (AC).
+          {isGenerating ? (
+            // SPEC-061: el indicador cubre AMBOS caminos — la autogeneración
+            // de SPEC-033 y la manual, que ahora se dispara desde el banner.
+            // Ya no duplica ningún botón: la cabecera sin guión no lleva
+            // ninguno (antes se limitaba a `autoGenerating` por eso).
             <Button disabled>
               <Loader2 className="animate-spin" />
               Generando guión…
             </Button>
           ) : (
+            // CTA de respaldo (SPEC-061): solo sin banner que ofrezca la
+            // acción; con prerrequisitos incompletos el empty state se queda
+            // sin CTA, como hasta ahora.
+            !bannerVisible &&
             canGenerate && (
               <Button onClick={() => void handleGenerate()}>
                 <Sparkles />

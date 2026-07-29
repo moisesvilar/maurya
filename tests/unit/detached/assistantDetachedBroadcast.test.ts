@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * SPEC-059: difusión de `assistant:update` a las ventanas desacopladas y
+ * SPEC-062: difusión de `assistant:update` a las ventanas desacopladas y
  * snapshot de hidratación (src/main/assistantService.ts). El asistente emite
  * por un ÚNICO despachador: el dueño de la sesión (`sender`) y, además, los
  * WebContents registrados en detachedWindowRegistry — sin doble entrega y sin
@@ -117,7 +117,7 @@ afterEach(() => {
   delete process.env['ANTHROPIC_API_KEY']
 })
 
-describe('difusión del asistente a las ventanas desacopladas (SPEC-059)', () => {
+describe('difusión del asistente a las ventanas desacopladas (SPEC-062)', () => {
   it('delivers the same event to the session owner and to every registered mirror, exactly once each', () => {
     const sender = createContents()
     const assistantMirror = registerMirror('assistant')

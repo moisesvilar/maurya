@@ -11,9 +11,16 @@
  * Frontera de mocking: api.llm + api.db. Montado vía InterviewDetailPage con
  * rutas reales (el Badge de estado vive en la cabecera de la página y se
  * actualiza con onInterviewUpdated).
- * Lecciones aplicadas: hay DOS botones "Generar guión" (cabecera + empty) →
- * getAllBy; máx 1 tooltip hover por render; sonner tolerante; sin asserts de
- * foco síncrono innecesarios. jsdom+ProseMirror: los cambios en el editor se
+ * Adaptados por SPEC-061: sin guión la sección ya NO pinta «Generar guión» —
+ * ni en la cabecera ni como CTA del empty state mientras el banner de
+ * onboarding esté visible. La generación manual se dispara desde el paso 2 del
+ * banner, que ejecuta la MISMA acción de la sección (espejo del puente,
+ * SPEC-058-iter-1), así que los ACs de generación se ejercitan por ahí; el
+ * estado ocupado sigue observándose en la sección (indicador del empty state).
+ * Los escenarios propios de la limpieza —ausencia de botones, CTA de respaldo
+ * sin banner— viven en ScriptSection.cleanState.
+ * Lecciones aplicadas: máx 1 tooltip hover por render; sonner tolerante; sin
+ * asserts de foco síncrono innecesarios. jsdom+ProseMirror: los cambios en el editor se
  * hacen vía toolbar (API de TipTap, sin beforeinput nativo); con el documento
  * intacto el editor no emite onChange, así el dirty-check y el round-trip son
  * deterministas. OJO (SPEC-029): el "Regenerar" deshabilitado va envuelto en
@@ -95,8 +102,24 @@ function setHasKey(hasAnthropicKey: boolean): void {
  */
 function sectionButtons(name: string): HTMLElement[] {
   return screen
-    .getAllByRole('button', { name })
+    .queryAllByRole('button', { name })
     .filter((button) => button.dataset.testid !== 'onboarding-step-action')
+}
+
+/**
+ * Botón «Generar guión» del paso 2 del banner, listo para clicar (SPEC-061).
+ * Espera antes al registro de la acción por la sección Guión: su heading es
+ * asíncrono (Skeleton de NoteScriptSections mientras resuelve
+ * getNoteByInterview) y, entre el montaje de la sección y la resolución de la
+ * clave, el registro deja el botón deshabilitado — esperar «heading y luego
+ * habilitado» nunca deja pasar el estado sin registrar, en el que el botón
+ * está habilitado pero su click es no-op.
+ */
+async function bannerGenerateButton(): Promise<HTMLElement> {
+  const banner = await screen.findByTestId('interview-onboarding-banner')
+  await screen.findByRole('heading', { name: 'Guión' })
+  await waitFor(() => expect(within(banner).getByTestId('onboarding-step-action')).toBeEnabled())
+  return within(banner).getByTestId('onboarding-step-action')
 }
 
 function renderDetail(): RenderResult {
@@ -136,18 +159,14 @@ describe('ScriptSection', () => {
       )
       renderDetail()
 
-      // Dos botones "Generar guión" (cabecera + empty state). OJO: hasta que
-      // llm.getStatus resuelve, solo existe el de cabecera y está DISABLED →
-      // esperar al estado habilitado (aparece el CTA del empty) antes de clicar
-      await waitFor(() => expect(sectionButtons('Generar guión')).toHaveLength(2))
-      await user.click(sectionButtons('Generar guión')[0])
+      // SPEC-061: el disparo manual vive en el banner (misma acción de la
+      // sección vía el puente); la sección ya no tiene botón que clicar
+      await user.click(await bannerGenerateButton())
 
-      // SPEC-058-iter-1: el botón del banner también pasa a «Generando guión…»
-      // al disparar desde la sección → la query de sección deja de ser única
+      // El indicador ocupado de la sección es el del empty state (único)
       await waitFor(() => expect(sectionButtons('Generando guión…')[0]).toBeDisabled())
       expect(vi.mocked(mockApi.api.llm.generateScript)).toHaveBeenCalledWith('i-1')
-      // El defecto que corrige la iteración: el banner NO se quedaba habilitado
-      // con «Generar guión» mientras la sección generaba
+      // SPEC-058-iter-1: el banner refleja el estado de la sección
       const bannerAction = screen.getByTestId('onboarding-step-action')
       expect(bannerAction).toHaveTextContent('Generando guión…')
       expect(bannerAction).toBeDisabled()
@@ -164,25 +183,23 @@ describe('ScriptSection', () => {
       expect(toasts.length).toBeGreaterThanOrEqual(1)
     })
 
-    // SPEC-014 · AC-02 (UI)
-    it('disables the generate button with the template tooltip when the interview has no template', async () => {
-      const user = userEvent.setup()
+    // SPEC-014 · AC-02, adaptado por SPEC-061: el botón deshabilitado con
+    // Tooltip de «falta plantilla» vivía en la cabecera de la sección sin
+    // guión, que ahora no lleva botón. El prerrequisito lo comunica el paso 1
+    // del banner («Asigna una plantilla de preguntas»), y el Tooltip original
+    // sigue vigente en el «Regenerar» con guión (SPEC-029 · AC-14).
+    it('shows no generate button in the section without a template: the prerequisite is the banner step 1', async () => {
       setInterview(interview({ templateId: null }))
       renderDetail()
 
-      // Sin template no hay CTA en el empty state: solo el botón de cabecera
-      const button = await screen.findByRole('button', { name: 'Generar guión' })
-      expect(button).toBeDisabled()
+      expect(await screen.findByText('Aún no hay guión')).toBeInTheDocument()
+      expect(sectionButtons('Generar guión')).toHaveLength(0)
 
-      const wrapper = button.parentElement
-      if (wrapper === null) {
-        throw new Error('El botón deshabilitado debe estar envuelto por el TooltipTrigger')
-      }
-      await user.hover(wrapper)
-      expect(
-        (await screen.findAllByText('Asigna una plantilla de preguntas para generar el guión'))
-          .length
-      ).toBeGreaterThanOrEqual(1)
+      const banner = screen.getByTestId('interview-onboarding-banner')
+      expect(banner).toHaveAttribute('data-step', '1')
+      expect(within(banner).getByTestId('onboarding-step-action')).toHaveTextContent(
+        'Asignar plantilla'
+      )
     })
 
     // SPEC-014 · AC-03 (UI)
@@ -198,9 +215,10 @@ describe('ScriptSection', () => {
         'href',
         '/settings'
       )
-      const sectionOnly = sectionButtons('Generar guión')
-      expect(sectionOnly).toHaveLength(1)
-      expect(sectionOnly[0]).toBeDisabled()
+      // SPEC-061: el Alert sobrevive intacto, pero la sección ya no tiene
+      // botón que deshabilitar — el motivo por falta de clave lo lleva el
+      // botón espejado del banner (OnboardingBannerBridge · AC-17)
+      expect(sectionButtons('Generar guión')).toHaveLength(0)
     })
 
     // SPEC-014 · AC-05 (adaptado por SPEC-029: el "Regenerar" deshabilitado va
@@ -239,9 +257,8 @@ describe('ScriptSection', () => {
       })
       renderDetail()
 
-      // Esperar al estado habilitado (getStatus resuelto) antes de clicar
-      await waitFor(() => expect(sectionButtons('Generar guión')).toHaveLength(2))
-      await user.click(sectionButtons('Generar guión')[0])
+      // SPEC-061: el disparo manual es el del banner (acción de la sección)
+      await user.click(await bannerGenerateButton())
 
       const toasts = await screen.findAllByText(
         'La clave de Anthropic no es válida. Revísala en Ajustes.'
@@ -277,15 +294,13 @@ describe('ScriptSection', () => {
       expect(screen.getAllByRole('heading', { name: 'Objetivos' })).toHaveLength(1)
     })
 
-    // SPEC-014 · AC-08
-    it('shows the "Aún no hay guión" empty state with the generate button when prerequisites are met', async () => {
+    // SPEC-014 · AC-08, adaptado por SPEC-061: el empty state sobrevive con su
+    // icono y su texto; el CTA que lo acompañaba pasa a depender de la
+    // visibilidad del banner y se cubre en ScriptSection.cleanState.
+    it('shows the "Aún no hay guión" empty state when there is no script', async () => {
       renderDetail()
 
       expect(await screen.findByText('Aún no hay guión')).toBeInTheDocument()
-      // Cabecera + CTA del empty state, ambos habilitados (el CTA aparece al
-      // resolver getStatus: waitFor, no findAll — que resolvería con 1)
-      await waitFor(() => expect(sectionButtons('Generar guión')).toHaveLength(2))
-      sectionButtons('Generar guión').forEach((button) => expect(button).toBeEnabled())
       // El secundario provisional de SPEC-013 está derogado
       expect(
         screen.queryByText('La generación con IA llegará en la siguiente fase')
@@ -552,35 +567,35 @@ describe('ScriptSection', () => {
 
     // SPEC-033 · AC-02 (scoping del evento): la generación de OTRA entrevista
     // no enciende el indicador de esta
-    it('ignores script-generation events of another interview keeping the enabled generate buttons', async () => {
+    it('ignores script-generation events of another interview keeping the generation available', async () => {
       renderDetail()
-      await waitFor(() => expect(sectionButtons('Generar guión')).toHaveLength(2))
+      const bannerAction = await bannerGenerateButton()
 
       act(() => {
         mockApi.emitScriptGeneration({ interviewId: 'i-otra', status: 'generating' })
       })
 
+      // Ni indicador en la sección ni en el banner: la generación sigue ofrecida
       expect(screen.queryByRole('button', { name: 'Generando guión…' })).not.toBeInTheDocument()
-      const buttons = sectionButtons('Generar guión')
-      expect(buttons).toHaveLength(2)
-      buttons.forEach((button) => expect(button).toBeEnabled())
+      expect(bannerAction).toHaveTextContent('Generar guión')
+      expect(bannerAction).toBeEnabled()
     })
 
-    // SPEC-033 · AC-02: en curso → «Generando guión…» disabled en la cabecera
-    // y sustituyendo al botón del empty state
-    it('shows the disabled "Generando guión…" indicator in the header and replacing the empty state CTA on its generating event', async () => {
+    // SPEC-033 · AC-02, adaptado por SPEC-061: el indicador de la sección vive
+    // solo en el empty state (la cabecera sin guión ya no lleva botón)
+    it('shows the disabled "Generando guión…" indicator in the empty state on its generating event', async () => {
       renderDetail()
-      await waitFor(() => expect(sectionButtons('Generar guión')).toHaveLength(2))
+      await bannerGenerateButton()
 
       act(() => {
         mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })
       })
 
       const indicators = sectionButtons('Generando guión…')
-      expect(indicators).toHaveLength(2)
-      indicators.forEach((indicator) => expect(indicator).toBeDisabled())
-      // «Generar guión» queda sustituido en ambas ubicaciones; el empty state
-      // («Aún no hay guión») sigue de fondo hasta que llegue el done
+      expect(indicators).toHaveLength(1)
+      expect(indicators[0]).toBeDisabled()
+      // «Generar guión» desaparece también del banner (espejo del puente); el
+      // empty state («Aún no hay guión») sigue de fondo hasta que llegue el done
       expect(screen.queryByRole('button', { name: 'Generar guión' })).not.toBeInTheDocument()
       expect(screen.getByText('Aún no hay guión')).toBeInTheDocument()
     })
@@ -589,7 +604,7 @@ describe('ScriptSection', () => {
     // «Preparada» vía onInterviewUpdated, sin acción del usuario ni Toast de éxito
     it('renders the generated script, objectives and "Preparada" badge on the done event without a success toast', async () => {
       renderDetail()
-      await waitFor(() => expect(sectionButtons('Generar guión')).toHaveLength(2))
+      await bannerGenerateButton()
 
       act(() => {
         mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })
@@ -616,9 +631,10 @@ describe('ScriptSection', () => {
         .forEach((node) => expect(node.closest('[data-sonner-toast]')).toBeNull())
     })
 
-    // SPEC-033 · AC-07 (UI): error → Toast con el mensaje del fallo y el botón
-    // «Generar guión» vuelve disponible como reintento manual
-    it('toasts the failure message on the error event and restores the enabled "Generar guión" button as manual retry', async () => {
+    // SPEC-033 · AC-07 (UI): error → Toast con el mensaje del fallo y la
+    // generación vuelve disponible como reintento manual (SPEC-061: el botón
+    // que la ofrece es el del banner, ejecutando la acción de la sección)
+    it('toasts the failure message on the error event and restores the enabled generate button as manual retry', async () => {
       const user = userEvent.setup()
       vi.mocked(mockApi.api.llm.generateScript).mockReturnValue(
         new Promise<LlmResult<Interview>>(() => {
@@ -626,7 +642,7 @@ describe('ScriptSection', () => {
         })
       )
       renderDetail()
-      await waitFor(() => expect(sectionButtons('Generar guión')).toHaveLength(2))
+      await bannerGenerateButton()
 
       act(() => {
         mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })
@@ -644,14 +660,14 @@ describe('ScriptSection', () => {
         'No se pudo conectar con la API de Anthropic. Comprueba tu conexión e inténtalo de nuevo.'
       )
       expect(toasts.length).toBeGreaterThanOrEqual(1)
-      // La captura sigue intacta sin guión y con el botón disponible
+      // La captura sigue intacta sin guión y con la generación disponible
       expect(screen.getByText('Aún no hay guión')).toBeInTheDocument()
-      const buttons = sectionButtons('Generar guión')
-      expect(buttons).toHaveLength(2)
-      buttons.forEach((button) => expect(button).toBeEnabled())
+      const retry = screen.getByTestId('onboarding-step-action')
+      expect(retry).toHaveTextContent('Generar guión')
+      expect(retry).toBeEnabled()
 
       // Reintento manual operativo (mecanismo de SPEC-014, invoke)
-      await user.click(buttons[0])
+      await user.click(retry)
       expect(vi.mocked(mockApi.api.llm.generateScript)).toHaveBeenCalledWith('i-1')
     })
   })

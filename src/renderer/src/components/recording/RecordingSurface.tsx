@@ -6,7 +6,6 @@ import {
   type DiscardedQuestionEntry
 } from '@/components/recording/DiscardReasonsDialog'
 import { DegradedTranscriptionAlert } from '@/components/recording/DegradedTranscriptionAlert'
-import { LatencyRow } from '@/components/recording/LatencyRow'
 import { NoKeyAlert } from '@/components/recording/NoKeyAlert'
 import { CaptureErrorAlert } from '@/components/spike/CaptureErrorAlert'
 import { StopOnCloseDialog } from '@/components/spike/StopOnCloseDialog'
@@ -16,7 +15,6 @@ import type { Interview } from '@/types/domain'
 
 interface RecordingSurfaceProps {
   controller: RecordingController
-  interview: Interview
   /** Propaga la Interview actualizada tras guardar los motivos (SPEC-039). */
   onInterviewUpdated: (interview: Interview) => void
 }
@@ -35,26 +33,25 @@ interface DiscardDialogState {
  * - Avisos: error de captura/transcripción, modo degradado (SPEC-022) y «Falta
  *   la key» (SPEC-035) durante la grabación. Los errores de permiso viven arriba
  *   (PermissionErrorAlert, SPEC-049) y se filtran aquí.
- * - Detalle de archivo del estado Grabada: latencia + rutas del WAV/transcript
- *   (los botones «Mostrar en Finder»/«Nueva grabación» viven en la top bar).
  * - Los diálogos del flujo (consentimiento, close-guard, «Preguntas
  *   descartadas») y el efecto de motivos, siempre montados (portales sin footprint).
+ * SPEC-059: el detalle de archivo del estado Grabada (latencia + rutas del
+ * WAV/transcript) YA NO vive aquí — se fue al final de la página, tras un
+ * desplegable plegado por defecto (RecordingTechInfo). Por eso `recorded` salió
+ * de `showBlock`: en Grabada sin avisos la superficie no reserva espacio.
  * Cuando no hay nada visible que mostrar (p. ej. Preparación con permisos
  * concedidos) no ocupa espacio.
  */
 export function RecordingSurface({
   controller,
-  interview,
   onInterviewUpdated
 }: RecordingSurfaceProps): React.ReactElement {
   /** Dialog «Preguntas descartadas» (SPEC-039); null = cerrado. */
   const [discardDialog, setDiscardDialog] = useState<DiscardDialogState | null>(null)
   const {
     capturing,
-    recorded,
     error,
     result,
-    displayLatency,
     transcription,
     consentDialogOpen,
     handleConsentCancel,
@@ -117,7 +114,7 @@ export function RecordingSurface({
   const hasTranscriptionError = transcription.error !== null
   const hasDegraded = capturing && transcription.degraded
   const hasNoKey = capturing && transcription.status === 'no-key'
-  const showBlock = hasCaptureError || hasTranscriptionError || hasDegraded || hasNoKey || recorded
+  const showBlock = hasCaptureError || hasTranscriptionError || hasDegraded || hasNoKey
 
   return (
     <>
@@ -131,18 +128,6 @@ export function RecordingSurface({
           {/* Grabando sin clave, el aviso sigue anclado bajo la cabecera (la top
               bar solo lleva la sesión compacta) */}
           {hasNoKey && <NoKeyAlert />}
-
-          {/* Estado Grabada — detalle de archivo (los botones viven en la top
-              bar, SPEC-055): latencia + rutas del WAV/transcript */}
-          {recorded && (
-            <div className="flex flex-col gap-3">
-              {displayLatency !== null && <LatencyRow latency={displayLatency} />}
-              <p className="break-all font-mono text-sm">{interview.wavPath}</p>
-              {interview.transcriptPath !== null && (
-                <p className="break-all font-mono text-sm">{interview.transcriptPath}</p>
-              )}
-            </div>
-          )}
         </div>
       )}
 

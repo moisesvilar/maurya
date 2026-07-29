@@ -2,7 +2,7 @@ import type { BrowserWindow, WebContents } from 'electron'
 import type { DetachedComponent } from '../renderer/src/types/detached'
 
 /**
- * Registro de las ventanas desacopladas vivas (SPEC-059). Módulo PURO: los
+ * Registro de las ventanas desacopladas vivas (SPEC-062). Módulo PURO: los
  * imports de electron son `import type` (se borran al compilar) y aquí no se
  * llama a ninguna API de Electron.
  *
@@ -46,7 +46,7 @@ export function listDetachedWindows(): BrowserWindow[] {
 
 /**
  * `WebContents` vivos de las ventanas desacopladas: destinatarios de la
- * difusión de eventos del asistente (SPEC-059). Filtra tanto la ventana como
+ * difusión de eventos del asistente (SPEC-062). Filtra tanto la ventana como
  * el webContents destruidos — durante el cierre pueden ir por separado.
  */
 export function listDetachedWebContents(): WebContents[] {

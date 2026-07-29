@@ -51,7 +51,7 @@ function createWindow(): void {
   })
 
   mainWindow.on('closed', () => {
-    // SPEC-059: las ventanas desacopladas mueren con la principal. Se elige
+    // SPEC-062: las ventanas desacopladas mueren con la principal. Se elige
     // 'closed' y no 'window:confirm-close' porque domina estrictamente (cierre
     // confirmado, cierre sin grabación, Cmd+Q). Además evita el escenario de
     // "app viva solo por ventanas huérfanas": en macOS `window-all-closed` no

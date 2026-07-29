@@ -1,5 +1,5 @@
 /**
- * SPEC-059 (AC-08..AC-16): vista de la ventana desacoplada del asistente —
+ * SPEC-062 (AC-08..AC-16): vista de la ventana desacoplada del asistente —
  * solo el panel a ventana completa (sin sidebar, top bar ni el resto de
  * secciones del detalle), hidratada con el snapshot de main al abrir a mitad
  * de sesión, espejo de la cola en los dos sentidos y con las acciones inline
@@ -75,8 +75,8 @@ beforeEach(() => {
   mockApi = installMockApi()
 })
 
-describe('AssistantWindowPage (ventana desacoplada del asistente, SPEC-059)', () => {
-  // SPEC-059 · AC-08
+describe('AssistantWindowPage (ventana desacoplada del asistente, SPEC-062)', () => {
+  // SPEC-062 · AC-08
   it('renders only the assistant panel, without sidebar, top bar or any other detail section', async () => {
     renderAssistantWindow()
     push(event())
@@ -94,7 +94,7 @@ describe('AssistantWindowPage (ventana desacoplada del asistente, SPEC-059)', ()
     expect(screen.queryByTestId('assistant-live-section')).not.toBeInTheDocument()
   })
 
-  // SPEC-059 · AC-09
+  // SPEC-062 · AC-09
   it('hydrates the current queue from the main snapshot without waiting for the next analysis', async () => {
     vi.mocked(mockApi.api.assistant.getSnapshot).mockResolvedValue(
       event({
@@ -113,7 +113,7 @@ describe('AssistantWindowPage (ventana desacoplada del asistente, SPEC-059)', ()
     expect(vi.mocked(mockApi.api.assistant.getSnapshot)).toHaveBeenCalledTimes(1)
   })
 
-  // SPEC-059 · AC-09 (la hidratación tardía jamás pisa un estado más nuevo)
+  // SPEC-062 · AC-09 (la hidratación tardía jamás pisa un estado más nuevo)
   it('keeps the pushed state when the snapshot resolves late with an older queue', async () => {
     let resolveSnapshot: (value: AssistantUpdateEvent | null) => void = () => undefined
     vi.mocked(mockApi.api.assistant.getSnapshot).mockReturnValue(
@@ -147,7 +147,7 @@ describe('AssistantWindowPage (ventana desacoplada del asistente, SPEC-059)', ()
     expect(screen.queryByText('Pregunta vieja')).not.toBeInTheDocument()
   })
 
-  // SPEC-059 · AC-10
+  // SPEC-062 · AC-10
   it('renders each queued item with its action badge, alarm chips, question, reason and inline actions', async () => {
     renderAssistantWindow()
     push(
@@ -173,7 +173,7 @@ describe('AssistantWindowPage (ventana desacoplada del asistente, SPEC-059)', ()
     expect(within(pinned).getByText(PINNED_QUESTION)).toBeInTheDocument()
   })
 
-  // SPEC-059 · AC-11
+  // SPEC-062 · AC-11
   it('shows a question added by the assistant without any user interaction', async () => {
     renderAssistantWindow()
     push(event({ state: 'idle', queue: { pending: [], pinned: [] } }))
@@ -185,7 +185,7 @@ describe('AssistantWindowPage (ventana desacoplada del asistente, SPEC-059)', ()
     expect(screen.queryByText(EMPTY_MESSAGE)).not.toBeInTheDocument()
   })
 
-  // SPEC-059 · AC-12
+  // SPEC-062 · AC-12
   it('delegates the inline queue actions to the same bridge methods as the main page', async () => {
     const user = userEvent.setup()
     renderAssistantWindow()
@@ -201,7 +201,7 @@ describe('AssistantWindowPage (ventana desacoplada del asistente, SPEC-059)', ()
     expect(vi.mocked(mockApi.api.assistant.setPinned)).toHaveBeenCalledWith('q-1', true)
   })
 
-  // SPEC-059 · AC-13 (la cola que main re-emite tras resolver/anclar en la
+  // SPEC-062 · AC-13 (la cola que main re-emite tras resolver/anclar en la
   // página principal llega a esta ventana como cualquier otro evento)
   it('reflects the queue re-emitted by main after the question is resolved from the main page', async () => {
     renderAssistantWindow()
@@ -215,7 +215,7 @@ describe('AssistantWindowPage (ventana desacoplada del asistente, SPEC-059)', ()
     expect(screen.getByText(EMPTY_MESSAGE)).toBeInTheDocument()
   })
 
-  // SPEC-059 · AC-14
+  // SPEC-062 · AC-14
   it('shows the empty queue message with its literal copy', async () => {
     renderAssistantWindow()
 
@@ -224,7 +224,7 @@ describe('AssistantWindowPage (ventana desacoplada del asistente, SPEC-059)', ()
     expect(screen.queryByTestId('assistant-queue')).not.toBeInTheDocument()
   })
 
-  // SPEC-059 · AC-15
+  // SPEC-062 · AC-15
   it('shows the cost pause notice and resumes the assistant from this window', async () => {
     const user = userEvent.setup()
     renderAssistantWindow()
@@ -239,7 +239,7 @@ describe('AssistantWindowPage (ventana desacoplada del asistente, SPEC-059)', ()
     expect(vi.mocked(mockApi.api.assistant.resume)).toHaveBeenCalledTimes(1)
   })
 
-  // SPEC-059 · AC-16
+  // SPEC-062 · AC-16
   it('shows the discreet failure line without hiding the queue', async () => {
     renderAssistantWindow()
     push(

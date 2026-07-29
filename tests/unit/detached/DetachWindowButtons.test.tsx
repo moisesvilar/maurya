@@ -1,5 +1,5 @@
 /**
- * SPEC-059 (AC-01..AC-07): los dos botones de desacople en las páginas de
+ * SPEC-062 (AC-01..AC-07): los dos botones de desacople en las páginas de
  * detalle — «Abrir asistente en ventana» en la cabecera de la sección del
  * asistente y «Abrir guión en ventana» en la cabecera de la sección Guión,
  * ambos SOLO durante la grabación, y el del asistente deshabilitado con
@@ -190,9 +190,9 @@ beforeEach(() => {
   vi.mocked(acquireSystemAudioStream).mockResolvedValue(createFakeAudioStream().stream)
 })
 
-describe('DetachWindowButton en las páginas de detalle (SPEC-059)', () => {
+describe('DetachWindowButton en las páginas de detalle (SPEC-062)', () => {
   describe('interview detail', () => {
-    // SPEC-059 · AC-01
+    // SPEC-062 · AC-01
     it('shows an icon-only «Abrir asistente en ventana» button in the assistant section header while recording', async () => {
       const user = userEvent.setup()
       renderInterviewDetail()
@@ -206,7 +206,7 @@ describe('DetachWindowButton en las páginas de detalle (SPEC-059)', () => {
       expect(button).toBeEnabled()
     })
 
-    // SPEC-059 · AC-02
+    // SPEC-062 · AC-02
     it('shows the «Abrir guión en ventana» button next to the existing Guión header controls while recording', async () => {
       const user = userEvent.setup()
       renderInterviewDetail()
@@ -216,18 +216,17 @@ describe('DetachWindowButton en las páginas de detalle (SPEC-059)', () => {
       const button = within(section).getByTestId('detach-script-button')
       expect(button).toHaveAccessibleName('Abrir guión en ventana')
       expect(button.textContent).toBe('')
-      // Junto a los controles existentes: comparte el contenedor de la fila de
-      // cabecera con el botón de generación. Hay DOS «Generar guión» en la
-      // sección (cabecera + empty state, lección SPEC-014) → se filtra por el
-      // contenedor, sin contar los botones de la sección
+      // Junto a los controles existentes: el grupo de controles vive en la
+      // fila de cabecera, junto al heading «Guión». SPEC-061 retiró el botón
+      // de generación de la cabecera sin guión (el ancla original de este
+      // assert), así que la pertenencia a la cabecera se fija por el heading
       const controls = button.closest('div')
       expect(controls).not.toBeNull()
-      expect(
-        within(controls as HTMLElement).getAllByRole('button', { name: 'Generar guión' })
-      ).toHaveLength(1)
+      const headerRow = (controls as HTMLElement).parentElement as HTMLElement
+      expect(within(headerRow).getByRole('heading', { name: 'Guión' })).toBeInTheDocument()
     })
 
-    // SPEC-059 · AC-04
+    // SPEC-062 · AC-04
     it('does not render either detach button without a recording in progress', async () => {
       renderInterviewDetail()
 
@@ -238,7 +237,7 @@ describe('DetachWindowButton en las páginas de detalle (SPEC-059)', () => {
       expect(screen.queryByTestId('detach-assistant-button')).not.toBeInTheDocument()
     })
 
-    // SPEC-059 · AC-05
+    // SPEC-062 · AC-05
     it('disables the assistant detach button with an explanatory Tooltip while the assistant is in no-key', async () => {
       const user = userEvent.setup()
       renderInterviewDetail()
@@ -261,7 +260,7 @@ describe('DetachWindowButton en las páginas de detalle (SPEC-059)', () => {
       expect(vi.mocked(mockApi.api.window.openDetached)).not.toHaveBeenCalled()
     })
 
-    // SPEC-059 · AC-06
+    // SPEC-062 · AC-06
     it('asks main to open the assistant window for the interview when the assistant button is pressed', async () => {
       const user = userEvent.setup()
       renderInterviewDetail()
@@ -273,7 +272,7 @@ describe('DetachWindowButton en las páginas de detalle (SPEC-059)', () => {
       expect(vi.mocked(mockApi.api.window.openDetached)).toHaveBeenCalledWith('assistant', 'i-1')
     })
 
-    // SPEC-059 · AC-07
+    // SPEC-062 · AC-07
     it('asks main to open the script window for the interview when the script button is pressed', async () => {
       const user = userEvent.setup()
       renderInterviewDetail()
@@ -287,7 +286,7 @@ describe('DetachWindowButton en las páginas de detalle (SPEC-059)', () => {
   })
 
   describe('capture detail', () => {
-    // SPEC-059 · AC-03
+    // SPEC-062 · AC-03
     it('renders both detach buttons on the capture detail while recording, wired to the same capture', async () => {
       const user = userEvent.setup()
       renderCaptureDetail()
@@ -304,7 +303,7 @@ describe('DetachWindowButton en las páginas de detalle (SPEC-059)', () => {
       expect(vi.mocked(mockApi.api.window.openDetached)).toHaveBeenCalledWith('script', 'i-1')
     })
 
-    // SPEC-059 · AC-04 (variante captura)
+    // SPEC-062 · AC-04 (variante captura)
     it('does not render the script detach button on the capture detail without a recording in progress', async () => {
       renderCaptureDetail()
 

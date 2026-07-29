@@ -33,7 +33,7 @@ export interface UseAssistantResult {
 
 export interface UseAssistantOptions {
   /**
-   * Hidratar con el snapshot de main al montar (SPEC-059): SOLO la ventana
+   * Hidratar con el snapshot de main al montar (SPEC-062): SOLO la ventana
    * desacoplada del asistente, que abre a mitad de sesión y no puede esperar
    * al siguiente análisis. La página principal monta el hook al empezar a
    * grabar, cuando aún no hay nada que hidratar.
@@ -49,7 +49,7 @@ export interface UseAssistantOptions {
  * optimista (main re-emite la cola mutada de inmediato).
  * SPEC-021: el usage se actualiza con cada evento que lo traiga y
  * pauseLimitUsd se limpia con 'active'/'idle'.
- * SPEC-059: hook ÚNICO para las dos superficies (página y ventana desacoplada)
+ * SPEC-062: hook ÚNICO para las dos superficies (página y ventana desacoplada)
  * — duplicar la máquina de estados del evento en un hook aparte garantizaría
  * su divergencia, que es justo lo que los ACs prohíben. La única diferencia es
  * el `hydrate` opcional, así que todas las llamadas existentes quedan igual.
@@ -63,7 +63,7 @@ export function useAssistant(options?: UseAssistantOptions): UseAssistantResult 
   const [pauseLimitUsd, setPauseLimitUsd] = useState<number | null>(null)
 
   /**
-   * Marca de que ya llegó un evento push (SPEC-059): un snapshot que resuelva
+   * Marca de que ya llegó un evento push (SPEC-062): un snapshot que resuelva
    * tarde JAMÁS debe pisar un estado más nuevo. Ref y no estado: solo gobierna
    * la aplicación de la hidratación, no el render.
    */

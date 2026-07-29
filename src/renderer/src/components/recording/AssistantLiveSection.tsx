@@ -6,7 +6,7 @@ import type { RecordingController } from '@/hooks/useRecordingController'
 interface AssistantLiveSectionProps {
   controller: RecordingController
   /**
-   * Entrevista a la que pertenece la sesión (SPEC-059): la necesita el botón
+   * Entrevista a la que pertenece la sesión (SPEC-062): la necesita el botón
    * de desacople y el controller no la expone. REQUERIDA a propósito: un
    * olvido de cableado debe romper el typecheck, no esconder el botón.
    */
@@ -21,7 +21,7 @@ interface AssistantLiveSectionProps {
  * renderiza, como hasta ahora. Componente compartido para no duplicar el
  * cableado en las dos páginas: el AssistantPanel recibe EXACTAMENTE las mismas
  * props que recibía dentro de RecordingSectionView (controller.assistant.*).
- * SPEC-059: la sección gana una fila de cabecera con el botón que abre el
+ * SPEC-062: la sección gana una fila de cabecera con el botón que abre el
  * asistente en su propia ventana. En `no-key` va deshabilitado con Tooltip
  * explicativo: una ventana solo-asistente sin clave únicamente mostraría el
  * aviso de clave.

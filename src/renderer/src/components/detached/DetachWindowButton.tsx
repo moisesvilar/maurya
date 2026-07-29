@@ -19,7 +19,7 @@ interface DetachWindowButtonProps {
 }
 
 /**
- * Botón de desacople de un componente a su propia ventana (SPEC-059),
+ * Botón de desacople de un componente a su propia ventana (SPEC-062),
  * compartido por la sección del asistente y la cabecera del guión: icon-only
  * (acción secundaria que no debe competir con el contenido glanceable, regla
  * §10) con aria-label y Tooltip.

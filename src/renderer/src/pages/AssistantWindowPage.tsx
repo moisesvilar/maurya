@@ -3,7 +3,7 @@ import { AssistantPanel } from '@/components/recording/AssistantPanel'
 import { useAssistant } from '@/hooks/useAssistant'
 
 /**
- * Vista de la ventana desacoplada del asistente (SPEC-059, ruta
+ * Vista de la ventana desacoplada del asistente (SPEC-062, ruta
  * /detached/assistant/:interviewId, FUERA del Layout): solo el panel del
  * asistente a ventana completa con scroll vertical — sin sidebar, top bar,
  * cabecera de entrevista, Objetivos, Nota, Guión ni grabación.

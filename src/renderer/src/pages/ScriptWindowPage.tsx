@@ -11,7 +11,7 @@ type ScriptWindowState =
   | { status: 'ready'; interview: Interview }
 
 /**
- * Vista de la ventana desacoplada del guión (SPEC-059, ruta
+ * Vista de la ventana desacoplada del guión (SPEC-062, ruta
  * /detached/script/:interviewId, FUERA del Layout): el guión renderizado como
  * markdown de SOLO LECTURA a ventana completa con scroll vertical — sin
  * editor, sin guardar y sin regenerar. La edición vive únicamente en la página

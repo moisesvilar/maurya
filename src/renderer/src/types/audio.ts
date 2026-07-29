@@ -193,7 +193,7 @@ export interface MauryaApi {
     setTheme: (theme: ThemePreference) => void
     /**
      * Abre (o enfoca, si ya existe) la ventana desacoplada del componente para
-     * esa entrevista (SPEC-059). Fire-and-forget, patrón `setTheme`: abrir una
+     * esa entrevista (SPEC-062). Fire-and-forget, patrón `setTheme`: abrir una
      * ventana no tiene fallo accionable para el renderer, y main ignora en
      * silencio un payload inesperado.
      */

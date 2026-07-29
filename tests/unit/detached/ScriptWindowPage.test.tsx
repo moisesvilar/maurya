@@ -1,5 +1,5 @@
 /**
- * SPEC-059 (AC-17..AC-20): vista de la ventana desacoplada del guión — el
+ * SPEC-062 (AC-17..AC-20): vista de la ventana desacoplada del guión — el
  * guión renderizado como markdown de SOLO LECTURA a ventana completa, empty
  * state sin CTA, error state con «Reintentar» y actualización en vivo cuando
  * main difunde la entrevista persistida (`db:interview-updated`).
@@ -66,8 +66,8 @@ beforeEach(() => {
   mockApi = installMockApi()
 })
 
-describe('ScriptWindowPage (ventana desacoplada del guión, SPEC-059)', () => {
-  // SPEC-059 · AC-17
+describe('ScriptWindowPage (ventana desacoplada del guión, SPEC-062)', () => {
+  // SPEC-062 · AC-17
   it('renders the script as read-only markdown at full window, without editor or save/regenerate controls', async () => {
     setInterview({ ok: true, data: interview() })
     renderScriptWindow()
@@ -101,7 +101,7 @@ describe('ScriptWindowPage (ventana desacoplada del guión, SPEC-059)', () => {
     expect(screen.queryByTestId('script-window-error')).not.toBeInTheDocument()
   })
 
-  // SPEC-059 · AC-18
+  // SPEC-062 · AC-18
   it('shows the empty state without any CTA when the interview has no script', async () => {
     setInterview({ ok: true, data: interview({ scriptMarkdown: null }) })
     renderScriptWindow()
@@ -113,7 +113,7 @@ describe('ScriptWindowPage (ventana desacoplada del guión, SPEC-059)', () => {
     expect(screen.queryByTestId('script-window-markdown')).not.toBeInTheDocument()
   })
 
-  // SPEC-059 · AC-19
+  // SPEC-062 · AC-19
   it('shows the updated script when main broadcasts the persisted interview, without reopening the window', async () => {
     setInterview({ ok: true, data: interview() })
     renderScriptWindow()
@@ -129,7 +129,7 @@ describe('ScriptWindowPage (ventana desacoplada del guión, SPEC-059)', () => {
     expect(vi.mocked(mockApi.api.db.getInterview)).toHaveBeenCalledTimes(1)
   })
 
-  // SPEC-059 · AC-19 (la difusión de OTRA entrevista no toca esta ventana)
+  // SPEC-062 · AC-19 (la difusión de OTRA entrevista no toca esta ventana)
   it('ignores the broadcast of a different interview', async () => {
     setInterview({ ok: true, data: interview() })
     renderScriptWindow()
@@ -143,7 +143,7 @@ describe('ScriptWindowPage (ventana desacoplada del guión, SPEC-059)', () => {
     expect(screen.queryByText('Guión regenerado')).not.toBeInTheDocument()
   })
 
-  // SPEC-059 · AC-20
+  // SPEC-062 · AC-20
   it('shows an error state with «Reintentar» when the read fails, and recovers on retry', async () => {
     const user = userEvent.setup()
     setInterview({ ok: false, error: { kind: 'not-found', message: 'Entrevista no encontrada' } })
@@ -164,7 +164,7 @@ describe('ScriptWindowPage (ventana desacoplada del guión, SPEC-059)', () => {
     expect(vi.mocked(mockApi.api.db.getInterview)).toHaveBeenCalledTimes(2)
   })
 
-  // SPEC-059 · AC-19 + AC-20 (una versión nueva difundida supera el error)
+  // SPEC-062 · AC-19 + AC-20 (una versión nueva difundida supera el error)
   it('leaves the error state when a newer version of the interview is broadcast', async () => {
     setInterview({ ok: false, error: { kind: 'storage', message: 'Almacén ilegible' } })
     renderScriptWindow()

@@ -100,7 +100,7 @@ export interface AssistantSessionSummary {
 export interface AssistantApi {
   onUpdate: (callback: (event: AssistantUpdateEvent) => void) => () => void
   /**
-   * Último evento emitido por la sesión (SPEC-059): hidratación de la ventana
+   * Último evento emitido por la sesión (SPEC-062): hidratación de la ventana
    * desacoplada del asistente, que abre a mitad de sesión y no puede esperar
    * al siguiente análisis. `null` si no hay sesión o aún no emitió nada.
    */

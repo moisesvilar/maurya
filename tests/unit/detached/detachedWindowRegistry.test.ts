@@ -1,6 +1,6 @@
 // @vitest-environment node
 /**
- * SPEC-059: registro de ventanas desacopladas (src/main/detachedWindowRegistry.ts).
+ * SPEC-062: registro de ventanas desacopladas (src/main/detachedWindowRegistry.ts).
  * Módulo PURO — sus imports de electron son `import type`, así que se testea
  * sin mock de electron y con dobles mínimos de BrowserWindow/WebContents.
  * Cubre lo que sostiene la deduplicación (clave = componente) y la difusión de
@@ -44,7 +44,7 @@ beforeEach(() => {
   clearDetachedRegistry()
 })
 
-describe('detachedWindowRegistry (SPEC-059)', () => {
+describe('detachedWindowRegistry (SPEC-062)', () => {
   it('returns null for a component with no registered window', () => {
     expect(getDetachedWindow('assistant')).toBeNull()
     expect(listDetachedWindows()).toEqual([])

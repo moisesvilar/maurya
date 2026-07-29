@@ -35,6 +35,7 @@ import type { StopResult } from '@/types/audio'
 import type { Company, Discovery, Interview } from '@/types/domain'
 import { createFakeAudioStream } from '../../helpers/fakeMediaStream'
 import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
+import { expandTechInfo } from '../../helpers/recordingTechInfo'
 
 vi.mock('@/services/permissionsService', () => ({
   getPermissionsStatus: vi.fn(),
@@ -175,8 +176,11 @@ function topBarRecordingControls(): HTMLElement {
 }
 
 /** El detalle de captura se monta BAJO <Layout/> (top bar portal, SPEC-034). */
-function renderCaptureDetail(): RenderResult {
-  vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({ ok: true, data: capture() })
+function renderCaptureDetail(captureOverrides: Partial<Interview> = {}): RenderResult {
+  vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({
+    ok: true,
+    data: capture(captureOverrides)
+  })
   vi.mocked(mockApi.api.db.getDiscovery).mockResolvedValue({ ok: true, data: DISCOVERY })
   return render(
     <TooltipProvider>
@@ -241,6 +245,13 @@ describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
     // SPEC-034: la sesión en vivo vive en la top bar y el heading desaparece)
     it('renders the assistant panel after the Objetivos section and before the Nota/Guión sections while recording', async () => {
       const user = userEvent.setup()
+      // SPEC-061 (adaptación): «Objetivos» solo se pinta con guión u objetivos.
+      // El AC es POSICIONAL → entrevista con objetivos; el panel y la zona
+      // Nota/Guión no cambian.
+      vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({
+        ok: true,
+        data: interview({ objectives: ['Objetivo cero'] })
+      })
       renderInterviewDetail()
       await startRecording(user)
 
@@ -293,14 +304,16 @@ describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
 
     // SPEC-041 · AC-04 (estado Grabada: el panel no aparece)
     it('does not render the assistant panel on an already recorded interview', async () => {
+      const user = userEvent.setup()
       vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({
         ok: true,
         data: interview({ wavPath: WAV_PATH, status: 'recorded' })
       })
       renderInterviewDetail()
 
-      // Estado 3 — Grabada (resumen persistente con la ruta del WAV)
-      expect(await screen.findByText(WAV_PATH)).toBeInTheDocument()
+      // Estado 3 — Grabada, acreditado por la ruta del WAV; desde SPEC-059 vive
+      // tras el desplegable de información técnica del final de la página
+      expect(within(await expandTechInfo(user)).getByText(WAV_PATH)).toBeInTheDocument()
       expect(screen.queryByTestId('assistant-live-section')).not.toBeInTheDocument()
     })
 
@@ -402,7 +415,9 @@ describe('AssistantLiveSection (panel arriba SPEC-041)', () => {
     // SPEC-041 · AC-05 (captura grabando: el panel encima de Nota/Guión)
     it('renders the assistant panel right above the Nota/Guión sections while recording a capture', async () => {
       const user = userEvent.setup()
-      renderCaptureDetail()
+      // SPEC-061 (adaptación): «Objetivos» solo se pinta con guión u objetivos
+      // y este AC es POSICIONAL (misma razón que su gemelo de entrevista).
+      renderCaptureDetail({ objectives: ['Objetivo cero'] })
       await startFromHeader(user)
 
       const title = await screen.findByRole('heading', { name: 'Captura sin empresa', level: 1 })

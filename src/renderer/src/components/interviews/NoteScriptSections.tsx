@@ -12,10 +12,10 @@ interface NoteScriptSectionsProps {
   interview: Interview
   onInterviewUpdated: (interview: Interview) => void
   /**
-   * Grabación en curso (SPEC-059): se reenvía a ScriptSection, que la usa para
-   * mostrar el botón de desacople del guión. OPCIONAL con default false.
+   * Grabación en curso: la sección Guión la necesita para el criterio de
+   * banner visible (SPEC-061) y para el botón de desacople (SPEC-062).
    */
-  capturing?: boolean
+  capturing: boolean
 }
 
 /**
@@ -37,7 +37,7 @@ interface NoteScriptSectionsProps {
 export function NoteScriptSections({
   interview,
   onInterviewUpdated,
-  capturing = false
+  capturing
 }: NoteScriptSectionsProps): React.ReactElement {
   const [notePresence, setNotePresence] = useState<NotePresence>('loading')
 

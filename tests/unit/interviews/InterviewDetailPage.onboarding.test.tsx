@@ -91,6 +91,12 @@ describe('InterviewDetailPage onboarding', () => {
   // SPEC-058 · AC-27: el banner vive entre la superficie de grabación y la
   // sección Objetivos (orden DOM: banner antes de objectives-section)
   it('renders the onboarding banner before the Objetivos section', async () => {
+    // SPEC-061 (adaptación): «Objetivos» solo se pinta con guión u objetivos;
+    // el AC es POSICIONAL, así que se ejercita con una entrevista que la tiene.
+    vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({
+      ok: true,
+      data: interview({ objectives: ['Objetivo cero'] })
+    })
     renderDetail()
 
     const banner = await screen.findByTestId('interview-onboarding-banner')

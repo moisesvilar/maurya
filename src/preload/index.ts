@@ -69,7 +69,7 @@ const db: DbApi = {
   listInterviews: (companyId) => ipcRenderer.invoke('db:interview:list', companyId),
   getInterview: (id) => ipcRenderer.invoke('db:interview:get', id),
   // Difusión de la entrevista persistida por los caminos que tocan el guión
-  // (SPEC-059): la escucha SOLO la ventana desacoplada del guión.
+  // (SPEC-062): la escucha SOLO la ventana desacoplada del guión.
   onInterviewUpdated: (callback: (interview: Interview) => void): (() => void) => {
     const listener = (_event: IpcRendererEvent, payload: Interview): void => callback(payload)
     ipcRenderer.on('db:interview-updated', listener)
@@ -119,6 +119,14 @@ const db: DbApi = {
   getLinkedinMcpSettings: () => ipcRenderer.invoke('db:linkedin-mcp-settings:get'),
   setLinkedinMcpSettings: (settings) =>
     ipcRenderer.invoke('db:linkedin-mcp-settings:set', settings),
+
+  // Onboarding de la app (SPEC-060): estado agregado de los 8 pasos + las dos
+  // marcas persistidas. `hideAppOnboarding` no es `hideInterviewOnboarding`
+  // (SPEC-058, otro dominio): el banner de la home y el del detalle no comparten
+  // ni estado ni canales.
+  getOnboardingStatus: () => ipcRenderer.invoke('db:onboarding:get-status'),
+  markOnboardingPromptsReviewed: () => ipcRenderer.invoke('db:onboarding:mark-prompts-reviewed'),
+  hideAppOnboarding: () => ipcRenderer.invoke('db:onboarding:hide'),
 
   // Prompts de IA personalizables (SPEC-026): catálogo fijo, override→default.
   listCustomPrompts: () => ipcRenderer.invoke('db:custom-prompt:list'),
@@ -204,7 +212,7 @@ const assistant: AssistantApi = {
       ipcRenderer.removeListener('assistant:update', listener)
     }
   },
-  // Hidratación de la ventana desacoplada del asistente (SPEC-059): consulta
+  // Hidratación de la ventana desacoplada del asistente (SPEC-062): consulta
   // puntual del último evento emitido, sin efectos sobre las demás ventanas
   getSnapshot: () => ipcRenderer.invoke('assistant:get-snapshot'),
   // Anclar/desanclar una pregunta de la cola (SPEC-036), fire-and-forget
@@ -286,7 +294,7 @@ const api: MauryaApi & {
     setTheme: (theme: ThemePreference): void => {
       ipcRenderer.send('window:set-theme', theme)
     },
-    // Ventanas desacopladas del asistente y del guión (SPEC-059): main crea
+    // Ventanas desacopladas del asistente y del guión (SPEC-062): main crea
     // (o enfoca) la BrowserWindow; fire-and-forget, patrón setTheme
     openDetached: (component: DetachedComponent, interviewId: string): void => {
       ipcRenderer.send('window:open-detached', component, interviewId)

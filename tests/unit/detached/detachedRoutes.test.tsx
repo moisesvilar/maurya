@@ -1,5 +1,5 @@
 /**
- * SPEC-059: las rutas /detached/* del HashRouter real (App.tsx) — el mismo
+ * SPEC-062: las rutas /detached/* del HashRouter real (App.tsx) — el mismo
  * hash que main construye con `detachedWindowHash` debe resolver a la vista
  * del componente y FUERA del Layout (sin sidebar ni top bar), sin que el splat
  * 404 del Layout las capture. Una desincronización aquí sería un fallo mudo
@@ -44,7 +44,7 @@ beforeEach(() => {
   vi.mocked(mockApi.api.db.getInterview).mockResolvedValue({ ok: true, data: INTERVIEW })
 })
 
-describe('rutas /detached/* del router real (SPEC-059)', () => {
+describe('rutas /detached/* del router real (SPEC-062)', () => {
   it('resolves the assistant hash built by main to the assistant window view, outside the Layout', async () => {
     window.location.hash = `#${detachedWindowHash('assistant', 'i-1')}`
 

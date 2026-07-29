@@ -2,7 +2,7 @@ import { BrowserWindow } from 'electron'
 import type { Interview } from '../renderer/src/types/domain'
 
 /**
- * Difusión de eventos push a todas las ventanas (SPEC-059): el bucle que ya
+ * Difusión de eventos push a todas las ventanas (SPEC-062): el bucle que ya
  * usaba `scriptAutoGenerationService` para `llm:script-generation`, extraído
  * para compartirlo con la señal nueva del guión.
  */
@@ -16,7 +16,7 @@ export function broadcastToAllWindows(channel: string, payload: unknown): void {
 
 /**
  * Anuncia que la entrevista se ha persistido por un camino que toca el guión
- * (SPEC-059): guardado manual del editor y generación manual. Señal NUEVA y
+ * (SPEC-062): guardado manual del editor y generación manual. Señal NUEVA y
  * dedicada en lugar de reutilizar `llm:script-generation`, que MEMORY.md
  * (SPEC-058-iter-1) descartó para el camino manual porque obligaría a
  * `ScriptSection` a deduplicar toasts y a proteger el remontaje del editor

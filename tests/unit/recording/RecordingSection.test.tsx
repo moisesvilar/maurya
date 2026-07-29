@@ -29,6 +29,7 @@ import type { LatencyStats, StopResult } from '@/types/audio'
 import type { Company, Interview } from '@/types/domain'
 import { createFakeAudioStream, type FakeMediaStreamTrack } from '../../helpers/fakeMediaStream'
 import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
+import { expandTechInfo } from '../../helpers/recordingTechInfo'
 
 vi.mock('@/services/permissionsService', () => ({
   getPermissionsStatus: vi.fn(),
@@ -351,8 +352,11 @@ describe('RecordingSection', () => {
         within(recordedControls).getByRole('button', { name: 'Nueva grabación' })
       ).toBeInTheDocument()
       expect(within(recordedControls).queryByText(/01:35/)).not.toBeInTheDocument()
-      expect(await screen.findByText(WAV_PATH)).toBeInTheDocument()
-      expect(screen.getByText(TRANSCRIPT_PATH)).toBeInTheDocument()
+      // SPEC-059: las rutas ya no están bajo la cabecera — viven al final, tras
+      // el desplegable «Mostrar información técnica de la grabación»
+      const techInfo = await expandTechInfo(user)
+      expect(within(techInfo).getByText(WAV_PATH)).toBeInTheDocument()
+      expect(within(techInfo).getByText(TRANSCRIPT_PATH)).toBeInTheDocument()
       expect(screen.queryByText('Duración')).not.toBeInTheDocument()
     })
 
@@ -408,7 +412,8 @@ describe('RecordingSection', () => {
       // SPEC-055-iter-1: el estado Grabada se acredita por sus controles en la
       // top bar (la etiqueta «Grabada» coexiste con el Badge de la cabecera)
       expect(await within(topBar()).findByTestId('topbar-recorded-controls')).toBeInTheDocument()
-      expect(await screen.findByText(WAV_PATH)).toBeInTheDocument()
+      // SPEC-059: la ruta del WAV vive tras el desplegable del final
+      expect(within(await expandTechInfo(user)).getByText(WAV_PATH)).toBeInTheDocument()
     })
   })
 
@@ -478,9 +483,11 @@ describe('RecordingSection', () => {
       vi.mocked(mockApi.api.recording.getTranscriptStats).mockResolvedValue(STATS)
       renderDetail()
 
-      expect(await screen.findByText(WAV_PATH)).toBeInTheDocument()
-      expect(screen.getByText(TRANSCRIPT_PATH)).toBeInTheDocument()
-      expect(await screen.findByText('Latencia STT')).toBeInTheDocument()
+      // SPEC-059: rutas y latencia tras el desplegable del final de la página
+      const techInfo = await expandTechInfo(user)
+      expect(within(techInfo).getByText(WAV_PATH)).toBeInTheDocument()
+      expect(within(techInfo).getByText(TRANSCRIPT_PATH)).toBeInTheDocument()
+      expect(await within(techInfo).findByText('Latencia STT')).toBeInTheDocument()
 
       await user.click(screen.getByRole('button', { name: 'Mostrar en Finder' }))
       expect(vi.mocked(mockApi.api.recording.showInFinder)).toHaveBeenCalledWith(WAV_PATH)
@@ -513,23 +520,28 @@ describe('RecordingSection', () => {
       expect(await screen.findByRole('button', { name: 'Iniciar grabación' })).toBeInTheDocument()
       expect(await screen.findAllByText('Concedido')).toHaveLength(2)
       expect(screen.queryByText(WAV_PATH)).not.toBeInTheDocument()
+      // SPEC-059: al volver a Preparación el desplegable técnico deja de existir
+      expect(screen.queryByTestId('recording-tech-info')).not.toBeInTheDocument()
     })
 
     // SPEC-015 · AC-13 (recarga: montaje directo con la entrevista grabada)
     it('restores the persisted summary after a reload, reading the latency from the transcript file', async () => {
+      const user = userEvent.setup()
       setInterview(RECORDED)
       vi.mocked(mockApi.api.recording.getTranscriptStats).mockResolvedValue(STATS)
       renderDetail()
 
-      expect(await screen.findByText('Latencia STT')).toBeInTheDocument()
+      // SPEC-059: el resumen persistido vive tras el desplegable del final
+      const techInfo = await expandTechInfo(user)
+      expect(await within(techInfo).findByText('Latencia STT')).toBeInTheDocument()
       expect(vi.mocked(mockApi.api.recording.getTranscriptStats)).toHaveBeenCalledWith(
         TRANSCRIPT_PATH
       )
       expect(
-        screen.getByText('mediana 1,2 s · p95 2,8 s · máx 3,1 s · 14 resultados')
+        within(techInfo).getByText('mediana 1,2 s · p95 2,8 s · máx 3,1 s · 14 resultados')
       ).toBeInTheDocument()
-      expect(screen.getByText('OK')).toBeInTheDocument()
-      expect(screen.getByText(WAV_PATH)).toBeInTheDocument()
+      expect(within(techInfo).getByText('OK')).toBeInTheDocument()
+      expect(within(techInfo).getByText(WAV_PATH)).toBeInTheDocument()
     })
   })
 

@@ -133,7 +133,7 @@ export interface MockApiHandle {
   emitScriptGeneration: (event: ScriptGenerationEvent) => void
   /**
    * Simula la difusión de una entrevista persistida por un camino que toca el
-   * guión (SPEC-059): la escucha la ventana desacoplada del guión.
+   * guión (SPEC-062): la escucha la ventana desacoplada del guión.
    */
   emitInterviewUpdated: (interview: Interview) => void
 }
@@ -197,7 +197,7 @@ function createMockDbApi(interviewUpdatedCallbacks: Array<(interview: Interview)
     getInterview: vi.fn<DbApi['getInterview']>(),
     updateInterview: vi.fn<DbApi['updateInterview']>(),
     deleteInterview: vi.fn<DbApi['deleteInterview']>(),
-    // SPEC-059: difusión de la entrevista persistida por los caminos que tocan
+    // SPEC-062: difusión de la entrevista persistida por los caminos que tocan
     // el guión; registra el callback para inyectar eventos con
     // emitInterviewUpdated (gemelo de emitScriptGeneration).
     onInterviewUpdated: vi.fn<DbApi['onInterviewUpdated']>((callback) => {
@@ -264,6 +264,40 @@ function createMockDbApi(interviewUpdatedCallbacks: Array<(interview: Interview)
       .mockResolvedValue({ ok: true, data: { url: null } }),
     setLinkedinMcpSettings: vi.fn<DbApi['setLinkedinMcpSettings']>(),
 
+    // SPEC-060: onboarding de la app. El default deja el banner OCULTO
+    // (`hiddenAt` persistido): es el único estado `ok: true` con el que
+    // AppOnboardingBanner devuelve null, así que las suites de /captures (y las
+    // de layout, que montan la home) no ven ni una fila ni un botón de más.
+    // Los tests del banner sobreescriben el estado con vi.mocked(...).
+    getOnboardingStatus: vi.fn<DbApi['getOnboardingStatus']>().mockResolvedValue({
+      ok: true,
+      data: {
+        settings: { promptsReviewedAt: null, hiddenAt: '2026-07-29T09:00:00.000Z' },
+        hasInterviewTemplate: false,
+        hasNoteTemplate: false,
+        hasCompany: false,
+        hasContact: false,
+        hasDiscovery: false,
+        hasInterviewGroup: false,
+        hasGroupedInterview: false,
+        firstCompanyId: null,
+        firstDiscoveryId: null,
+        firstGroup: null
+      }
+    }),
+    // Las dos marcas resuelven ok por defecto (coherentes con el estado oculto
+    // de arriba); los tests que las observan las reconfiguran.
+    markOnboardingPromptsReviewed: vi
+      .fn<DbApi['markOnboardingPromptsReviewed']>()
+      .mockResolvedValue({
+        ok: true,
+        data: { promptsReviewedAt: '2026-07-29T09:00:00.000Z', hiddenAt: null }
+      }),
+    hideAppOnboarding: vi.fn<DbApi['hideAppOnboarding']>().mockResolvedValue({
+      ok: true,
+      data: { promptsReviewedAt: null, hiddenAt: '2026-07-29T09:00:00.000Z' }
+    }),
+
     // SPEC-026: prompts de IA personalizables (default de solo-lectura seguro:
     // catálogo vacío; save/reset se configuran por test)
     listCustomPrompts: vi.fn<DbApi['listCustomPrompts']>().mockResolvedValue({
@@ -300,7 +334,7 @@ export function createMockApi(): MockApiHandle {
           }
         }
       }),
-      // SPEC-059: snapshot del asistente para hidratar la ventana desacoplada;
+      // SPEC-062: snapshot del asistente para hidratar la ventana desacoplada;
       // por defecto SIN estado previo (criterio conservador, como llm.getStatus)
       getSnapshot: vi.fn<AssistantApi['getSnapshot']>().mockResolvedValue(null),
       // SPEC-036 (deroga el feedback 👍/👎 de SPEC-016): anclar/desanclar una
@@ -380,7 +414,7 @@ export function createMockApi(): MockApiHandle {
       confirmClose: vi.fn<MauryaApi['window']['confirmClose']>(),
       // Tema (dark mode): fire-and-forget hacia main, sin retorno que configurar
       setTheme: vi.fn<MauryaApi['window']['setTheme']>(),
-      // SPEC-059: apertura de la ventana desacoplada, fire-and-forget
+      // SPEC-062: apertura de la ventana desacoplada, fire-and-forget
       openDetached: vi.fn<MauryaApi['window']['openDetached']>()
     }
   }

@@ -1,5 +1,5 @@
 /**
- * Contrato de las ventanas desacopladas (SPEC-059): asistente y guión en
+ * Contrato de las ventanas desacopladas (SPEC-062): asistente y guión en
  * sendas `BrowserWindow` espejo durante la grabación. Este módulo NO depende
  * del DOM: lo importan main (para construir el hash de carga y validar el
  * payload del canal) y el renderer (para declarar las rutas), de modo que la
@@ -7,11 +7,11 @@
  * (ventana en blanco o 404 dentro de la ventana secundaria).
  */
 
-/** Componente que se puede desacoplar a su propia ventana (SPEC-059). */
+/** Componente que se puede desacoplar a su propia ventana (SPEC-062). */
 export type DetachedComponent = 'assistant' | 'script'
 
 /**
- * Validación en frontera del componente (SPEC-059): main recibe el payload del
+ * Validación en frontera del componente (SPEC-062): main recibe el payload del
  * canal `window:open-detached` como `unknown` y solo actúa si es uno de los
  * dos componentes conocidos (patrón `window:set-theme`).
  */
@@ -20,7 +20,7 @@ export function isDetachedComponent(value: unknown): value is DetachedComponent 
 }
 
 /**
- * Rutas del HashRouter de cada ventana desacoplada (SPEC-059). Viven FUERA del
+ * Rutas del HashRouter de cada ventana desacoplada (SPEC-062). Viven FUERA del
  * `Layout` (sin sidebar ni top bar): la ventana secundaria es una vista
  * dedicada de consulta.
  */

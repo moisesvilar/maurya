@@ -1,4 +1,4 @@
-# SPEC-059 — Desacoplar asistente y guión a ventanas independientes
+# SPEC-062 — Desacoplar asistente y guión a ventanas independientes
 
 > Origen: GitHub issue #38 «Desacoplar asistente y guión» (enhancement, 2026-07-29), petición humana directa; diseño acotado por el humano en la revisión de la spec (2026-07-29): un botón por componente y una ventana por componente. No proviene del checklist (precedente SPEC-049/050/055/058: nada que marcar `[x]`). Traza a **RF-ASIS-002, RF-ASIS-003, RF-ASIS-004, RF-ASIS-006** (asistencia en vivo glanceable) y **RF-GUION-002, RF-GUION-005** (seguir el guión durante la llamada). Relación con SPEC-054 (modo compacto always-on-top, EN ESPERA, no implementada): resuelven necesidades distintas — SPEC-054 superpone un panel flotante sobre la videollamada; esta spec añade ventanas normales para organizar la pantalla en mosaico (p. ej. videollamada a la izquierda; a la derecha, asistente arriba y guión abajo). Ninguna deroga a la otra.
 
