@@ -27,7 +27,7 @@ interface ScriptSectionProps {
   interview: Interview
   onInterviewUpdated: (interview: Interview) => void
   /**
-   * Grabación en curso en la página (SPEC-059): entra en el criterio de
+   * Grabación en curso en la página (SPEC-061): entra en el criterio de
    * «banner de onboarding visible», que decide si el empty state necesita su
    * CTA de respaldo.
    */
@@ -52,7 +52,7 @@ interface ScriptSectionProps {
  * Prerrequisitos de generación (template asignado y clave de Anthropic)
  * deshabilitan los botones con Tooltip/Alert; regenerar y descartar cambios
  * piden confirmación con AlertDialog.
- * SPEC-059: sin guión, la sección NO ofrece «Generar guión» en la cabecera —
+ * SPEC-061: sin guión, la sección NO ofrece «Generar guión» en la cabecera —
  * duplicaba el paso 2 del banner de onboarding, que es el único primary de la
  * página. El CTA del empty state solo reaparece como respaldo cuando el banner
  * no está visible (oculto por el usuario o grabación en curso): entonces es la
@@ -128,7 +128,7 @@ export function ScriptSection({
   // automática (eventos, SPEC-033).
   const isGenerating = generating || autoGenerating
   const canGenerate = hasTemplate && keyStatus === 'ok' && !isGenerating
-  // SPEC-059: mismo criterio que el banner (lib/onboardingStep), nunca uno
+  // SPEC-061: mismo criterio que el banner (lib/onboardingStep), nunca uno
   // paralelo — con el banner visible su paso 2 ya ofrece la generación.
   const bannerVisible = isOnboardingBannerVisible({ interview, capturing })
 
@@ -226,7 +226,7 @@ export function ScriptSection({
     <section className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-lg font-semibold">Guión</h3>
-        {/* SPEC-059: sin guión la cabecera no lleva botón — «Generar guión»
+        {/* SPEC-061: sin guión la cabecera no lleva botón — «Generar guión»
             vivía aquí duplicando el paso 2 del banner */}
         {hasScript &&
           (isGenerating ? (
@@ -268,7 +268,7 @@ export function ScriptSection({
           <FileText className="size-8 text-muted-foreground" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">Aún no hay guión</p>
           {isGenerating ? (
-            // SPEC-059: el indicador cubre AMBOS caminos — la autogeneración
+            // SPEC-061: el indicador cubre AMBOS caminos — la autogeneración
             // de SPEC-033 y la manual, que ahora se dispara desde el banner.
             // Ya no duplica ningún botón: la cabecera sin guión no lleva
             // ninguno (antes se limitaba a `autoGenerating` por eso).
@@ -277,7 +277,7 @@ export function ScriptSection({
               Generando guión…
             </Button>
           ) : (
-            // CTA de respaldo (SPEC-059): solo sin banner que ofrezca la
+            // CTA de respaldo (SPEC-061): solo sin banner que ofrezca la
             // acción; con prerrequisitos incompletos el empty state se queda
             // sin CTA, como hasta ahora.
             !bannerVisible &&

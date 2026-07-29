@@ -1,5 +1,5 @@
 /**
- * SPEC-059: la sección «Guión» sin guión deja de ofrecer «Generar guión». El
+ * SPEC-061: la sección «Guión» sin guión deja de ofrecer «Generar guión». El
  * botón de la cabecera y el CTA del empty state duplicaban el paso 2 del banner
  * de onboarding, que es el único primary del contenido de la página. El CTA del
  * empty state reaparece SOLO como respaldo cuando el banner no está visible
@@ -128,9 +128,9 @@ beforeEach(() => {
   setHasKey(true)
 })
 
-describe('ScriptSection clean state (SPEC-059)', () => {
+describe('ScriptSection clean state (SPEC-061)', () => {
   describe('with the onboarding banner visible', () => {
-    // SPEC-059 · AC-03
+    // SPEC-061 · AC-03
     it('renders the Guión heading without a "Generar guión" button in the header', async () => {
       renderDetail()
 
@@ -149,7 +149,7 @@ describe('ScriptSection clean state (SPEC-059)', () => {
       )
     })
 
-    // SPEC-059 · AC-04: excepción justificada al design system — la acción no
+    // SPEC-061 · AC-04: excepción justificada al design system — la acción no
     // desaparece de la pantalla, vive en el banner inmediatamente encima
     it('renders the "Aún no hay guión" empty state without any action button', async () => {
       renderDetail()
@@ -165,7 +165,7 @@ describe('ScriptSection clean state (SPEC-059)', () => {
   describe('with the onboarding banner hidden by the user', () => {
     const HIDDEN = interview({ onboardingHiddenAt: '2026-07-29T09:00:00.000Z' })
 
-    // SPEC-059 · AC-13: sin banner que la ofrezca, el CTA de respaldo vuelve
+    // SPEC-061 · AC-13: sin banner que la ofrezca, el CTA de respaldo vuelve
     it('brings the empty state CTA back and generates from it when the prerequisites are met', async () => {
       const user = userEvent.setup()
       setInterview(HIDDEN)
@@ -189,7 +189,7 @@ describe('ScriptSection clean state (SPEC-059)', () => {
       expect(await screen.findByText('Pregunta adaptada a Acme')).toBeInTheDocument()
     })
 
-    // SPEC-059 · AC-14: sin plantilla no hay CTA (comportamiento del empty
+    // SPEC-061 · AC-14: sin plantilla no hay CTA (comportamiento del empty
     // state anterior a la spec, sin cambios)
     it('does not show the CTA when the template is missing', async () => {
       // getStatus diferido: sin banner ni CTA no hay nada positivo que
@@ -211,7 +211,7 @@ describe('ScriptSection clean state (SPEC-059)', () => {
       expect(sectionGenerateButtons()).toHaveLength(0)
     })
 
-    // SPEC-059 · AC-14 (segundo prerrequisito): sin clave tampoco hay CTA, y
+    // SPEC-061 · AC-14 (segundo prerrequisito): sin clave tampoco hay CTA, y
     // el Alert accionable de la sección sigue en su sitio (AC-05)
     it('does not show the CTA when the Anthropic key is missing but keeps the key alert', async () => {
       setHasKey(false)
@@ -227,7 +227,7 @@ describe('ScriptSection clean state (SPEC-059)', () => {
   })
 
   describe('with a recording in progress', () => {
-    // SPEC-059 · AC-13 (la otra mitad del criterio de banner visible): durante
+    // SPEC-061 · AC-13 (la otra mitad del criterio de banner visible): durante
     // la grabación el banner tampoco está, así que el CTA de respaldo vuelve
     it('brings the empty state CTA back while capturing', async () => {
       renderSection(interview(), true)

@@ -11,7 +11,7 @@
  * Frontera de mocking: api.llm + api.db. Montado vía InterviewDetailPage con
  * rutas reales (el Badge de estado vive en la cabecera de la página y se
  * actualiza con onInterviewUpdated).
- * Adaptados por SPEC-059: sin guión la sección ya NO pinta «Generar guión» —
+ * Adaptados por SPEC-061: sin guión la sección ya NO pinta «Generar guión» —
  * ni en la cabecera ni como CTA del empty state mientras el banner de
  * onboarding esté visible. La generación manual se dispara desde el paso 2 del
  * banner, que ejecuta la MISMA acción de la sección (espejo del puente,
@@ -107,7 +107,7 @@ function sectionButtons(name: string): HTMLElement[] {
 }
 
 /**
- * Botón «Generar guión» del paso 2 del banner, listo para clicar (SPEC-059).
+ * Botón «Generar guión» del paso 2 del banner, listo para clicar (SPEC-061).
  * Espera antes al registro de la acción por la sección Guión: su heading es
  * asíncrono (Skeleton de NoteScriptSections mientras resuelve
  * getNoteByInterview) y, entre el montaje de la sección y la resolución de la
@@ -159,7 +159,7 @@ describe('ScriptSection', () => {
       )
       renderDetail()
 
-      // SPEC-059: el disparo manual vive en el banner (misma acción de la
+      // SPEC-061: el disparo manual vive en el banner (misma acción de la
       // sección vía el puente); la sección ya no tiene botón que clicar
       await user.click(await bannerGenerateButton())
 
@@ -183,7 +183,7 @@ describe('ScriptSection', () => {
       expect(toasts.length).toBeGreaterThanOrEqual(1)
     })
 
-    // SPEC-014 · AC-02, adaptado por SPEC-059: el botón deshabilitado con
+    // SPEC-014 · AC-02, adaptado por SPEC-061: el botón deshabilitado con
     // Tooltip de «falta plantilla» vivía en la cabecera de la sección sin
     // guión, que ahora no lleva botón. El prerrequisito lo comunica el paso 1
     // del banner («Asigna una plantilla de preguntas»), y el Tooltip original
@@ -215,7 +215,7 @@ describe('ScriptSection', () => {
         'href',
         '/settings'
       )
-      // SPEC-059: el Alert sobrevive intacto, pero la sección ya no tiene
+      // SPEC-061: el Alert sobrevive intacto, pero la sección ya no tiene
       // botón que deshabilitar — el motivo por falta de clave lo lleva el
       // botón espejado del banner (OnboardingBannerBridge · AC-17)
       expect(sectionButtons('Generar guión')).toHaveLength(0)
@@ -257,7 +257,7 @@ describe('ScriptSection', () => {
       })
       renderDetail()
 
-      // SPEC-059: el disparo manual es el del banner (acción de la sección)
+      // SPEC-061: el disparo manual es el del banner (acción de la sección)
       await user.click(await bannerGenerateButton())
 
       const toasts = await screen.findAllByText(
@@ -294,7 +294,7 @@ describe('ScriptSection', () => {
       expect(screen.getAllByRole('heading', { name: 'Objetivos' })).toHaveLength(1)
     })
 
-    // SPEC-014 · AC-08, adaptado por SPEC-059: el empty state sobrevive con su
+    // SPEC-014 · AC-08, adaptado por SPEC-061: el empty state sobrevive con su
     // icono y su texto; el CTA que lo acompañaba pasa a depender de la
     // visibilidad del banner y se cubre en ScriptSection.cleanState.
     it('shows the "Aún no hay guión" empty state when there is no script', async () => {
@@ -581,7 +581,7 @@ describe('ScriptSection', () => {
       expect(bannerAction).toBeEnabled()
     })
 
-    // SPEC-033 · AC-02, adaptado por SPEC-059: el indicador de la sección vive
+    // SPEC-033 · AC-02, adaptado por SPEC-061: el indicador de la sección vive
     // solo en el empty state (la cabecera sin guión ya no lleva botón)
     it('shows the disabled "Generando guión…" indicator in the empty state on its generating event', async () => {
       renderDetail()
@@ -632,7 +632,7 @@ describe('ScriptSection', () => {
     })
 
     // SPEC-033 · AC-07 (UI): error → Toast con el mensaje del fallo y la
-    // generación vuelve disponible como reintento manual (SPEC-059: el botón
+    // generación vuelve disponible como reintento manual (SPEC-061: el botón
     // que la ofrece es el del banner, ejecutando la acción de la sección)
     it('toasts the failure message on the error event and restores the enabled generate button as manual retry', async () => {
       const user = userEvent.setup()

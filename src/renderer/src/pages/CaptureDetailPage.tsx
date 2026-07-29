@@ -17,6 +17,7 @@ import { TopBarPortal } from '@/components/layout/TopBarSlot'
 import { RecordingTopBarControls } from '@/components/recording/RecordingTopBarControls'
 import { PermissionErrorAlert } from '@/components/recording/PermissionErrorAlert'
 import { RecordingSurface } from '@/components/recording/RecordingSurface'
+import { RecordingTechInfo } from '@/components/recording/RecordingTechInfo'
 import { STATUS_LABELS } from '@/components/interviews/statusLabels'
 import type { EditCaptureValues } from '@/hooks/useCaptures'
 import { useInterviewTemplates } from '@/hooks/useInterviewTemplates'
@@ -283,13 +284,10 @@ function CaptureDetailContent({
           bajo la cabecera y antes de Objetivos — visible sin scroll */}
       <PermissionErrorAlert error={controller.error} />
 
-      {/* SPEC-055: la superficie de grabación (avisos + detalle de Grabada) vive
-          bajo la cabecera, antes de Objetivos — ya no hay sección al final */}
-      <RecordingSurface
-        interview={interview}
-        onInterviewUpdated={onInterviewUpdated}
-        controller={controller}
-      />
+      {/* SPEC-055: la superficie de grabación (avisos) vive bajo la cabecera,
+          antes de Objetivos. SPEC-059: el detalle técnico de Grabada ya no está
+          aquí — se fue al desplegable del final (RecordingTechInfo) */}
+      <RecordingSurface onInterviewUpdated={onInterviewUpdated} controller={controller} />
 
       {/* SPEC-058: el puente banner↔secciones envuelve el banner de
           onboarding y las secciones cuyas acciones espeja. Mismo orden que el
@@ -307,7 +305,7 @@ function CaptureDetailContent({
 
         <AssistantLiveSection controller={controller} />
 
-        {/* SPEC-059: `capturing` llega hasta la sección Guión — con el banner
+        {/* SPEC-061: `capturing` llega hasta la sección Guión — con el banner
             oculto por la grabación, su empty state recupera el CTA */}
         <NoteScriptSections
           interview={interview}
@@ -315,6 +313,10 @@ function CaptureDetailContent({
           capturing={controller.capturing}
         />
       </OnboardingBridgeProvider>
+
+      {/* SPEC-059: información técnica de la grabación al FINAL, plegada por
+          defecto. Fuera del puente (SPEC-058): no espeja ninguna acción */}
+      <RecordingTechInfo controller={controller} interview={interview} />
 
       <AssignCompanySheet
         open={assignOpen}

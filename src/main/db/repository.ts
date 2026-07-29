@@ -6,6 +6,7 @@ import type {
   AiTaskSettings,
   AiTaskUsage,
   AiUsage,
+  AppOnboardingStatus,
   AssistantSettings,
   Company,
   Contact,
@@ -29,6 +30,7 @@ import type {
   NoteTemplate,
   ObjectiveOverride,
   ObjectiveResult,
+  OnboardingSettings,
   UpdateCompanyPatch,
   UpdateContactPatch,
   UpdateDiscoveryPatch,
@@ -1069,6 +1071,101 @@ export function setLinkedinMcpSettings(settings: LinkedinMcpSettings): LinkedinM
   return mutate((draft) => {
     draft.linkedinMcpSettings = { url }
     return { url }
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding de la app (SPEC-060)
+// ---------------------------------------------------------------------------
+
+/** Marca ISO 8601 válida o null (normalización defensiva del singleton). */
+function isoMarkOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value !== '' ? value : null
+}
+
+/**
+ * Marcas del onboarding de la app con normalización defensiva (patrón
+ * assistantSettings/linkedinMcpSettings): si el singleton no es un objeto o
+ * alguna marca no es un string no vacío → null en esa marca, sin lanzar. Un
+ * almacén raro nunca debe dejar la home sin banner NI crashear.
+ */
+export function getOnboardingSettings(): OnboardingSettings {
+  return read((store) => {
+    const raw: unknown = store.onboardingSettings
+    if (typeof raw !== 'object' || raw === null) {
+      return { promptsReviewedAt: null, hiddenAt: null }
+    }
+    const record = raw as Record<string, unknown>
+    return {
+      promptsReviewedAt: isoMarkOrNull(record.promptsReviewedAt),
+      hiddenAt: isoMarkOrNull(record.hiddenAt)
+    }
+  })
+}
+
+/**
+ * Marca el paso 2 como revisado (SPEC-060): pulsar «Revisar prompts» navega Y
+ * deja la marca en el mismo gesto, porque «revisar los prompts» no deja huella
+ * en los datos. Idempotente: repetirlo solo refresca la fecha. Conserva
+ * `hiddenAt` partiendo del singleton ya normalizado (nunca propaga uno corrupto).
+ */
+export function markOnboardingPromptsReviewed(): OnboardingSettings {
+  const next: OnboardingSettings = { ...getOnboardingSettings(), promptsReviewedAt: nowIso() }
+  return mutate((draft) => {
+    draft.onboardingSettings = next
+    return next
+  })
+}
+
+/**
+ * Oculta el banner de primeros pasos (SPEC-060) de forma permanente. Idempotente
+ * y conserva `promptsReviewedAt`. Es la única marca que apaga el banner: los 8
+ * pasos completados NO lo ocultan por sí solos (el usuario lo cierra a mano).
+ */
+export function hideAppOnboarding(): OnboardingSettings {
+  const next: OnboardingSettings = { ...getOnboardingSettings(), hiddenAt: nowIso() }
+  return mutate((draft) => {
+    draft.onboardingSettings = next
+    return next
+  })
+}
+
+/**
+ * Agregado de solo lectura del onboarding de la app (SPEC-060): resuelve en UNA
+ * pasada sobre el snapshot los booleanos de los pasos 3-8 y los ids de destino
+ * de sus CTA, evitando N listados desde el renderer y la carrera entre ellos.
+ * Sin `mutate` → cero escrituras.
+ *
+ * «Primera» empresa / discovery / grupo = el primer elemento del array del
+ * almacén, que es exactamente el orden que ya devuelven `listCompanies()` y
+ * `listDiscoveries()` (sin ordenar, orden de inserción); no se define un orden
+ * nuevo. Para los grupos NO existe listado global en el repositorio
+ * (`listInterviewGroups` es por discovery), así que «el primer grupo existente»
+ * es el primero del array global `interviewGroups`, coherente con ese orden.
+ */
+export function getAppOnboardingStatus(): AppOnboardingStatus {
+  const settings = getOnboardingSettings()
+  return read((store) => {
+    const firstGroup = store.interviewGroups[0]
+    return {
+      settings,
+      hasInterviewTemplate: store.interviewTemplates.length > 0,
+      hasNoteTemplate: store.noteTemplates.length > 0,
+      hasCompany: store.companies.length > 0,
+      // La condición del paso 5 es «en cualquier empresa»: basta el global.
+      hasContact: store.contacts.length > 0,
+      hasDiscovery: store.discoveries.length > 0,
+      hasInterviewGroup: store.interviewGroups.length > 0,
+      // Paso 8: las capturas (sin grupo) no completan el paso — el onboarding
+      // recorre el modelo completo empresa→discovery→grupo→entrevista.
+      hasGroupedInterview: store.interviews.some(
+        (interview) => interview.interviewGroupId !== null
+      ),
+      firstCompanyId: store.companies[0]?.id ?? null,
+      firstDiscoveryId: store.discoveries[0]?.id ?? null,
+      firstGroup:
+        firstGroup === undefined ? null : { id: firstGroup.id, discoveryId: firstGroup.discoveryId }
+    }
   })
 }
 

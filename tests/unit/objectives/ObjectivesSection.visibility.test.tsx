@@ -1,5 +1,5 @@
 /**
- * SPEC-059: visibilidad de la sección «Objetivos» en el detalle. Deja de ser
+ * SPEC-061: visibilidad de la sección «Objetivos» en el detalle. Deja de ser
  * incondicional (SPEC-025): sin guión y sin objetivos no aporta nada —los
  * objetivos los propone el guión— y compite con la única acción que importa en
  * ese momento, generar el guión desde el banner de onboarding. En cuanto hay
@@ -126,9 +126,9 @@ beforeEach(() => {
   setInterview(interview())
 })
 
-describe('Objetivos section visibility (SPEC-059)', () => {
+describe('Objetivos section visibility (SPEC-061)', () => {
   describe('clean state without script', () => {
-    // SPEC-059 · AC-01
+    // SPEC-061 · AC-01
     it('does not render the Objetivos section on an interview without script and without objectives', async () => {
       renderInterviewDetail()
 
@@ -139,7 +139,7 @@ describe('Objetivos section visibility (SPEC-059)', () => {
       expect(screen.queryByRole('heading', { name: 'Objetivos' })).not.toBeInTheDocument()
     })
 
-    // SPEC-059 · AC-02
+    // SPEC-061 · AC-02
     it('does not render the Objetivos section on a capture without script and without objectives', async () => {
       setInterview(capture())
       renderCaptureDetail()
@@ -151,7 +151,7 @@ describe('Objetivos section visibility (SPEC-059)', () => {
   })
 
   describe('generation from the banner', () => {
-    // SPEC-059 · AC-07
+    // SPEC-061 · AC-07
     it('reveals the Objetivos section with the proposed objectives when the generation succeeds', async () => {
       const user = userEvent.setup()
       vi.mocked(mockApi.api.llm.generateScript).mockResolvedValue({
@@ -172,7 +172,7 @@ describe('Objetivos section visibility (SPEC-059)', () => {
       expect(within(section).getByLabelText('Objetivo 2')).toHaveValue('Cuantificar el dolor')
     })
 
-    // SPEC-059 · AC-09
+    // SPEC-061 · AC-09
     it('keeps the Objetivos section hidden and toasts the error when the generation fails', async () => {
       const user = userEvent.setup()
       vi.mocked(mockApi.api.llm.generateScript).mockResolvedValue({
@@ -196,7 +196,7 @@ describe('Objetivos section visibility (SPEC-059)', () => {
   })
 
   describe('with content', () => {
-    // SPEC-059 · AC-10
+    // SPEC-061 · AC-10
     it('renders the Objetivos section on an interview with script', async () => {
       setInterview(
         interview({
@@ -212,7 +212,7 @@ describe('Objetivos section visibility (SPEC-059)', () => {
       expect(within(section).getByLabelText('Objetivo 1')).toHaveValue('Entender el proceso actual')
     })
 
-    // SPEC-059 · AC-12: los objetivos añadidos a mano antes del guión son datos
+    // SPEC-061 · AC-12: los objetivos añadidos a mano antes del guión son datos
     // del usuario — la limpieza nunca los esconde
     it('renders the Objetivos section without script when there are manually added objectives', async () => {
       setInterview(interview({ objectives: ['Objetivo añadido a mano'] }))

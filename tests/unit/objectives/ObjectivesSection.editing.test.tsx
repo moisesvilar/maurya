@@ -362,7 +362,7 @@ describe('ObjectivesSection (edición fusionada SPEC-042)', () => {
     // SPEC-042 · AC-12 (empty state con «Añadir objetivo»: ahora se añaden aquí)
     it('includes the Añadir objetivo button in the empty state and adds the first Input from there', async () => {
       const user = userEvent.setup()
-      // SPEC-059 (adaptación): el empty state de la sección solo es alcanzable
+      // SPEC-061 (adaptación): el empty state de la sección solo es alcanzable
       // con guión — sin guión y sin objetivos la sección entera no se pinta.
       setInterview(interview({ objectives: [], scriptMarkdown: '# Guión' }))
       const section = await findSection()

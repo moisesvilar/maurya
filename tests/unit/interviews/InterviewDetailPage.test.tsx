@@ -120,7 +120,7 @@ describe('InterviewDetailPage', () => {
     // final (su contenido sube a la top bar y a una superficie bajo la cabecera).
     // Se conserva el orden cabecera → Objetivos → Nota/Guión.
     it('renders the sections in order: header, Objetivos and Nota/Guión', async () => {
-      // SPEC-059 (adaptación): la sección «Objetivos» ya no es incondicional —
+      // SPEC-061 (adaptación): la sección «Objetivos» ya no es incondicional —
       // sin guión y sin objetivos no se pinta. El AC es POSICIONAL, así que se
       // ejercita con una entrevista que sí la tiene; su ocultación tiene sus
       // propios tests en ObjectivesSection.visibility.

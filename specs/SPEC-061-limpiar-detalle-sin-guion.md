@@ -1,4 +1,4 @@
-# SPEC-059 — Limpiar el detalle de entrevista cuando todavía no hay guión
+# SPEC-061 — Limpiar el detalle de entrevista cuando todavía no hay guión
 
 Origen: [issue #40](https://github.com/moisesvilar/maurya/issues/40). Traza a RF-GUION-002 (generar guión), RF-GUION-004 (generar objetivos) y RF-GUION-005 (editar guión y objetivos). Afecta a las dos páginas de detalle: entrevista de discovery (`InterviewDetailPage`) y captura (`CaptureDetailPage`).
 

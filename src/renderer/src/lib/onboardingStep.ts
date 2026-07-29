@@ -25,7 +25,7 @@ export interface OnboardingBannerVisibilityInput {
  * Criterio ÚNICO de «el banner de onboarding se muestra» (SPEC-058): lo
  * oculta el usuario (`onboardingHiddenAt`) o una grabación en curso. Lo usan
  * `deriveOnboardingStep` para devolver null y la sección Guión para decidir si
- * necesita su CTA de respaldo (SPEC-059) — nunca una condición paralela.
+ * necesita su CTA de respaldo (SPEC-061) — nunca una condición paralela.
  */
 export function isOnboardingBannerVisible(input: OnboardingBannerVisibilityInput): boolean {
   return !input.capturing && (input.interview.onboardingHiddenAt ?? null) === null

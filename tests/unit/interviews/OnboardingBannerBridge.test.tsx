@@ -138,7 +138,7 @@ function Harness({ initial }: { initial: Interview }): React.ReactElement {
         onAssignTemplate={vi.fn()}
       />
       <ObjectivesSection interview={current} onInterviewUpdated={setCurrent} />
-      {/* SPEC-059: el arnés reproduce la composición real, con la página sin
+      {/* SPEC-061: el arnés reproduce la composición real, con la página sin
           grabar (el banner visible es justo el escenario que espeja) */}
       <NoteScriptSections interview={current} onInterviewUpdated={setCurrent} capturing={false} />
     </OnboardingBridgeProvider>
@@ -186,7 +186,7 @@ beforeEach(() => {
 describe('InterviewOnboardingBanner bridge', () => {
   /**
    * Espera a que la sección Guión haya registrado su acción en el puente.
-   * SPEC-059: con el banner visible la sección ya NO pinta botones, así que la
+   * SPEC-061: con el banner visible la sección ya NO pinta botones, así que la
    * señal deja de ser «su botón está habilitado» y pasa a ser su heading
    * (asíncrono: NoteScriptSections resuelve getNoteByInterview antes de
    * montarla) seguido del botón espejado habilitado — entre el montaje de la
@@ -217,7 +217,7 @@ describe('InterviewOnboardingBanner bridge', () => {
 
     await waitFor(() => expect(mockApi.api.llm.generateScript).toHaveBeenCalledWith('i-1'))
     expect(mockApi.api.llm.autoGenerateScript).not.toHaveBeenCalled()
-    // Banner + sección Guión reflejan el progreso a la vez (SPEC-059: el de la
+    // Banner + sección Guión reflejan el progreso a la vez (SPEC-061: el de la
     // sección es el indicador de su empty state, ya sin botón de cabecera)
     await waitFor(() =>
       expect(screen.getAllByText('Generando guión…').length).toBeGreaterThanOrEqual(2)
@@ -235,7 +235,7 @@ describe('InterviewOnboardingBanner bridge', () => {
   })
 
   // SPEC-058-iter-1 · el defecto corregido (disparo desde el BOTÓN de la
-  // sección Guión) queda DEROGADO por SPEC-059: con el banner visible la
+  // sección Guión) queda DEROGADO por SPEC-061: con el banner visible la
   // sección ya no pinta ese botón, así que el escenario es inalcanzable por
   // construcción. La dirección que verificaba —estado propiedad de la sección
   // reflejado en el banner— sigue cubierta por el test de autogeneración de

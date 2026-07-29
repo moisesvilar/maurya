@@ -11,7 +11,7 @@ type NotePresence = 'loading' | 'present' | 'absent'
 interface NoteScriptSectionsProps {
   interview: Interview
   onInterviewUpdated: (interview: Interview) => void
-  /** Grabación en curso: la sección Guión la necesita para el criterio de banner visible (SPEC-059). */
+  /** Grabación en curso: la sección Guión la necesita para el criterio de banner visible (SPEC-061). */
   capturing: boolean
 }
 

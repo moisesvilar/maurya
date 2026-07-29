@@ -29,6 +29,7 @@ import type { StopResult } from '@/types/audio'
 import type { Company, Interview, InterviewQuestionOutcome } from '@/types/domain'
 import { createFakeAudioStream } from '../../helpers/fakeMediaStream'
 import { installMockApi, type MockApiHandle } from '../../helpers/mockApi'
+import { expandTechInfo } from '../../helpers/recordingTechInfo'
 
 vi.mock('@/services/permissionsService', () => ({
   getPermissionsStatus: vi.fn(),
@@ -269,7 +270,8 @@ describe('DiscardReasonsDialog (motivos al finalizar SPEC-039)', () => {
       await new Promise((resolve) => setTimeout(resolve, 20))
     })
     expect(screen.queryByTestId('discard-reasons-dialog')).not.toBeInTheDocument()
-    // El resto de la parada sigue intacto (resumen persistente)
-    expect(await screen.findByText(WAV_PATH)).toBeInTheDocument()
+    // El resto de la parada sigue intacto (resumen persistente); desde SPEC-059
+    // vive tras el desplegable de información técnica del final
+    expect(within(await expandTechInfo(user)).getByText(WAV_PATH)).toBeInTheDocument()
   })
 })
