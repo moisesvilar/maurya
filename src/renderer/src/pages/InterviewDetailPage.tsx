@@ -274,7 +274,13 @@ function InterviewDetailContent({
             solo mientras se graba */}
         <AssistantLiveSection controller={controller} />
 
-        <NoteScriptSections interview={interview} onInterviewUpdated={onInterviewUpdated} />
+        {/* SPEC-061: `capturing` llega hasta la sección Guión — con el banner
+            oculto por la grabación, su empty state recupera el CTA */}
+        <NoteScriptSections
+          interview={interview}
+          onInterviewUpdated={onInterviewUpdated}
+          capturing={controller.capturing}
+        />
       </OnboardingBridgeProvider>
 
       {/* SPEC-059: información técnica de la grabación al FINAL, plegada por

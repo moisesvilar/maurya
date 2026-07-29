@@ -15,6 +15,22 @@ export interface OnboardingStepInput {
   capturing: boolean
 }
 
+export interface OnboardingBannerVisibilityInput {
+  interview: Interview
+  /** Grabación en curso en la página: el banner no se muestra. */
+  capturing: boolean
+}
+
+/**
+ * Criterio ÚNICO de «el banner de onboarding se muestra» (SPEC-058): lo
+ * oculta el usuario (`onboardingHiddenAt`) o una grabación en curso. Lo usan
+ * `deriveOnboardingStep` para devolver null y la sección Guión para decidir si
+ * necesita su CTA de respaldo (SPEC-061) — nunca una condición paralela.
+ */
+export function isOnboardingBannerVisible(input: OnboardingBannerVisibilityInput): boolean {
+  return !input.capturing && (input.interview.onboardingHiddenAt ?? null) === null
+}
+
 /**
  * Deriva el paso del banner de onboarding (SPEC-058) del estado real de la
  * entrevista — nunca se persiste el paso: si los datos cambian, el banner
@@ -34,7 +50,7 @@ export interface OnboardingStepInput {
  */
 export function deriveOnboardingStep(input: OnboardingStepInput): OnboardingStep | null {
   const { interview, hasNote, capturing } = input
-  if (capturing || (interview.onboardingHiddenAt ?? null) !== null) {
+  if (!isOnboardingBannerVisible({ interview, capturing })) {
     return null
   }
   const noteExists = hasNote || interview.status === 'summarized'

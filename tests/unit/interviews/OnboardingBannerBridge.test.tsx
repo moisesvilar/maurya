@@ -138,7 +138,9 @@ function Harness({ initial }: { initial: Interview }): React.ReactElement {
         onAssignTemplate={vi.fn()}
       />
       <ObjectivesSection interview={current} onInterviewUpdated={setCurrent} />
-      <NoteScriptSections interview={current} onInterviewUpdated={setCurrent} />
+      {/* SPEC-061: el arnés reproduce la composición real, con la página sin
+          grabar (el banner visible es justo el escenario que espeja) */}
+      <NoteScriptSections interview={current} onInterviewUpdated={setCurrent} capturing={false} />
     </OnboardingBridgeProvider>
   )
 }
@@ -183,15 +185,19 @@ beforeEach(() => {
 
 describe('InterviewOnboardingBanner bridge', () => {
   /**
-   * Botones «Generar guión»/«Generando guión…» de la SECCIÓN Guión (cabecera y
-   * empty state), excluyendo el espejado del banner. Referencias SIEMPRE
-   * frescas: el botón se remonta al alternar disabled/enabled (wrapper de
-   * Tooltip — lección SPEC-029).
+   * Espera a que la sección Guión haya registrado su acción en el puente.
+   * SPEC-061: con el banner visible la sección ya NO pinta botones, así que la
+   * señal deja de ser «su botón está habilitado» y pasa a ser su heading
+   * (asíncrono: NoteScriptSections resuelve getNoteByInterview antes de
+   * montarla) seguido del botón espejado habilitado — entre el montaje de la
+   * sección y la resolución de la clave el registro lo deja deshabilitado, así
+   * que este orden nunca deja pasar el estado «aún sin registrar» (en el que
+   * el botón del banner está habilitado pero es no-op).
    */
-  const sectionScriptButtons = (name: string): HTMLElement[] =>
-    screen
-      .getAllByRole('button', { name })
-      .filter((button) => button.dataset.testid !== 'onboarding-step-action')
+  const waitForScriptActionMirrored = async (banner: HTMLElement): Promise<void> => {
+    await screen.findByRole('heading', { name: 'Guión' })
+    await waitFor(() => expect(within(banner).getByTestId('onboarding-step-action')).toBeEnabled())
+  }
 
   // SPEC-058 · AC-16, reescrito por SPEC-058-iter-1: el botón del banner
   // ejecuta la generación MANUAL de la sección (el mismo `llm:generate-script`
@@ -206,13 +212,13 @@ describe('InterviewOnboardingBanner bridge', () => {
     const banner = await screen.findByTestId('interview-onboarding-banner')
     expect(banner).toHaveAttribute('data-step', '2')
     // La sección Guión debe haber registrado su acción antes del click
-    await waitFor(() => expect(sectionScriptButtons('Generar guión')[0]).toBeEnabled())
-    await waitFor(() => expect(within(banner).getByTestId('onboarding-step-action')).toBeEnabled())
+    await waitForScriptActionMirrored(banner)
     await user.click(within(banner).getByTestId('onboarding-step-action'))
 
     await waitFor(() => expect(mockApi.api.llm.generateScript).toHaveBeenCalledWith('i-1'))
     expect(mockApi.api.llm.autoGenerateScript).not.toHaveBeenCalled()
-    // Banner + sección Guión reflejan el progreso a la vez
+    // Banner + sección Guión reflejan el progreso a la vez (SPEC-061: el de la
+    // sección es el indicador de su empty state, ya sin botón de cabecera)
     await waitFor(() =>
       expect(screen.getAllByText('Generando guión…').length).toBeGreaterThanOrEqual(2)
     )
@@ -228,38 +234,12 @@ describe('InterviewOnboardingBanner bridge', () => {
     )
   })
 
-  // SPEC-058-iter-1 · el defecto corregido: disparo desde la SECCIÓN
-  it('reflects in the banner the generation fired from the Guión section button', async () => {
-    grantAnthropicKey()
-    const pending = deferred<Awaited<ReturnType<typeof mockApi.api.llm.generateScript>>>()
-    vi.mocked(mockApi.api.llm.generateScript).mockReturnValue(pending.promise)
-    renderHarness(interview())
-    const user = userEvent.setup()
-
-    const banner = await screen.findByTestId('interview-onboarding-banner')
-    await waitFor(() => expect(sectionScriptButtons('Generar guión')[0]).toBeEnabled())
-    await user.click(sectionScriptButtons('Generar guión')[0])
-
-    await waitFor(() => expect(mockApi.api.llm.generateScript).toHaveBeenCalledWith('i-1'))
-    // Antes de la iteración el banner seguía en «Generar guión» habilitado
-    await waitFor(() => {
-      const action = within(banner).getByTestId('onboarding-step-action')
-      expect(action).toHaveTextContent('Generando guión…')
-      expect(action).toBeDisabled()
-    })
-
-    act(() => {
-      pending.resolve({
-        ok: true,
-        data: interview({ scriptMarkdown: '# Guión', status: 'prepared' })
-      })
-    })
-    // Al terminar, ambos vuelven a su estado normal (el banner ya en paso 3)
-    await waitFor(() =>
-      expect(screen.getByTestId('interview-onboarding-banner')).toHaveAttribute('data-step', '3')
-    )
-    expect(screen.queryByText('Generando guión…')).not.toBeInTheDocument()
-  })
+  // SPEC-058-iter-1 · el defecto corregido (disparo desde el BOTÓN de la
+  // sección Guión) queda DEROGADO por SPEC-061: con el banner visible la
+  // sección ya no pinta ese botón, así que el escenario es inalcanzable por
+  // construcción. La dirección que verificaba —estado propiedad de la sección
+  // reflejado en el banner— sigue cubierta por el test de autogeneración de
+  // aquí abajo (eventos SPEC-033, mismo estado, misma vía de espejo).
 
   // SPEC-058-iter-1 · la autogeneración de SPEC-033 sigue espejándose
   it('reflects in the banner the SPEC-033 auto-generation driven by events', async () => {
@@ -267,7 +247,7 @@ describe('InterviewOnboardingBanner bridge', () => {
     renderHarness(interview())
 
     const banner = await screen.findByTestId('interview-onboarding-banner')
-    await waitFor(() => expect(sectionScriptButtons('Generar guión')[0]).toBeEnabled())
+    await waitForScriptActionMirrored(banner)
 
     act(() => {
       mockApi.emitScriptGeneration({ interviewId: 'i-1', status: 'generating' })

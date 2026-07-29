@@ -2825,5 +2825,34 @@
       "pendiente": "MANUAL (no automatizable en Vitest/jsdom): (1) los 8 CTA aterrizando en la superficie real —pestañas de Ajustes con su tab activa, detalle de empresa/discovery/grupo— y volviendo a /captures con el paso avanzado; (2) composición visual del Card entre la cabecera «Capturas» y el listado, iconos Sparkles/CheckCircle2/Circle/CircleDot/PartyPopper y jerarquía primary del CTA frente al ghost de «Ocultar» (jsdom no compone ni aplica clases); (3) comportamiento responsive mobile/tablet/desktop de la fila de cabecera y del botón a ancho completo; (4) ausencia real de flash al no mostrar skeleton (<100 ms).",
       "nota_ac": "Ningún AC queda sin cobertura automatizada: los 25 tienen al menos un test unitario; lo MANUAL es la capa visual/navegación real que jsdom no puede observar."
     }
+  },
+  "SPEC-061": {
+    "spec_file": "specs/SPEC-061-limpiar-detalle-sin-guion.md",
+    "ac_numbering_note": "ACs numerados por orden de aparición (14): Pantalla sin guión ×5 (AC-01 Objetivos oculta en entrevista, AC-02 en captura, AC-03 cabecera de Guión sin botón, AC-04 empty state sin CTA, AC-05 el Alert de clave sobrevive); Generación desde el banner ×4 (AC-06 el guión aparece en la sección, AC-07 Objetivos aparece con los objetivos propuestos, AC-08 indicador «Generando guión…» en el empty state para manual y autogeneración, AC-09 fallo → Toast y Objetivos sigue oculta); Con guión ×2 (AC-10 Objetivos visible, AC-11 «Regenerar» intacto con su AlertDialog); Edge cases ×3 (AC-12 objetivos manuales sin guión, AC-13 CTA de respaldo sin banner visible, AC-14 sin CTA con prerrequisitos incompletos).",
+    "unit": [
+      {
+        "file": "tests/unit/objectives/ObjectivesSection.visibility.test.tsx",
+        "test_count": 6,
+        "description": "Visibilidad de la sección «Objetivos» por las DOS páginas de detalle reales: oculta sin guión y sin objetivos en entrevista (AC-01) y en captura (AC-02); aparece con los objetivos propuestos al terminar con éxito la generación disparada desde el banner (AC-07) y sigue oculta con Toast de error cuando falla (AC-09); visible con guión (AC-10) y visible sin guión cuando hay objetivos añadidos a mano (AC-12, el edge que impide esconder datos del usuario)."
+      },
+      {
+        "file": "tests/unit/script/ScriptSection.cleanState.test.tsx",
+        "test_count": 6,
+        "description": "Estado limpio de la sección «Guión» sin guión: con el banner visible la fila de cabecera no contiene ningún botón mientras el paso 2 sí ofrece «Generar guión» (AC-03) y el empty state «Aún no hay guión» no pinta CTA aun con los prerrequisitos cumplidos (AC-04); con el banner oculto por el usuario el CTA de respaldo vuelve y genera de verdad (AC-13), y no vuelve sin plantilla ni sin clave —donde el Alert accionable sigue en su sitio— (AC-14 ×2, con AC-05 de refuerzo). La otra mitad del criterio de «banner visible», la grabación en curso, se ejercita montando la sección con `capturing` (AC-13): llevar la página hasta una grabación viva no aporta nada al AC y sí mucho ruido."
+      },
+      {
+        "file": "tests/unit/script/ScriptSection.test.tsx",
+        "test_count": 5,
+        "description": "Suite base de la sección adaptada a la limpieza, donde quedan mapeados los ACs que no necesitan test nuevo: el disparo manual desde el banner produce el guión en la sección, los objetivos, el Badge «Preparada» y el Toast (AC-06) mostrando entre medias el indicador «Generando guión…» del empty state (AC-08, camino manual), la autogeneración de SPEC-033 muestra ese mismo indicador único (AC-08, camino automático), el Alert de clave sigue mostrándose sin clave configurada (AC-05) y «Regenerar» conserva su AlertDialog de confirmación y su Tooltip (AC-11, no-regresión)."
+      }
+    ],
+    "unit_note": "Adaptaciones por derogación, sin debilitar nada: (1) SPEC-014 · AC-02 (botón deshabilitado con Tooltip de «falta plantilla» en la cabecera sin guión) queda DEROGADO —ese botón ya no existe—; su test pasa a fijar la nueva verdad (sin botón en la sección, prerrequisito comunicado por el paso 1 del banner) y el Tooltip original sigue cubierto por SPEC-029 · AC-14 en «Regenerar». (2) SPEC-014 · AC-08 conserva su empty state y cede la mitad del CTA a AC-04/AC-13. (3) SPEC-058-iter-1: el test «disparo desde el BOTÓN de la sección Guión» queda DEROGADO por construcción —con el banner visible ese botón no existe—; la dirección que verificaba (estado propiedad de la sección reflejado en el banner) sigue cubierta por el test de autogeneración del mismo arnés, que viaja por la misma vía de espejo. (4) Los ACs POSICIONALES que asumían «Objetivos» incondicional (SPEC-030/055 orden de secciones, SPEC-058 AC-27/AC-28 banner antes de Objetivos, SPEC-041 AC-01/AC-05 panel del asistente, SPEC-025 AC-02 y SPEC-042 AC-12 empty state de objetivos) se ejercitan ahora con entrevistas que sí tienen objetivos o guión: lo que verifican es la posición y el contenido, no la incondicionalidad.",
+    "e2e": [],
+    "e2e_note": "e2e (Playwright) no aplica en este proyecto: app Electron local sin public link (decisión humana 2026-07-03). QA automatizado = Vitest unit.",
+    "manual_verification": {
+      "metodo": "Verificación visual en la app con clave de Anthropic configurada, sobre una entrevista y una captura recién creadas (sin guión) y sobre una con guión.",
+      "pendiente": "(1) La pantalla sin guión se ve efectivamente más corta y con un único punto de foco (el banner), sin hueco raro donde estaba «Objetivos»; (2) generar desde el banner y comprobar que «Objetivos» aparece con los objetivos propuestos sin recargar; (3) ocultar el banner en una entrevista sin guión y comprobar que el CTA de respaldo del empty state es visible y usable; (4) el mismo respaldo mientras se graba."
+    },
+    "notes": "Origen: issue #40. Solo renderer; cero cambios de IPC, main, preload, persistencia o dependencias. Ajusta SPEC-025 (la sección «Objetivos» deja de ser incondicional) y SPEC-014/SPEC-033 (los botones de generación de la sección quedan condicionados a la visibilidad del banner), sin derogar ningún AC de forma retroactiva salvo lo anotado en unit_note. Resuelve además, en su parte del guión, el gap AC-29 de SPEC-058 (CTA primary de la sección compitiendo con el primary del banner): con el banner visible ese CTA ya no existe. El criterio de «banner visible» es único: isOnboardingBannerVisible en lib/onboardingStep, usado por deriveOnboardingStep y por la sección Guión."
   }
 }

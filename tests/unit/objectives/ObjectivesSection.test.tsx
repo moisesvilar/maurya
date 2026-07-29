@@ -137,7 +137,10 @@ describe('ObjectivesSection', () => {
 
     // SPEC-025 · AC-02
     it('shows the "Sin objetivos" empty state with the secondary hint when there are no objectives', async () => {
-      setInterview(interview({ objectives: [] }))
+      // SPEC-061 (adaptación): sin objetivos la sección solo existe si hay
+      // guión (el guión los propuso vacíos o el usuario los borró). Sin guión
+      // y sin objetivos no se pinta — ese caso es ObjectivesSection.visibility.
+      setInterview(interview({ objectives: [], scriptMarkdown: '# Guión' }))
       const section = await findSection()
 
       expect(await within(section).findByText('Sin objetivos')).toBeInTheDocument()
