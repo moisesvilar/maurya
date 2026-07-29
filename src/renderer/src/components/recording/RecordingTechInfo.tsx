@@ -50,8 +50,9 @@ export function RecordingTechInfo({
         </Button>
       </CollapsibleTrigger>
 
-      {/* Radix desmonta el contenido al plegar (sin forceMount): las métricas no
-          existen en el DOM mientras el desplegable está cerrado */}
+      {/* Sin forceMount: al plegar, Radix conserva el contenedor (hidden, para
+          medir la altura) pero desmonta sus hijos — las métricas no existen en
+          el DOM mientras el desplegable está cerrado */}
       <CollapsibleContent data-testid="recording-tech-info-content">
         <div className="flex flex-col gap-3 pt-2">
           {displayLatency !== null && <LatencyRow latency={displayLatency} />}
