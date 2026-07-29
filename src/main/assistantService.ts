@@ -1501,14 +1501,17 @@ export function peekAssistantObjectivesMet(): number[] {
  * @returns null si el asistente no llegó a activarse (sin clave / sin entrevista).
  */
 export function stopAssistant(): AssistantSessionSummary | null {
+  // SPEC-059: el snapshot muere con la parada — una ventana desacoplada que
+  // abriese después nunca debe hidratarse con el estado de la sesión anterior.
+  // ANTES del retorno temprano a propósito: la rama `no-key` de startAssistant
+  // emite evento SIN crear sesión, así que su snapshot sobreviviría si esto
+  // colgase de `session !== null`.
+  lastEvent = null
   if (session === null) {
     return null
   }
   const target = session
   session = null
-  // SPEC-059: el snapshot muere con la sesión — una ventana desacoplada que
-  // abriese después nunca debe hidratarse con la cola de la sesión anterior.
-  lastEvent = null
   setFinalLineListener(null)
   if (target.fallbackTimer !== null) {
     clearInterval(target.fallbackTimer)
