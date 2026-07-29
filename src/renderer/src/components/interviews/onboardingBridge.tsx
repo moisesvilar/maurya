@@ -22,6 +22,7 @@ export interface OnboardingSectionAction {
  * una acción (evita el bucle registro → re-render → re-registro).
  */
 interface OnboardingRegistry {
+  registerScriptAction: (action: OnboardingSectionAction | null) => void
   registerNoteAction: (action: OnboardingSectionAction | null) => void
   registerObjectivesAction: (action: OnboardingSectionAction | null) => void
   /** NoteScriptSections se entera de una nota creada fuera (paso 5 degradado). */
@@ -31,6 +32,7 @@ interface OnboardingRegistry {
 
 /** Mitad de lectura del puente: lo que consume el banner. */
 interface OnboardingActions {
+  script: OnboardingSectionAction | null
   note: OnboardingSectionAction | null
   objectives: OnboardingSectionAction | null
 }
@@ -55,6 +57,7 @@ interface OnboardingBridgeProviderProps {
 export function OnboardingBridgeProvider({
   children
 }: OnboardingBridgeProviderProps): React.ReactElement {
+  const [script, setScript] = useState<OnboardingSectionAction | null>(null)
   const [note, setNote] = useState<OnboardingSectionAction | null>(null)
   const [objectives, setObjectives] = useState<OnboardingSectionAction | null>(null)
   const noteCreatedListenerRef = useRef<((note: Note) => void) | null>(null)
@@ -71,6 +74,7 @@ export function OnboardingBridgeProvider({
 
   const registry = useMemo<OnboardingRegistry>(
     () => ({
+      registerScriptAction: setScript,
       registerNoteAction: setNote,
       registerObjectivesAction: setObjectives,
       registerNoteCreatedListener,
@@ -78,7 +82,10 @@ export function OnboardingBridgeProvider({
     }),
     [registerNoteCreatedListener, notifyNoteCreated]
   )
-  const actions = useMemo<OnboardingActions>(() => ({ note, objectives }), [note, objectives])
+  const actions = useMemo<OnboardingActions>(
+    () => ({ script, note, objectives }),
+    [script, note, objectives]
+  )
 
   return (
     <OnboardingRegistryContext.Provider value={registry}>

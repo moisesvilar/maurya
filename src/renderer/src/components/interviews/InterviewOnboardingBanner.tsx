@@ -23,12 +23,9 @@ import { hasHardDenial } from '@/lib/permissions'
 import { cn } from '@/lib/utils'
 import type { Interview } from '@/types/domain'
 
-type KeyStatus = 'loading' | 'ok' | 'missing'
 type NotePresence = 'loading' | 'present' | 'absent'
 
 const TOTAL_STEPS = 7
-/** Mismo literal que ScriptSection (prerrequisito de clave compartido). */
-const NO_KEY_SCRIPT_REASON = 'Configura tu clave de Anthropic en Ajustes para generar el guión'
 /** Mismo literal que la top bar (SPEC-055-iter-2, denegación dura de permisos). */
 const START_BLOCKED_REASON = 'Hay permisos de audio denegados: concédelos en Ajustes del Sistema'
 
@@ -46,12 +43,13 @@ interface InterviewOnboardingBannerProps {
  * única acción, derivado del estado real de la entrevista
  * (lib/onboardingStep). Vive entre RecordingSurface y Objetivos en ambas
  * páginas de detalle. Su botón es el ÚNICO primary del contenido de la
- * página. Las acciones de Nota/Objetivos se espejan de las secciones vía el
- * puente (onboardingBridge); la de guión reutiliza la autogeneración de
- * SPEC-033 (mismo generateInterviewScript, estado por eventos
- * llm:script-generation compartido con ScriptSection); la de grabación usa el
- * controller de la página (la top bar SPEC-055 sigue siendo la fuente de
- * estado). Mockups y decisiones en el artifact enlazado en la spec.
+ * página. Las acciones de Guión/Nota/Objetivos se espejan de las secciones vía
+ * el puente (onboardingBridge): la sección es la única dueña del estado y del
+ * disparo, así que el banner refleja la generación del guión venga del botón
+ * de la sección, del suyo propio o de la autogeneración de SPEC-033
+ * (SPEC-058-iter-1). La de grabación usa el controller de la página (la top bar
+ * SPEC-055 sigue siendo la fuente de estado). Mockups y decisiones en el
+ * artifact enlazado en la spec.
  */
 export function InterviewOnboardingBanner({
   interview,
@@ -59,9 +57,7 @@ export function InterviewOnboardingBanner({
   controller,
   onAssignTemplate
 }: InterviewOnboardingBannerProps): React.ReactElement | null {
-  const [keyStatus, setKeyStatus] = useState<KeyStatus>('loading')
   const [notePresence, setNotePresence] = useState<NotePresence>('loading')
-  const [scriptGenerating, setScriptGenerating] = useState(false)
   const [marking, setMarking] = useState(false)
   const [creatingNote, setCreatingNote] = useState(false)
   const actions = useOnboardingActions()
@@ -69,14 +65,6 @@ export function InterviewOnboardingBanner({
 
   const interviewId = interview.id
   const interviewStatus = interview.status
-
-  // setState en el callback de la promesa (patrón ScriptSection /
-  // react-hooks/set-state-in-effect).
-  useEffect(() => {
-    void window.api.llm.getStatus().then((result) => {
-      setKeyStatus(result.ok && result.data.hasAnthropicKey ? 'ok' : 'missing')
-    })
-  }, [])
 
   // Existencia de la nota (patrón NoteScriptSections): se re-resuelve si
   // cambia el status (generar la nota lo lleva a summarized) — así el banner
@@ -87,24 +75,10 @@ export function InterviewOnboardingBanner({
     })
   }, [interviewId, interviewStatus])
 
-  // Generación del guión (paso 2): estado por los MISMOS eventos que
-  // ScriptSection (SPEC-033) — ambos botones muestran «Generando guión…».
   const onInterviewUpdatedRef = useRef(onInterviewUpdated)
   useEffect(() => {
     onInterviewUpdatedRef.current = onInterviewUpdated
   }, [onInterviewUpdated])
-
-  useEffect(() => {
-    return window.api.llm.onScriptGeneration((event) => {
-      if (event.interviewId !== interviewId) {
-        return
-      }
-      setScriptGenerating(event.status === 'generating')
-      // El refresco de la entrevista (done) ya lo hace ScriptSection; el
-      // banner solo refleja el estado en curso. El error también lo toastea
-      // ScriptSection — repetirlo duplicaría el Toast.
-    })
-  }, [interviewId])
 
   const derived = deriveOnboardingStep({
     interview,
@@ -216,7 +190,7 @@ export function InterviewOnboardingBanner({
     )
   }
 
-  /** Botón del paso 5/6 espejado de la acción registrada por su sección. */
+  /** Botón del paso 2/5/6 espejado de la acción registrada por su sección. */
   const mirroredButton = (
     label: string,
     busyLabel: string,
@@ -253,13 +227,7 @@ export function InterviewOnboardingBanner({
           title: 'Genera el guión antes de la entrevista',
           description:
             'Con la plantilla y el contexto de la empresa, la IA prepara el guión y propone los objetivos de la entrevista.',
-          action: actionButton(
-            'Generar guión',
-            'Generando guión…',
-            scriptGenerating,
-            keyStatus === 'ok' || keyStatus === 'loading' ? null : NO_KEY_SCRIPT_REASON,
-            () => void window.api.llm.autoGenerateScript(interviewId)
-          )
+          action: mirroredButton('Generar guión', 'Generando guión…', actions?.script ?? null)
         }
       case 3:
         return {
