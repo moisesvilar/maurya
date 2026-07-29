@@ -18,7 +18,8 @@ import type {
   InterviewTemplate,
   LinkedinMcpSettings,
   Note,
-  NoteTemplate
+  NoteTemplate,
+  OnboardingSettings
 } from '../../renderer/src/types/domain'
 import { storageError } from './errors'
 
@@ -66,6 +67,14 @@ export interface DbData {
    * lo conserva). La lectura se normaliza defensivamente en el repositorio.
    */
   linkedinMcpSettings?: LinkedinMcpSettings
+  /**
+   * Marcas del onboarding de la app (SPEC-060): singleton opcional, sin bump de
+   * schemaVersion (ausente = ambas marcas null, o sea banner visible y paso 2
+   * sin revisar; isDbData lo tolera y persist lo conserva). La lectura se
+   * normaliza defensivamente en el repositorio. El PASO del onboarding no se
+   * persiste jamás: se deriva del estado real en cada carga.
+   */
+  onboardingSettings?: OnboardingSettings
 }
 
 /** v3 (SPEC-043): empresas globales + grupos de entrevistas + N contactos por entrevista. */

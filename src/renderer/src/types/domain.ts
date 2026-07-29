@@ -215,6 +215,47 @@ export interface LinkedinMcpSettings {
 }
 
 /**
+ * Marcas del onboarding de la app (SPEC-060), singleton en db.json (patrón
+ * aiCostSettings/assistantSettings: opcional y sin bump de schemaVersion,
+ * ausente = ambos null). Son las DOS únicas cosas que el onboarding persiste;
+ * los 8 pasos se derivan siempre del estado real. `promptsReviewedAt` marca el
+ * paso 2 (revisar los prompts no deja huella en los datos) y `hiddenAt` que el
+ * usuario ocultó el banner. Ambas ISO 8601.
+ */
+export interface OnboardingSettings {
+  promptsReviewedAt: string | null
+  hiddenAt: string | null
+}
+
+/**
+ * Payload de `db:onboarding:get-status` (SPEC-060): todo lo que el banner de
+ * primeros pasos necesita del almacén en UNA sola llamada — los booleanos
+ * derivados de los pasos 3-8, los ids de destino de sus CTA y el singleton ya
+ * normalizado. Evita N listados desde el renderer y la carrera entre ellos. El
+ * paso 1 (claves) no viaja aquí: se lee de `secrets:get-status`, que jamás
+ * devuelve la clave en claro (invariante transversal).
+ */
+export interface AppOnboardingStatus {
+  /** Singleton persistido, ya normalizado (nunca undefined). */
+  settings: OnboardingSettings
+  /** Paso 3: ≥1 plantilla de preguntas / de notas. */
+  hasInterviewTemplate: boolean
+  hasNoteTemplate: boolean
+  /** Paso 4/5: ≥1 empresa / ≥1 contacto en cualquier empresa. */
+  hasCompany: boolean
+  hasContact: boolean
+  /** Paso 6/7: ≥1 discovery / ≥1 grupo de entrevistas en cualquier discovery. */
+  hasDiscovery: boolean
+  hasInterviewGroup: boolean
+  /** Paso 8: ≥1 entrevista con `interviewGroupId` no nulo (las capturas no cuentan). */
+  hasGroupedInterview: boolean
+  /** Destinos de los CTA: primera empresa / primer discovery / primer grupo. */
+  firstCompanyId: string | null
+  firstDiscoveryId: string | null
+  firstGroup: { id: string; discoveryId: string } | null
+}
+
+/**
  * Evaluación de cumplimiento de UN objetivo (SPEC-025), generada por el LLM
  * tras la grabación. `reason` es el motivo corto (≤50 palabras) de por qué el
  * objetivo se cumplió o no.
@@ -662,6 +703,15 @@ export interface DbApi {
   /** Ajustes del MCP de LinkedIn: URL del servidor (el token va por api.secrets). */
   getLinkedinMcpSettings: () => Promise<DbResult<LinkedinMcpSettings>>
   setLinkedinMcpSettings: (settings: LinkedinMcpSettings) => Promise<DbResult<LinkedinMcpSettings>>
+
+  /**
+   * Onboarding de la app (SPEC-060): lectura agregada de los 8 pasos y las dos
+   * marcas persistidas. `hideAppOnboarding` (no `hideOnboarding`) para no
+   * confundirse con `hideInterviewOnboarding`, que es de SPEC-058 y otro dominio.
+   */
+  getOnboardingStatus: () => Promise<DbResult<AppOnboardingStatus>>
+  markOnboardingPromptsReviewed: () => Promise<DbResult<OnboardingSettings>>
+  hideAppOnboarding: () => Promise<DbResult<OnboardingSettings>>
 
   /** Prompts de IA personalizables (SPEC-026): catálogo fijo con override→default. */
   listCustomPrompts: () => Promise<DbResult<CustomPrompt[]>>
